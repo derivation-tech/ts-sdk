@@ -71,7 +71,7 @@
         },
         "rpcUrlEnv": "ABC_RPC",
         "input": {
-            "baseSize": "-1000000000000000000"
+            "baseQuantity": "1000000000000000000"
         }
     },
     {

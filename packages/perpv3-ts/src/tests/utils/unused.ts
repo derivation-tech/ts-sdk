@@ -536,8 +536,8 @@ export function checkUserMargin(
     return { allowanceGap, marginGap };
 }
 
-export function calcOrderLeverageByMargin(targetTick: number, baseSize: bigint, margin: bigint): bigint {
-    return wdiv(wmul(tickToWad(targetTick), abs(baseSize)), margin);
+export function calcOrderLeverageByMargin(targetTick: number, baseQuantity: bigint, margin: bigint): bigint {
+    return wdiv(wmul(tickToWad(targetTick), abs(baseQuantity)), margin);
 }
 
 // === FROM types/tx.ts ===

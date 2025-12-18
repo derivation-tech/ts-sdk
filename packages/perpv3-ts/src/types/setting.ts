@@ -345,18 +345,4 @@ export class InstrumentSetting {
         return (WAD * BigInt(RATIO_BASE)) / BigInt(this.initialMarginRatio);
     }
 
-    /**
-     * Create an InstrumentSetting from a PairSnapshot.
-     *
-     * This method extracts setting, condition, and spacing from the snapshot.
-     *
-     * @deprecated Use `snapshot.instrumentSetting` directly instead. This method is kept
-     * for backward compatibility but will be removed in a future version.
-     *
-     * @param snapshot - PairSnapshot to extract settings from
-     * @returns New InstrumentSetting instance
-     */
-    static fromOnchainContext(snapshot: PairSnapshot): InstrumentSetting {
-        return snapshot.instrumentSetting;
-    }
 }

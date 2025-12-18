@@ -2,7 +2,7 @@ import type { Address } from 'viem';
 import { abs, wmulDown, ratioToWad, tickToWad, wdivUp } from '../math';
 import { Order } from '../types/order';
 import { UserSetting } from '../types';
-import { type PlaceParam } from '../types/contract';
+import { type PlaceParam, Side, sideSign } from '../types/contract';
 import { PairSnapshot } from '../types/snapshot';
 import { Errors, ErrorCode } from '../types/error';
 
@@ -12,7 +12,8 @@ export class PlaceInput {
     public readonly traderAddress: Address;
 
     public readonly tick: number;
-    public readonly size: bigint; // positive for LONG, negative for SHORT
+    public readonly baseQuantity: bigint; // unsigned base quantity
+    public readonly side: Side; // LONG or SHORT
 
     public readonly userSetting: UserSetting;
 
@@ -23,13 +24,14 @@ export class PlaceInput {
         expiry: number,
         traderAddress: Address,
         tick: number,
-        size: bigint,
+        baseQuantity: bigint,
+        side: Side,
         userSetting: UserSetting
     ) {
-        // Validate size is non-zero at construction time
-        if (size === 0n) {
-            throw Errors.validation('Order size cannot be zero', ErrorCode.INVALID_SIZE, {
-                size: size.toString(),
+        // Validate baseQuantity is positive at construction time
+        if (baseQuantity <= 0n) {
+            throw Errors.validation('Order baseQuantity must be positive', ErrorCode.INVALID_SIZE, {
+                baseQuantity: baseQuantity.toString(),
             });
         }
 
@@ -37,9 +39,18 @@ export class PlaceInput {
         this.expiry = expiry;
         this.traderAddress = traderAddress;
         this.tick = tick;
-        this.size = size;
+        this.baseQuantity = baseQuantity;
+        this.side = side;
         this.userSetting = userSetting;
         this.targetPrice = tickToWad(tick);
+    }
+
+    /**
+     * Get the signed size for contract parameters (positive for LONG, negative for SHORT).
+     */
+    getSignedSize(): bigint {
+        const sign = sideSign(this.side);
+        return abs(this.baseQuantity) * BigInt(sign);
     }
 
     /**
@@ -53,14 +64,15 @@ export class PlaceInput {
         const { instrumentSetting } = snapshot;
         const markPrice = snapshot.priceData.markPrice;
 
-        // Validate leverage (size validation is done in constructor)
+        // Validate leverage (baseQuantity validation is done in constructor)
         this.userSetting.validateLeverage(instrumentSetting.maxLeverage);
 
         // Calculate required margin based on leverage
         // Since leverage is validated to be <= maxLeverage, and maxLeverage = 10000 / IMR,
         // the leverage-based margin will always satisfy IMR requirements
         // Use markPriceBufferInBps to account for mark price changes (mark price changes every second by design)
-        const tempOrder = new Order(0n, this.size, this.tick, 0);
+        const signedSize = this.getSignedSize();
+        const tempOrder = new Order(0n, signedSize, this.tick, 0);
         const requiredMargin = tempOrder.marginForLeverage(
             markPrice,
             this.userSetting.leverage,
@@ -71,7 +83,7 @@ export class PlaceInput {
         const placeParam: PlaceParam = {
             expiry: this.expiry,
             tick: this.tick,
-            size: this.size,
+            size: signedSize,
             amount: requiredMargin,
             deadline: this.userSetting.getDeadline(),
         };
@@ -108,7 +120,7 @@ export class PlaceInput {
  * To get other values:
  * - `tick`: `placeParam.tick`
  * - `limitPrice`: Create `Order` instance and use `order.targetPrice` getter
- * - `size`: `abs(placeParam.size)`
+ * - `baseQuantity`: `placeInput.baseQuantity`
  * - `margin`: `placeParam.amount`
  * - `tradeValue`: Create `Order` instance and use `order.value` getter
  * - `leverage`: Available from `PlaceInput.userSetting.leverage` property

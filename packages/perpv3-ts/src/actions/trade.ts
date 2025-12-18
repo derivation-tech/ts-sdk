@@ -102,7 +102,7 @@ export class TradeInput {
 
         // Step 5: Create trade position and combine with current position
         const quotation = quotationWithSize.quotation;
-        const tradeSize = tradeSign * quotationWithSize.baseSize;
+        const tradeSize = tradeSign * quotationWithSize.baseQuantity;
         const tradeBalance = marginDelta < ZERO ? -quotation.fee : marginDelta - quotation.fee;
         const socialLossIndex = isLong ? updatedAmm.longSocialLossIndex : updatedAmm.shortSocialLossIndex;
         const fundingIndex = isLong ? updatedAmm.longFundingIndex : updatedAmm.shortFundingIndex;
@@ -138,7 +138,7 @@ export class TradeInput {
         // Determine if this trade is closing or reducing the position
         const isPositionClosed = postPosition.size === ZERO;
         const isOppositeSide = currentPosition.size * tradeSign < ZERO;
-        const isReducing = abs(quotationWithSize.baseSize) < abs(currentPosition.size);
+        const isReducing = quotationWithSize.baseQuantity < abs(currentPosition.size);
         const isClosingPosition = isPositionClosed || (isOppositeSide && isReducing);
 
         if (isClosingPosition) {

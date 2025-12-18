@@ -188,10 +188,10 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
     }
 
     const position = snapshot.portfolio.position;
-    const baseSize = position.size; // Already signed
+    const signedSize = position.size; // Signed: positive for LONG, negative for SHORT
 
-    console.log(`ℹ️ Current position size: ${formatWad(abs(baseSize))}`);
-    console.log(`ℹ️ Position side: ${baseSize >= ZERO ? 'LONG' : 'SHORT'}`);
+    console.log(`ℹ️ Current position size: ${formatWad(abs(signedSize))}`);
+    console.log(`ℹ️ Position side: ${signedSize >= ZERO ? 'LONG' : 'SHORT'}`);
 
     // Fetch quotation for closing
     const onchainContextWithQuotation = await fetchOnchainContext(
@@ -199,7 +199,7 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
         PERP_EXPIRY,
         rpcConfig,
         walletAddress,
-        -baseSize // Opposite sign to close
+        -signedSize // Opposite sign to close
     );
     const quotation = onchainContextWithQuotation.quotation;
 
@@ -207,11 +207,11 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
         throw new Error('Failed to fetch quotation');
     }
 
-    const quotationWithSize = new QuotationWithSize(-baseSize, quotation);
+    const quotationWithSize = new QuotationWithSize(-signedSize, quotation);
 
     // Use TradeInput without `options.margin` to close the position.
     // This uses leverage-based margin simulation, so partial closes can release margin proportionally.
-    const closeSignedSize = -baseSize;
+    const closeSignedSize = -signedSize;
     const closeSide = closeSignedSize >= ZERO ? Side.LONG : Side.SHORT;
     const closeInput = new TradeInput(
         instrumentAddress,

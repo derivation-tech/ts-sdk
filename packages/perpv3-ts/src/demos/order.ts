@@ -50,7 +50,8 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
         PERP_EXPIRY,
         walletAddress,
         targetTick,
-        parseUnits('-0.01', WAD_DECIMALS), // Negative size = SHORT
+        parseUnits('0.01', WAD_DECIMALS), // baseQuantity (unsigned)
+        Side.SHORT,
         DefaultUserSetting
     );
 
@@ -142,11 +143,11 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         rpcConfig
     );
 
-    const actualMarketSize = abs(crossMarketSwapQuote.size);
+    const actualMarketQuantity = abs(crossMarketSwapQuote.size);
     const postMarketTick = crossMarketSwapQuote.quotation.postTick;
 
     console.log(`ℹ️ Post-market tick will be: ${formatTick(postMarketTick)}`);
-    console.log(`ℹ️ Actual market size needed: ${formatWad(actualMarketSize)}`);
+    console.log(`ℹ️ Actual market quantity needed: ${formatWad(actualMarketQuantity)}`);
 
     // For LONG: limit order at tick < postMarketTick
     // For SHORT: limit order at tick > postMarketTick
@@ -157,11 +158,11 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
 
     // Use a larger multiplier to ensure we have enough for the limit leg
     // The market leg might consume more than expected, so we use 3x instead of 2x
-    const limitSize = actualMarketSize * 3n;
-    const baseQuantity = actualMarketSize + limitSize;
+    const limitQuantity = actualMarketQuantity * 3n;
+    const baseQuantity = actualMarketQuantity + limitQuantity;
 
     console.log(
-        `✅ Calculated sizes: market=${formatWad(actualMarketSize)}, limit=${formatWad(limitSize)}, total=${formatWad(baseQuantity)}`
+        `✅ Calculated quantities: market=${formatWad(actualMarketQuantity)}, limit=${formatWad(limitQuantity)}, total=${formatWad(baseQuantity)}`
     );
 
     const crossLimitInput = new CrossLimitOrderInput(
@@ -278,13 +279,17 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         }
 
         // Re-create place input with potentially adjusted tick
-        // Use signed size directly (positive for LONG, negative for SHORT)
+        // Extract baseQuantity and side from signed size
+        const signedSize = crossResult.placeParam.size;
+        const baseQuantity = abs(signedSize);
+        const limitSide = signedSize >= 0n ? Side.LONG : Side.SHORT;
         const limitPlaceInput = new PlaceInput(
             instrumentAddress,
             PERP_EXPIRY,
             walletAddress,
             validLimitTick,
-            crossResult.placeParam.size, // Use signed size directly
+            baseQuantity,
+            limitSide,
             DefaultUserSetting
         );
 
@@ -403,7 +408,7 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
     const orderTicks = scaledResult.orders.map((order) => (order ? order.param.tick : null));
     const alignedTicks = orderTicks.filter((tick): tick is number => tick !== null);
     const ratios = scaledResult.orders.map((order) => (order ? order.ratio : 0));
-    const totalSize = scaledResult.totalBase;
+    const totalQuantity = scaledResult.totalBase;
     const leverage = targetLeverage;
     const side = scaledOrderInput.side; // Get the side from the input
 
@@ -431,15 +436,15 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
         }
     });
 
-    // Recalculate total size based on valid orders
+    // Recalculate total quantity based on valid orders
     const validTotalRatio = validRatios.reduce((sum, ratio) => sum + ratio, 0);
-    const adjustedTotalSize = validTotalRatio > 0 ? (totalSize * BigInt(validTotalRatio)) / BigInt(10000) : totalSize;
+    const adjustedTotalQuantity = validTotalRatio > 0 ? (totalQuantity * BigInt(validTotalRatio)) / BigInt(10000) : totalQuantity;
 
     // Apply sign based on side: LONG = positive, SHORT = negative
-    const signedSize = side === Side.LONG ? adjustedTotalSize : -adjustedTotalSize;
+    const signedSize = side === Side.LONG ? adjustedTotalQuantity : -adjustedTotalQuantity;
 
     console.log(
-        `📝 Executing batch place for ${validTicks.length} orders (total size: ${formatWad(adjustedTotalSize)}, side: ${side})...`
+        `📝 Executing batch place for ${validTicks.length} orders (total quantity: ${formatWad(adjustedTotalQuantity)}, side: ${side})...`
     );
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {

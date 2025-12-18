@@ -157,7 +157,7 @@ export const PORTFOLIO_BIG_INT_KEYS = [
 ] as const;
 
 export const GATE_BALANCE_BIGINT_KEYS = ['totalInBalance', 'totalOutBalance', 'balance', 'amount', 'exemption'];
-export const ORDER_DATA_BIGINT_KEYS = ['baseSize', 'baseSum', 'quoteSize', 'quoteSum', 'price'];
+export const ORDER_DATA_BIGINT_KEYS = ['baseQuantity', 'baseSum', 'quoteSize', 'quoteSum', 'price'];
 export const DEPTH_CHART_BIGINT_KEYS = ['liquidity', 'sqrtPX96', 'left', 'liquidityNet'];
 export const PRICE_DATA_BIGINT_KEYS = [
     'markPrice',

@@ -445,7 +445,7 @@ export interface FetchFuturesPairOrderBookInput {
 }
 
 export interface OrderDataFromApi {
-    baseSize: bigint;
+    baseQuantity: bigint;
     baseSum: bigint;
     price: bigint;
     quoteSize: bigint;

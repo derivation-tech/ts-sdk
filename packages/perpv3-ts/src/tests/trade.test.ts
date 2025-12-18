@@ -54,7 +54,7 @@ interface CloseScenario {
     name: string;
     instrumentAddress: Address;
     traderAddress: Address;
-    baseSize: bigint;
+    baseQuantity: bigint;
     userSetting: UserSetting;
     signedSize: bigint;
     quotation: Quotation;
@@ -146,7 +146,7 @@ const closeScenarios: Array<{ data: CloseScenario; expectedSimulation: unknown }
                 name: scenario.name,
                 instrumentAddress: input.instrumentAddress as Address,
                 traderAddress: input.traderAddress as Address,
-                baseSize: BigInt(input.baseSize as string),
+                baseQuantity: BigInt(input.baseQuantity as string),
                 userSetting:
                     input.userSetting instanceof UserSetting
                         ? input.userSetting

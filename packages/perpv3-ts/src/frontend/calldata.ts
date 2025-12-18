@@ -67,7 +67,7 @@ export class ContractCallEncoder implements IContractCallEncoder {
         const sideSign = param.side === Side.LONG ? 1n : -1n;
 
         // Calculate signed size based on side
-        const signedSize = param.baseSize * sideSign;
+        const signedSize = param.baseQuantity * sideSign;
 
         // Encode trade parameters
         const deadline = param.userSetting.getDeadline();
@@ -162,7 +162,7 @@ export class ContractCallEncoder implements IContractCallEncoder {
         const sideSign = param.side === Side.LONG ? 1n : -1n;
 
         // Calculate signed size based on side
-        const signedSize = param.baseSize * sideSign;
+        const signedSize = param.baseQuantity * sideSign;
 
         // Encode limit order parameters (same structure as market order)
         const deadline = param.userSetting.getDeadline();
@@ -458,7 +458,7 @@ export class ContractCallEncoder implements IContractCallEncoder {
         const sideSign = param.side === Side.LONG ? 1n : -1n;
 
         // Calculate signed size based on side
-        const signedTotalSize = param.baseSize * sideSign;
+        const signedTotalSize = param.baseQuantity * sideSign;
 
         // Encode batch place parameters using SDK utility
         // Note: SDK's encodeBatchPlace expects PlaceParam for each order
@@ -1239,7 +1239,7 @@ export interface InstrumentEncodingBaseParam {
  */
 export interface MarketOrderEncodingParam extends InstrumentEncodingBaseParam {
     side: Side;
-    baseSize: bigint; // Size of the order always to be positive, already signed by side. size = side * baseSize
+    baseQuantity: bigint; // Size of the order always to be positive, already signed by side. size = side * baseQuantity
     margin: bigint;
     limitTick: number;
     userSetting: UserSetting;
@@ -1255,7 +1255,7 @@ export interface MarketOrderEncoder {
  */
 export interface LimitOrderEncodingParam extends InstrumentEncodingBaseParam {
     side: Side;
-    baseSize: bigint; // Size of the order always to be positive, already signed by side. size = side * baseSize
+    baseQuantity: bigint; // Size of the order always to be positive, already signed by side. size = side * baseQuantity
     amount: bigint;
     tick: number;
     userSetting: UserSetting;
@@ -1298,7 +1298,7 @@ export interface AdjustMarginEncoder {
  */
 export interface BatchPlaceScaledLimitOrderEncodingParam extends InstrumentEncodingBaseParam {
     side: Side;
-    baseSize: bigint; // Total size across all always to be positive orders, already signed by side. size = side * baseSize
+    baseQuantity: bigint; // Total size across all always to be positive orders, already signed by side. size = side * baseQuantity
     leverage: bigint;
     ticks: number[]; // Array of tick levels
     ratios: number[]; // Size distribution ratios (must sum to 10000)

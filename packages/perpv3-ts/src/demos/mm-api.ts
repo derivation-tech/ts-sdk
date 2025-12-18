@@ -27,8 +27,8 @@ async function main(): Promise<void> {
                 const topBid = ob0.bids[0];
                 const topAsk = ob0.asks[0];
                 console.log('first ratio top levels:', {
-                    bid: topBid ? { tick: topBid.tick, price: topBid.price, baseSize: topBid.baseSize } : null,
-                    ask: topAsk ? { tick: topAsk.tick, price: topAsk.price, baseSize: topAsk.baseSize } : null,
+                    bid: topBid ? { tick: topBid.tick, price: topBid.price, baseQuantity: topBid.baseQuantity } : null,
+                    ask: topAsk ? { tick: topAsk.tick, price: topAsk.price, baseQuantity: topAsk.baseQuantity } : null,
                 });
             }
         } else {
