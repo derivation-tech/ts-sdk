@@ -1,5 +1,5 @@
 {
-    "name": "@derivation-tech/viem-ledger",
+    "name": "@synfutures/viem-ledger",
     "version": "0.1.0",
     "description": "Ledger helpers for viem accounts",
     "main": "dist/index.js",

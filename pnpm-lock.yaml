@@ -145,7 +145,7 @@ importers:
         specifier: ^2.38.3
         version: 2.40.0(typescript@5.9.3)
     devDependencies:
-      '@derivation-tech/viem-ledger':
+      '@synfutures/viem-ledger':
         specifier: workspace:*
         version: link:../viem-ledger
       '@types/jest':

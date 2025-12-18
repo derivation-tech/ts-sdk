@@ -8,7 +8,7 @@ type LedgerModule = {
     ledgerToAccount: (options: { signerId: string }) => Promise<Account>;
 };
 
-const LEDGER_MODULE_ID = '@derivation-tech/viem-ledger';
+const LEDGER_MODULE_ID = '@synfutures/viem-ledger';
 
 // SECURITY NOTE: Using new Function() for dynamic import to support various bundlers and build tools.
 // The module specifier is HARDCODED (LEDGER_MODULE_ID constant) and never comes from user input,
