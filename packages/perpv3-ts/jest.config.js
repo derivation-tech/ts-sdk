@@ -4,6 +4,8 @@ export default {
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@derivation-tech/viem-kit$': '<rootDir>/../../packages/viem-kit/src/index.ts',
+    '^@derivation-tech/viem-kit/(.*)$': '<rootDir>/../../packages/viem-kit/src/$1',
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
