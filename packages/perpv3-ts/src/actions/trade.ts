@@ -87,15 +87,15 @@ export class TradeInput {
         const isLong = tradeParam.size >= ZERO;
         const tradeSign = isLong ? 1n : -1n;
 
-        // Step 4: Calculate required margin
-        let margin: bigint;
+        // Step 4: Calculate required margin delta (positive = deposit, negative = withdraw)
+        let marginDelta: bigint;
         if (this.margin !== undefined) {
-            margin = this.margin;
+            marginDelta = this.margin;
         } else {
-            margin = currentPosition.marginForTargetLeverage(
+            marginDelta = currentPosition.marginForTargetLeverage(
                 updatedAmm,
-            tradeParam,
-            quotationWithSize,
+                tradeParam,
+                quotationWithSize,
                 this.userSetting.leverage
             );
         }
@@ -103,7 +103,7 @@ export class TradeInput {
         // Step 5: Create trade position and combine with current position
         const quotation = quotationWithSize.quotation;
         const tradeSize = tradeSign * quotationWithSize.baseSize;
-        const tradeBalance = margin < ZERO ? -quotation.fee : margin - quotation.fee;
+        const tradeBalance = marginDelta < ZERO ? -quotation.fee : marginDelta - quotation.fee;
         const socialLossIndex = isLong ? updatedAmm.longSocialLossIndex : updatedAmm.shortSocialLossIndex;
         const fundingIndex = isLong ? updatedAmm.longFundingIndex : updatedAmm.shortFundingIndex;
 
@@ -118,7 +118,6 @@ export class TradeInput {
 
         // Step 6: Adjust margin delta if needed (handle negative margin withdrawal case)
         let postPosition = combinedPosition;
-        let marginDelta = margin; // Positive = deposit, negative = withdraw
         let exceedMaxLeverage = false;
 
         if (postPosition.size !== ZERO && marginDelta < ZERO) {
