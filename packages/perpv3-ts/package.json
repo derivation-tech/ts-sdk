@@ -112,7 +112,6 @@
         "sdk"
     ],
     "dependencies": {
-        "@derivation-tech/context": "^1.0.9-appchain.4",
         "@derivation-tech/viem-kit": "workspace:*",
         "axios": "^1.12.2",
         "date-fns": "^4.1.0",

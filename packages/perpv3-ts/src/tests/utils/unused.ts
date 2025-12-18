@@ -462,8 +462,8 @@ export function addIn256(x: bigint, y: bigint): bigint {
 }
 
 // === FROM helpers.ts ===
-import { fromWad } from '@derivation-tech/context';
 import { wmul, tickToWad } from '../../math';
+import { WAD } from '../../constants';
 
 export interface UserMarginState {
     reserve: bigint;
@@ -496,7 +496,8 @@ export function estimateAPY(
     const assumed24HrFee = (poolFee24h * assumeAddLiquidity) / amm.liquidity;
     const apyWad = wdiv(assumed24HrFee * 365n, assumeAddMargin);
 
-    return fromWad(apyWad);
+    // Convert from WAD (18 decimals) to number
+    return Number(apyWad) / Number(WAD);
 }
 
 /**
