@@ -95,7 +95,7 @@
         "@synfutures/viem-ledger": "^0.1.0"
     },
     "peerDependenciesMeta": {
-            "@synfutures/viem-ledger": {
+        "@synfutures/viem-ledger": {
             "optional": true
         }
     },
