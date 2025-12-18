@@ -1,0 +1,143 @@
+{
+    "name": "@synfutures/perpv3-ts",
+    "version": "0.1.12",
+    "description": "TypeScript SDK for SynFutures V3 Perpetual Contracts",
+    "author": "SynFutures",
+    "license": "MIT",
+    "sideEffects": false,
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.cjs",
+            "default": "./dist/index.mjs"
+        },
+        "./types": {
+            "types": "./dist/types.d.ts",
+            "import": "./dist/types.mjs",
+            "require": "./dist/types.cjs",
+            "default": "./dist/types.mjs"
+        },
+        "./actions": {
+            "types": "./dist/actions.d.ts",
+            "import": "./dist/actions.mjs",
+            "require": "./dist/actions.cjs",
+            "default": "./dist/actions.mjs"
+        },
+        "./queries": {
+            "types": "./dist/queries.d.ts",
+            "import": "./dist/queries.mjs",
+            "require": "./dist/queries.cjs",
+            "default": "./dist/queries.mjs"
+        },
+        "./apis": {
+            "types": "./dist/apis.d.ts",
+            "import": "./dist/apis.mjs",
+            "require": "./dist/apis.cjs",
+            "default": "./dist/apis.mjs"
+        },
+        "./abis": {
+            "types": "./dist/abis.d.ts",
+            "import": "./dist/abis.mjs",
+            "require": "./dist/abis.cjs",
+            "default": "./dist/abis.mjs"
+        },
+        "./parsers": {
+            "types": "./dist/parsers.d.ts",
+            "import": "./dist/parsers.mjs",
+            "require": "./dist/parsers.cjs",
+            "default": "./dist/parsers.mjs"
+        },
+        "./frontend": {
+            "types": "./dist/frontend.d.ts",
+            "import": "./dist/frontend.mjs",
+            "require": "./dist/frontend.cjs",
+            "default": "./dist/frontend.mjs"
+        },
+        "./utils": {
+            "types": "./dist/utils.d.ts",
+            "import": "./dist/utils.mjs",
+            "require": "./dist/utils.cjs",
+            "default": "./dist/utils.mjs"
+        },
+        "./math": {
+            "types": "./dist/math.d.ts",
+            "import": "./dist/math.mjs",
+            "require": "./dist/math.cjs",
+            "default": "./dist/math.mjs"
+        },
+        "./constants": {
+            "types": "./dist/constants.d.ts",
+            "import": "./dist/constants.mjs",
+            "require": "./dist/constants.cjs",
+            "default": "./dist/constants.mjs"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist/**/*.{cjs,mjs}",
+        "dist/**/*.d.ts",
+        "dist/**/*.d.cts",
+        "dist/**/*.d.ts.map",
+        "dist/**/*.map",
+        "!dist/**/*.test.*",
+        "README.md"
+    ],
+    "scripts": {
+        "request-gemini-review": "./scripts/request-gemini-review.sh",
+        "create-pr": "./scripts/create-pr-with-review.sh",
+        "build": "tsup",
+        "build:check": "tsc --noEmit",
+        "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+        "prepack": "npm run build && npm run build:check",
+        "lint": "npx eslint",
+        "format": "prettier --write \"**/*.{ts,json,md}\"",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "test:trade": "node --loader ts-node/esm src/tests/simulator/trade/runTradeParity.ts",
+        "fixtures:capture:abc": "ts-node --transpile-only scripts/captureAbcFixture.ts",
+        "fixtures:capture:trade": "ts-node --transpile-only scripts/captureAbcTradeScenarios.ts",
+        "demo": "ts-node --transpile-only src/demos/index.ts"
+    },
+    "keywords": [
+        "synfutures",
+        "perpetual",
+        "defi",
+        "typescript",
+        "sdk"
+    ],
+    "dependencies": {
+        "@derivation-tech/context": "^1.0.9-appchain.4",
+        "@derivation-tech/viem-kit": "workspace:*",
+        "axios": "^1.12.2",
+        "date-fns": "^4.1.0",
+        "date-fns-tz": "^3.2.0",
+        "viem": "^2.38.3"
+    },
+    "peerDependencies": {
+        "ws": "^8.0.0"
+    },
+    "peerDependenciesMeta": {
+        "ws": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@types/jest": "^30.0.0",
+        "@types/node": "^20.0.0",
+        "@types/ws": "^8.5.10",
+        "eslint": "^9.0.0",
+        "jest": "^30.2.0",
+        "prettier": "^3.0.0",
+        "ts-jest": "^29.4.6",
+        "ts-node": "^10.9.2",
+        "tsup": "^8.5.1",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.46.1"
+    }
+}

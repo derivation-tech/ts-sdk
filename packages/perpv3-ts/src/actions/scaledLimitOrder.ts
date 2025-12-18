@@ -1,0 +1,351 @@
+import type { Address } from 'viem';
+import { max, wmulUp, tickToWad, wadToTick, wdivUp } from '../math';
+import { ZERO, RATIO_BASE, MIN_BATCH_ORDER_COUNT, MAX_BATCH_ORDER_COUNT } from '../constants';
+import { Errors, ErrorCode } from '../types/error';
+import { Order } from '../types/order';
+import { UserSetting } from '../types';
+import { type PlaceParam, Side } from '../types/contract';
+import { PairSnapshot } from '../types/snapshot';
+import { PlaceInput, type PlaceInputSimulation } from './order';
+
+// ============================================================================
+// Scaled Limit Order
+// ============================================================================
+
+export class ScaledLimitOrderInput {
+    public readonly instrumentAddress: Address;
+    public readonly expiry: number;
+    public readonly traderAddress: Address;
+
+    public readonly userSetting: UserSetting;
+
+    public readonly side: Side;
+    public readonly baseQuantity: bigint;
+    public readonly priceInfo: (bigint | number)[];
+    public readonly sizeDistribution: BatchOrderSizeDistribution;
+
+    constructor(
+        instrumentAddress: Address,
+        expiry: number,
+        traderAddress: Address,
+        side: Side,
+        baseQuantity: bigint,
+        priceInfo: (bigint | number)[],
+        sizeDistribution: BatchOrderSizeDistribution,
+        userSetting: UserSetting
+    ) {
+        if (baseQuantity <= 0n) {
+            throw Errors.validation('baseQuantity must be positive', ErrorCode.INVALID_SIZE, {
+                baseQuantity: baseQuantity.toString(),
+            });
+        }
+        if (priceInfo.length < MIN_BATCH_ORDER_COUNT || priceInfo.length > MAX_BATCH_ORDER_COUNT) {
+            throw Errors.validation(
+                `priceInfo length must be between ${MIN_BATCH_ORDER_COUNT} and ${MAX_BATCH_ORDER_COUNT}`,
+                ErrorCode.INVALID_PARAM,
+                { length: priceInfo.length }
+            );
+        }
+
+        this.instrumentAddress = instrumentAddress;
+        this.expiry = expiry;
+        this.traderAddress = traderAddress;
+        this.side = side;
+        this.baseQuantity = baseQuantity;
+        this.priceInfo = priceInfo;
+        this.sizeDistribution = sizeDistribution;
+        this.userSetting = userSetting;
+    }
+
+    simulate(snapshot: PairSnapshot): ScaledLimitOrderSimulation {
+        const { instrumentSetting } = snapshot;
+
+        // Validate leverage
+        this.userSetting.validateLeverage(instrumentSetting.maxLeverage);
+
+        // Align ticks from priceInfo
+        const alignedTicks = this.priceInfo.map((price) => {
+            const rawTick = typeof price === 'number' ? price : wadToTick(price);
+            return instrumentSetting.alignOrderTick(rawTick);
+        });
+
+        // Calculate minOrderSizes directly using tickToWad for efficiency
+        const minOrderSizes = alignedTicks.map((tick) => wdivUp(instrumentSetting.minOrderValue, tickToWad(tick)));
+
+        // Determine ratios based on size distribution
+        // For RANDOM distribution, fallback to FLAT if sizes violate minimum constraints
+        const ratios = this.computeRatios(alignedTicks.length, minOrderSizes);
+
+        const orders: (ScaledOrderDetail | null)[] = [];
+        const portionSizes = ratios.map((ratio) => (this.baseQuantity * BigInt(ratio)) / BigInt(RATIO_BASE));
+
+        for (let i = 0; i < alignedTicks.length; i++) {
+            const basePortion = portionSizes[i];
+            const tick = alignedTicks[i];
+
+            if (basePortion === ZERO) {
+                orders.push(null);
+                continue;
+            }
+
+            try {
+                const placeInput = new PlaceInput(
+                    this.instrumentAddress,
+                    this.expiry,
+                    this.traderAddress,
+                    tick,
+                    this.side === Side.LONG ? basePortion : -basePortion,
+                    this.userSetting
+                );
+
+                const [placeParam, simulation] = placeInput.simulate(snapshot);
+
+                orders.push({
+                    ratio: ratios[i],
+                    minOrderSize: minOrderSizes[i],
+                    param: placeParam,
+                    simulation,
+                });
+            } catch {
+                // Order simulation failed (e.g., validation error, insufficient margin)
+                // Skip this order slot but continue with others
+                orders.push(null);
+            }
+        }
+
+        // Calculate minimum size ratios: ratio of minOrderSize to portionSize for each order
+        // This determines the scaling factor needed to satisfy minimum size constraints
+        const minSizeRatios = minOrderSizes.map((minSize, index) => {
+            const portion = portionSizes[index];
+            if (portion === ZERO) {
+                return ZERO;
+            }
+            return wdivUp(minSize, portion);
+        });
+
+        // Find the maximum ratio - this determines the minimum base quantity required
+        // to ensure all orders meet their minimum size constraints
+        const maxRatio = minSizeRatios.reduce((acc, value) => max(acc, value), ZERO);
+        const minBaseQuantity = maxRatio === ZERO ? ZERO : wmulUp(this.baseQuantity, maxRatio);
+        // Calculate aggregated values from placeParams in a single pass using Order getters
+        const { aggregatedQuote, totalMargin } = orders.reduce(
+            (acc, orderDetail) => {
+                if (orderDetail) {
+                    const order = new Order(
+                        orderDetail.param.amount,
+                        orderDetail.param.size,
+                        orderDetail.param.tick,
+                        0
+                    );
+                    acc.aggregatedQuote += order.value;
+                    acc.totalMargin += orderDetail.param.amount;
+                }
+                return acc;
+            },
+            { aggregatedQuote: ZERO, totalMargin: ZERO }
+        );
+
+        const result: ScaledLimitOrderSimulation = {
+            orders,
+            totalBase: this.baseQuantity,
+            totalQuote: aggregatedQuote,
+            totalMargin: totalMargin,
+            minBase: minBaseQuantity,
+        };
+
+        return result;
+    }
+
+    /**
+     * Compute order size ratios based on distribution strategy.
+     * For RANDOM distribution, falls back to FLAT if tentative ratios violate minimum size constraints.
+     */
+    private computeRatios(orderCount: number, minOrderSizes: bigint[]): number[] {
+        if (this.sizeDistribution === BatchOrderSizeDistribution.RANDOM) {
+            const tentativeRatios = getBatchOrderRatios(this.sizeDistribution, orderCount);
+            const tentativeSizes = tentativeRatios.map(
+                (ratio) => (this.baseQuantity * BigInt(ratio)) / BigInt(RATIO_BASE)
+            );
+            const violates = tentativeSizes.some((size, index) => size < minOrderSizes[index]);
+            const minTotal = minOrderSizes.reduce((sum, size) => sum + size, ZERO);
+            return violates && minTotal < this.baseQuantity
+                ? getBatchOrderRatios(BatchOrderSizeDistribution.FLAT, orderCount)
+                : tentativeRatios;
+        }
+        return getBatchOrderRatios(this.sizeDistribution, orderCount);
+    }
+}
+
+export interface ScaledOrderDetail {
+    ratio: number;
+    minOrderSize: bigint;
+    param: PlaceParam;
+    simulation: PlaceInputSimulation;
+}
+
+export interface ScaledLimitOrderSimulation {
+    orders: (ScaledOrderDetail | null)[];
+    totalBase: bigint;
+    totalQuote: bigint;
+    totalMargin: bigint;
+    /**
+     * Minimum base quantity required to ensure all orders meet their minimum size constraints.
+     *
+     * Each order has a minimum order size requirement based on its tick price and the instrument's
+     * minOrderValue setting. This field represents the minimum total baseQuantity that must be used
+     * to ensure every order in the batch meets its individual minimum size requirement.
+     *
+     * If totalBase < minBase, some orders may fail validation due to being below their minimum size.
+     * Use this value to validate that the input baseQuantity is sufficient before placing orders.
+     */
+    minBase: bigint;
+}
+
+// ============================================================================
+// Batch Order Size Distribution
+// ============================================================================
+
+const RANDOM_SPREAD = 0.05;
+
+export enum BatchOrderSizeDistribution {
+    FLAT = 'FLAT',
+    UPPER = 'UPPER',
+    LOWER = 'LOWER',
+    RANDOM = 'RANDOM',
+}
+
+/**
+ * Generate ratios for batch orders based on size distribution strategy.
+ * Ratios sum up to {@link RATIO_BASE}.
+ */
+export function getBatchOrderRatios(sizeDistribution: BatchOrderSizeDistribution, orderCount: number): number[] {
+    if (!Number.isSafeInteger(orderCount)) {
+        throw Errors.validation('orderCount must be a safe integer', ErrorCode.INVALID_PARAM, { orderCount });
+    }
+    if (orderCount <= 0) {
+        throw Errors.validation('orderCount must be positive', ErrorCode.INVALID_PARAM, { orderCount });
+    }
+    // batchPlace() supports up to 9 orders, and ScaledLimitOrderInput enforces the same constraint.
+    // Keeping this bound here prevents accidental huge allocations and avoids invalid RANDOM distributions
+    // (e.g., negative ratios when orderCount is very large).
+    if (orderCount > MAX_BATCH_ORDER_COUNT) {
+        throw Errors.validation(`orderCount must be between 1 and ${MAX_BATCH_ORDER_COUNT}`, ErrorCode.INVALID_PARAM, {
+            orderCount,
+            maxOrderCount: MAX_BATCH_ORDER_COUNT,
+        });
+    }
+
+    switch (sizeDistribution) {
+        case BatchOrderSizeDistribution.FLAT:
+            return generateFlatRatios(orderCount);
+        case BatchOrderSizeDistribution.UPPER:
+            return generateWeightedRatios(orderCount, (index) => index + 1);
+        case BatchOrderSizeDistribution.LOWER:
+            return generateWeightedRatios(orderCount, (index) => orderCount - index);
+        case BatchOrderSizeDistribution.RANDOM:
+            return generateRandomRatios(orderCount);
+        default:
+            throw Errors.validation(
+                `Invalid batch order size distribution: ${sizeDistribution}`,
+                ErrorCode.INVALID_PARAM,
+                { sizeDistribution }
+            );
+    }
+}
+
+/**
+ * Generate flat ratios where each order gets an equal share.
+ * The remainder from division is added to the last ratio to ensure sum equals RATIO_BASE.
+ */
+function generateFlatRatios(orderCount: number): number[] {
+    const baseRatio = Math.floor(RATIO_BASE / orderCount);
+    const remainder = RATIO_BASE - baseRatio * orderCount;
+    const ratios = Array(orderCount).fill(baseRatio);
+    ratios[orderCount - 1] += remainder;
+    return ratios;
+}
+
+/**
+ * Generate weighted ratios based on a weight function.
+ * Ratios are proportional to weights, with remainder added to the last ratio.
+ */
+function generateWeightedRatios(orderCount: number, weightFn: (index: number) => number): number[] {
+    const weights = Array.from({ length: orderCount }, (_, index) => weightFn(index));
+    const sum = weights.reduce((acc, weight) => acc + weight, 0);
+    if (sum === 0) {
+        // If total weight is zero, it's impossible to distribute weighted ratios.
+        // This can happen if weightFn returns 0 for all inputs.
+        // Fall back to a flat distribution as a sensible default.
+        return generateFlatRatios(orderCount);
+    }
+    let totalRatio = 0;
+    const ratios = weights.map((weight) => {
+        const ratio = Math.floor((weight * RATIO_BASE) / sum);
+        totalRatio += ratio;
+        return ratio;
+    });
+    // Add remainder to last ratio to ensure sum equals RATIO_BASE
+    ratios[orderCount - 1] += RATIO_BASE - totalRatio;
+    return ratios;
+}
+
+/**
+ * Generate random ratios within RANDOM_SPREAD of the average.
+ * Ratios are adjusted to sum to RATIO_BASE while respecting min/max bounds.
+ */
+function generateRandomRatios(orderCount: number): number[] {
+    const average = RATIO_BASE / orderCount;
+    const minRatio = Math.ceil(average * (1 - RANDOM_SPREAD));
+    const maxRatio = Math.floor(average * (1 + RANDOM_SPREAD));
+    const ratios: number[] = [];
+
+    for (let i = 0; i < orderCount; i++) {
+        const ratio = Math.floor(average * (1 - RANDOM_SPREAD + Math.random() * RANDOM_SPREAD * 2));
+        ratios.push(Math.max(minRatio, Math.min(maxRatio, ratio)));
+    }
+
+    adjustRatiosToTotal(ratios, minRatio, maxRatio);
+    return ratios;
+}
+
+/**
+ * Adjust ratios to sum exactly to RATIO_BASE while respecting min/max bounds.
+ * Uses incremental adjustment first, then applies final remainder to last ratio if needed.
+ *
+ * @param ratios - Array of ratios to adjust (modified in place)
+ * @param minRatio - Minimum allowed ratio value
+ * @param maxRatio - Maximum allowed ratio value
+ */
+function adjustRatiosToTotal(ratios: number[], minRatio: number, maxRatio: number) {
+    let currentTotal = ratios.reduce((acc, ratio) => acc + ratio, 0);
+    const targetTotal = RATIO_BASE;
+    const increment = currentTotal < targetTotal ? 1 : -1;
+    const maxIterations = ratios.length * Math.abs(targetTotal - currentTotal);
+
+    // Adjust ratios incrementally while respecting min/max bounds
+    let iterations = 0;
+    while (currentTotal !== targetTotal && iterations < maxIterations) {
+        let adjusted = false;
+        for (let i = 0; i < ratios.length && currentTotal !== targetTotal; i++) {
+            const nextValue = ratios[i] + increment;
+            if (nextValue >= minRatio && nextValue <= maxRatio) {
+                ratios[i] = nextValue;
+                currentTotal += increment;
+                adjusted = true;
+            }
+        }
+        // Safety check: if no adjustments were made, break to avoid infinite loop
+        if (!adjusted) {
+            break;
+        }
+        iterations++;
+    }
+
+    // Final adjustment: add any remaining difference to the last ratio
+    // This handles edge cases where incremental adjustment couldn't reach exact total
+    // Note: This may violate min/max bounds if the difference is large, but ensures sum is correct
+    const finalTotal = currentTotal;
+    if (finalTotal !== targetTotal) {
+        ratios[ratios.length - 1] += targetTotal - finalTotal;
+    }
+}

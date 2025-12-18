@@ -1,0 +1,35 @@
+{
+    "compilerOptions": {
+        // Target and module resolution
+        // Using "bundler" mode for tsup compatibility (TS 5.0+)
+        "target": "ES2020",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2020"],
+
+        // Type checking strictness
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "forceConsistentCasingInFileNames": true,
+
+        // Module compatibility
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+
+        // Type checking only (build is handled by tsup)
+        "noEmit": true,
+        "skipLibCheck": true,
+
+        // Additional strictness (aligned with monorepo standards)
+        "strictBindCallApply": true,
+        "strictFunctionTypes": true,
+        "strictPropertyInitialization": true
+    },
+    "include": ["src/**/*", "*.config.ts"],
+    "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}

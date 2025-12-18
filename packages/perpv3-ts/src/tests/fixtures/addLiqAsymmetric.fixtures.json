@@ -1,0 +1,81 @@
+{
+    "simulateAdd": [
+        {
+            "input": {
+                "param": {
+                    "margin": "170000000000000000000",
+                    "lowerTick": 105429,
+                    "upperTick": 117187,
+                    "userSetting": {
+                        "deadline": 1729502947,
+                        "slippage": 50
+                    }
+                },
+                "amm": {
+                    "expiry": 4294967295,
+                    "timestamp": 1729502947,
+                    "status": 1,
+                    "tick": 111308,
+                    "sqrtPX96": "20692023544244596285449730820455",
+                    "liquidity": "52849062915994640064041",
+                    "totalLiquidity": "98549702480526102590483",
+                    "totalShort": "296609372209842413",
+                    "openInterests": "53560694910321595300",
+                    "totalLong": "12023063652825098517",
+                    "involvedFund": "3163422658104000000000000",
+                    "feeIndex": "1108272100724757598",
+                    "protocolFee": "30184662374260607810180",
+                    "longSocialLossIndex": "0",
+                    "shortSocialLossIndex": "0",
+                    "longFundingIndex": "-2751399999173114138819",
+                    "shortFundingIndex": "-1060903931631945181640",
+                    "insuranceFund": "6227585115020565083108",
+                    "settlementPrice": "0",
+                    "instrumentAddr": "0xec6c44e704eb1932ec5fe1e4aba58db6fee71460",
+                    "markPrice": "68286171518923027684430",
+                    "blockInfo": {
+                        "timestamp": 1729502947,
+                        "height": 21356800
+                    },
+                    "fairPrice": "68209797515604116224546"
+                },
+                "imr": 300,
+                "minRangeValue": "666666666666666666660"
+            },
+            "output": {
+                "tickDeltaLower": 5879,
+                "tickDeltaUpper": 5879,
+                "upperRemovalPrice": "122935368765653502708223",
+                "lowerRemovalPrice": "37777653711020957995369",
+                "lowerPosition": {
+                    "instrumentAddr": "0xec6c44e704eb1932ec5fe1e4aba58db6fee71460",
+                    "expiry": 4294967295,
+                    "traderAddr": "0x0000000000000000000000000000000000000000",
+                    "balance": "85157325347343983823",
+                    "size": "6534101429279053",
+                    "entryNotional": "246843021107991162288",
+                    "entrySocialLossIndex": "0",
+                    "entryFundingIndex": "-2751399999173114138819",
+                    "side": 2,
+                    "entryPrice": "37777653711020957995444"
+                },
+                "lowerLeverage": "2898670432651042366",
+                "upperPosition": {
+                    "instrumentAddr": "0xec6c44e704eb1932ec5fe1e4aba58db6fee71460",
+                    "expiry": 4294967295,
+                    "traderAddr": "0x0000000000000000000000000000000000000000",
+                    "balance": "17887059305115539250",
+                    "size": "-4849990008222118",
+                    "entryNotional": "596235310170520939965",
+                    "entrySocialLossIndex": "0",
+                    "entryFundingIndex": "-1060903931631945181640",
+                    "side": 1,
+                    "entryPrice": "122935368765653502708311"
+                },
+                "upperLeverage": "33333333333333499093",
+                "minMargin": "43700713990075390047",
+                "capitalEfficiencyBoost": 17.135053044943493
+            }
+        }
+    ]
+}

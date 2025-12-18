@@ -1,0 +1,1 @@
+export { createFrontendInstrumentParser } from './instrument';

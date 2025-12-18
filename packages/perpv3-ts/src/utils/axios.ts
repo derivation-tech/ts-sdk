@@ -1,0 +1,86 @@
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import { getHeaders } from './mm';
+import { API_DOMAIN } from '../apis/constants';
+import type { AuthInfo } from '../apis/interfaces';
+
+// ============================================================================
+// Axios Functions
+// ============================================================================
+
+export async function axiosGet({
+    url,
+    config,
+    jwtToken,
+    authInfo,
+}: {
+    url: string;
+    config?: AxiosRequestConfig;
+    domain?: string;
+    authInfo?: AuthInfo;
+    jwtToken?: string;
+}): Promise<AxiosResponse> {
+    // need move params to url for encrypted
+
+    if (config?.params) {
+        const pa = new URLSearchParams(config.params);
+        pa.sort();
+        const params = pa.toString();
+        url += (url.includes('?') ? '&' : '?') + params;
+        config.params = undefined;
+    }
+    if (!url.startsWith(API_DOMAIN)) {
+        url = API_DOMAIN + url;
+    }
+    let extraHeaders;
+    if (authInfo) {
+        extraHeaders = await getHeaders({
+            method: 'GET',
+            requestPath: url,
+            ...authInfo,
+        });
+    }
+    return await axios.get(url, {
+        ...config,
+        headers: {
+            ...config?.headers,
+            Authorization: jwtToken,
+            ...extraHeaders,
+        },
+    });
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function bigInitObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
+    if (!bigIntKeys || bigIntKeys.length === 0) {
+        return obj;
+    }
+    if (obj === null || obj === undefined || typeof obj !== 'object') {
+        return obj;
+    }
+
+    const cloneObj = Array.isArray(obj) ? [...obj] : { ...obj };
+    if (cloneObj) {
+        if (cloneObj) {
+            try {
+                Object.keys(cloneObj).forEach((key) => {
+                    const val = cloneObj[key];
+                    // If bigNumberKeys is provided, only convert keys that are in the array
+                    if (bigIntKeys?.includes(key)) {
+                        cloneObj[key] = BigInt(val || 0);
+                    } else if (typeof val === 'object' && val && Object.keys(val).length > 0) {
+                        const newVal = bigInitObjectCheckByKeys(val, bigIntKeys);
+                        cloneObj[key] = newVal;
+                    }
+                });
+            } catch {
+                // Silently handle conversion errors and return the original cloned object
+                // This prevents the function from throwing while maintaining data integrity
+            }
+        }
+    }
+    return cloneObj;
+}
