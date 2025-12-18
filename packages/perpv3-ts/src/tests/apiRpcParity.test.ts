@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, jest, test } from '@jest/globals';
 import type { Address, Chain, PublicClient } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { base as baseChain } from 'viem/chains';
-import { abctest } from '@derivation-tech/viem-kit';
+import { abctest } from '@synfutures/viem-kit';
 import { SimulationError } from '../types/error';
 import { InstrumentSetting } from '../types/setting';
 import { type Amm, type BlockInfo, type Portfolio, type Quotation, type Setting, Side } from '../types/contract';

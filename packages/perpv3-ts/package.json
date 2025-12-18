@@ -112,7 +112,7 @@
         "sdk"
     ],
     "dependencies": {
-        "@derivation-tech/viem-kit": "workspace:*",
+        "@synfutures/viem-kit": "workspace:*",
         "axios": "^1.12.2",
         "date-fns": "^4.1.0",
         "date-fns-tz": "^3.2.0",

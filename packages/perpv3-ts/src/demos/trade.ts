@@ -83,7 +83,7 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Post-trade margin delta: ${formatWad(simulation.marginDelta)}`);
     console.log(`ℹ️ Post-trade leverage: ${formatWad(simulation.postPosition.leverage(snapshot.amm, markPrice))}`);
 
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
@@ -164,7 +164,7 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Post-trade margin delta: ${formatWad(simulation.marginDelta)}`);
     console.log(`ℹ️ Post-trade leverage: ${formatWad(simulation.postPosition.leverage(snapshot.amm, markPrice))}`);
 
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
@@ -227,7 +227,7 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
     console.log(`📈 Closing position (limit tick: ${formatTick(tradeParam.limitTick)})...`);
     console.log(`ℹ️ Realized PnL: ${formatWad(simulation.realized)}`);
 
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
@@ -286,7 +286,7 @@ export async function demoAdjustMargin(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Liquidation price: ${formatWad(newLiquidationPrice)}`);
 
     // Adjust margin uses trade function with size=0
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
@@ -363,7 +363,7 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Liquidation price: ${formatWad(newLiquidationPrice)}`);
 
     // Adjust leverage uses trade function with size=0
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,

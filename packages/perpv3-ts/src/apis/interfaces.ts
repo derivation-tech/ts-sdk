@@ -1,5 +1,5 @@
 import { Address } from 'viem';
-import { Erc20TokenInfo } from '@derivation-tech/viem-kit';
+import { Erc20TokenInfo } from '@synfutures/viem-kit';
 import { Condition, MinimalPearl, Side } from '../types';
 import { Position } from '../types/position';
 import { Amm, BlockInfo, Order, QuoteParam, Quotation, Range } from '../types/contract';

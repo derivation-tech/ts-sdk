@@ -17,20 +17,20 @@ A robust, clean, and efficient `viem`-based utility library for interacting with
 ## Installation
 
 ```bash
-npm install @derivation-tech/viem-kit
+npm install @synfutures/viem-kit
 ```
 
 ## Public Entrypoints (Exports)
 
 This package only supports the following import paths:
 
-- `@derivation-tech/viem-kit`
-- `@derivation-tech/viem-kit/abis`
-- `@derivation-tech/viem-kit/contracts`
-- `@derivation-tech/viem-kit/utils`
-- `@derivation-tech/viem-kit/chains`
+- `@synfutures/viem-kit`
+- `@synfutures/viem-kit/abis`
+- `@synfutures/viem-kit/contracts`
+- `@synfutures/viem-kit/utils`
+- `@synfutures/viem-kit/chains`
 
-Deep imports (for example `@derivation-tech/viem-kit/dist/...` or `@derivation-tech/viem-kit/utils/account`) are intentionally unsupported and may fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+Deep imports (for example `@synfutures/viem-kit/dist/...` or `@synfutures/viem-kit/utils/account`) are intentionally unsupported and may fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 
 Both ESM (`import`) and CJS (`require`) are supported via conditional exports.
 
@@ -66,7 +66,7 @@ If no environment variable is set, the CLI uses these default endpoints:
 ```typescript
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
-import { ChainKitRegistry, ERC20, WETH } from '@derivation-tech/viem-kit';
+import { ChainKitRegistry, ERC20, WETH } from '@synfutures/viem-kit';
 import { mnemonicToAccount } from 'viem/accounts';
 
 // Setup
@@ -101,7 +101,7 @@ console.log(`Deposited 0.1 ETH to WETH: ${receipt.transactionHash}`);
 Singleton manager for chain-specific utilities:
 
 ```typescript
-import { ChainKitRegistry } from '@derivation-tech/viem-kit';
+import { ChainKitRegistry } from '@synfutures/viem-kit';
 
 const kit = ChainKitRegistry.for(base);
 // Returns the same instance for base chain across your app
@@ -134,7 +134,7 @@ const parsed = kit.parseErc20Amount('100.5', tokenAddress);
 Common ERC20 operations with reduced boilerplate:
 
 ```typescript
-import { ERC20 } from '@derivation-tech/viem-kit';
+import { ERC20 } from '@synfutures/viem-kit';
 
 // Read operations
 const balance = await ERC20.balanceOf(publicClient, token, account);
@@ -154,7 +154,7 @@ const balances = await ERC20.batchBalanceOf(publicClient, token, accounts);
 Wrapped native token operations:
 
 ```typescript
-import { WETH } from '@derivation-tech/viem-kit';
+import { WETH } from '@synfutures/viem-kit';
 
 // Deposit native token to wrapped token
 const receipt = await WETH.deposit(publicClient, walletClient, kit, '0.1');
@@ -168,7 +168,7 @@ const receipt = await WETH.withdraw(publicClient, walletClient, kit, '0.05');
 Simplified transaction sending with comprehensive logging:
 
 ```typescript
-import { sendTxWithLog, sendTxSilent, batchSendTxWithLog } from '@derivation-tech/viem-kit';
+import { sendTxWithLog, sendTxSilent, batchSendTxWithLog } from '@synfutures/viem-kit';
 
 // Single transaction with logging (recommended)
 // Uses kit.publicClient internally (you can replace kit.publicClient if you need a custom RPC/transport)
@@ -199,7 +199,7 @@ const batchReceipts = await batchSendTxWithLog(kit.publicClient, walletClients, 
 Custom parsers for better transaction and event logging:
 
 ```typescript
-import { createERC20Parser, createWETHParser } from '@derivation-tech/viem-kit';
+import { createERC20Parser, createWETHParser } from '@synfutures/viem-kit';
 
 // ERC20 parser
 const erc20Parser = createERC20Parser(tokenInfo, kit.addressBook.getAddressName);
@@ -217,7 +217,7 @@ kit.registerParser(wethAddress, wethParser);
 Pre-configured wrapped native tokens for 30+ chains:
 
 ```typescript
-import { WRAPPED_NATIVE_TOKENS, getWrappedNativeToken } from '@derivation-tech/viem-kit';
+import { WRAPPED_NATIVE_TOKENS, getWrappedNativeToken } from '@synfutures/viem-kit';
 
 // Get wrapped token info for a chain
 const wrappedToken = getWrappedNativeToken(8453); // Base
@@ -229,7 +229,7 @@ console.log(wrappedToken); // { symbol: 'WETH', address: '0x...', decimals: 18 }
 Pre-configured common ERC20 tokens:
 
 ```typescript
-import { COMMON_ERC20_TOKENS, getCommonErc20Tokens } from '@derivation-tech/viem-kit';
+import { COMMON_ERC20_TOKENS, getCommonErc20Tokens } from '@synfutures/viem-kit';
 
 // Get common tokens for a chain
 const commonTokens = getCommonErc20Tokens(8453); // Base
@@ -313,8 +313,8 @@ See the `examples/` directory for complete examples:
 The library provides full TypeScript support with viem types:
 
 ```typescript
-import type { Address, PublicClient, WalletClient, TransactionReceipt } from '@derivation-tech/viem-kit';
-import type { Erc20TokenInfo, ContractParser } from '@derivation-tech/viem-kit';
+import type { Address, PublicClient, WalletClient, TransactionReceipt } from '@synfutures/viem-kit';
+import type { Erc20TokenInfo, ContractParser } from '@synfutures/viem-kit';
 ```
 
 ## Error Handling

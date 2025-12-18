@@ -33,7 +33,7 @@ const loadLedgerModule = async (): Promise<LedgerModule> => {
                 const err = error instanceof Error ? error : new Error(String(error));
                 if (/Cannot find module|MODULE_NOT_FOUND/.test(err.message)) {
                     throw new Error(
-                        `Ledger signer requested but ${LEDGER_MODULE_ID} is not installed. Install it alongside @derivation-tech/viem-kit to enable Ledger support.`
+                        `Ledger signer requested but ${LEDGER_MODULE_ID} is not installed. Install it alongside @synfutures/viem-kit to enable Ledger support.`
                     );
                 }
                 throw err;

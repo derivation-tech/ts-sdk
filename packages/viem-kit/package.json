@@ -1,5 +1,5 @@
 {
-    "name": "@derivation-tech/viem-kit",
+    "name": "@synfutures/viem-kit",
     "version": "0.1.3",
     "description": "Viem-based web3 kit with address book, contract parsers, and tx handling",
     "main": "dist/index.cjs",
