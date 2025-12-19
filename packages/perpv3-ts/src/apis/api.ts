@@ -109,7 +109,7 @@ import { getDepthRangeDataByLiquidityDetails } from '../frontend/chart';
 import { getStartEndTimeByRangeType } from '../frontend/history';
 
 export const fetchMmServerTime = async (
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<number> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.MM_SERVER_TIME,
@@ -122,7 +122,7 @@ export const fetchMmServerTime = async (
 // Main function: fetchFuturesInstrument
 export const fetchFuturesInstrument = async (
     { chainId, address }: FetchFuturesInstrumentInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesInstrumentResponse> => {
     const res = await axiosGet({
         url: API_URLS.INSTRUMENT,
@@ -138,7 +138,7 @@ export const fetchFuturesInstrument = async (
 
 export const fetchMarketOnChainContext = async (
     { chainId, instrument, expiry, userAddress, signedSize }: FetchOnChainContextInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchOnChainContextResponse | null> => {
     const res = await axiosGet({
         url: API_URLS.ONCHAIN_CONTEXT,
@@ -194,7 +194,7 @@ export const fetchMarketOnChainContext = async (
 
 export const fetchMarketOnChainContextQuery = async (
     { chainId, instrument, expiry, userAddress, signedSize }: FetchOnChainContextQueryInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchOnChainContextQueryResponse> => {
     const res = await axiosGet({
         url: API_URLS.ONCHAIN_CONTEXT_QUERY,
@@ -226,7 +226,7 @@ export const fetchMarketOnChainContextQuery = async (
 // Function: fetchFuturesInstrumentInquire
 export const fetchFuturesInstrumentInquire = async (
     { chainId, instrument, expiry, size }: FetchFuturesInstrumentInquireInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesInstrumentInquireResponse> => {
     const res = await axiosGet({
         url: API_URLS.INQUIRE,
@@ -247,7 +247,7 @@ export const fetchFuturesInstrumentInquire = async (
 
 export const fetchFuturesInstrumentInquireByTick = async (
     { chainId, instrument, expiry, tick }: FetchFuturesInstrumentInquireByTickInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesInstrumentInquireByTickResponse> => {
     const res = await axiosGet({
         url: API_URLS.INQUIRE_BY_TICK,
@@ -276,7 +276,7 @@ export const fetchFuturesInstrumentInquireByTick = async (
 
 export const fetchFuturesInstrumentInquireByNotional = async (
     { chainId, instrument, expiry, notional, long }: FetchFuturesInstrumentInquireByNotionalInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesInstrumentInquireByNotionalResponse> => {
     const res = await axiosGet({
         url: API_URLS.INQUIRE_BY_NOTIONAL,
@@ -327,7 +327,7 @@ export const fetchPortfolioListFromApi = async (
 
 export const fetchFuturesPairOrderBook = async (
     { chainId, address, expiry }: FetchFuturesPairOrderBookInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesPairOrderBookResponse> => {
     const res = await axiosGet({
         url: API_URLS.ORDER_BOOK,
@@ -390,7 +390,7 @@ export const fetchMmOrderBook = async (
 
 export const fetchMmWalletBalance = async (
     { chainId, address }: FetchMmWalletBalanceInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchMmWalletBalanceResponse | null> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.MM_WALLET_BALANCE,
@@ -416,7 +416,7 @@ export const fetchMmWalletBalance = async (
 
 export const fetchMmPositionList = async (
     { chainId, address }: FetchMmPositionListInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchMmPositionListResponse | null> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.MM_POSITION_LIST,
@@ -436,7 +436,7 @@ export const fetchMmPositionList = async (
 
 export const fetchUserGateBalanceFromApi = async (
     { chainId, userAddress }: FetchGateBalanceInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchGateBalanceResponse> => {
     const res = await axiosGet({
         url: API_URLS.GATE_BALANCE,
@@ -452,7 +452,7 @@ export const fetchUserGateBalanceFromApi = async (
 
 export const fetchUserTotalValue = async (
     param: TotalValueRequest,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<TotalValueResponse> => {
     const result = await axiosGet({
         url: API_URLS.USER_VOLUME,
@@ -466,7 +466,7 @@ export const fetchUserTotalValue = async (
 
 export const fetchTokenPriceMapFromApi = async (
     { chainId }: FetchTokenPriceMapInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchTokenPriceMapResponse> => {
     const response = await axiosGet({
         url: API_URLS.TOKEN_ALL_PRICE,
@@ -482,7 +482,7 @@ export const fetchTokenPriceMapFromApi = async (
 
 export const fetchFuturesPairKlineChart = async (
     { chainId, instrument, expiry, interval, endTime, limit = 1000 }: FetchFuturesPairKlineChartInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesPairKlineChartResponse> => {
     const res = await axiosGet({
         url: API_URLS.KLINE_CHARTS,
@@ -507,7 +507,7 @@ export const fetchFuturesPairKlineChart = async (
 
 export const fetchFuturesPairDepthChart = async (
     param: FetchFuturesPairDepthChartInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesPairDepthChartResponse> => {
     const res = await axiosGet({
         url: API_URLS.DEPTH_CHARTS,
@@ -590,7 +590,7 @@ function toBigIntOrZero(value: unknown): bigint {
 
 export const fetchTradeHistory = async (
     params: GetTradeHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetTradeHistoryResponse> => {
     const {
         chainId,
@@ -639,7 +639,7 @@ export const fetchTradeHistory = async (
 
 export const fetchOrdersHistory = async (
     params: GetOrdersHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetOrdersHistoryResponse> => {
     const {
         chainId,
@@ -690,7 +690,7 @@ export const fetchOrdersHistory = async (
 
 export const fetchFundingHistory = async (
     params: GetFundingHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetFundingHistoryResponse> => {
     const {
         chainId,
@@ -733,7 +733,7 @@ export const fetchFundingHistory = async (
 
 export const fetchTransferHistory = async (
     params: GetTransferHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetTransferHistoryResponse> => {
     const {
         chainId,
@@ -781,7 +781,7 @@ export const fetchTransferHistory = async (
 
 export const fetchLiquidityHistory = async (
     params: GetLiquidityHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetLiquidityHistoryResponse> => {
     const {
         chainId,
@@ -824,7 +824,7 @@ export const fetchLiquidityHistory = async (
 
 export const fetchAccountBalanceHistory = async (
     params: GetAccountBalanceHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetAccountBalanceHistoryResponse> => {
     const {
         chainId,
@@ -866,7 +866,7 @@ export const fetchAccountBalanceHistory = async (
 
 export const fetchMarketPairInfo = async (
     { chainId, address, expiry }: FetchMarketPairInfoInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchMarketPairInfoResponse> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.PAIR_INFO,
@@ -884,7 +884,7 @@ export const fetchMarketPairInfo = async (
 };
 export const fetchMarketPairList = async (
     { chainId }: { chainId: number },
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchMarketPairListResponse> => {
     const res = await axiosGet({ url: API_URLS.MARKET.PAIR_LIST, config: { params: { chainId } }, authInfo });
     if (res?.data?.data) {
