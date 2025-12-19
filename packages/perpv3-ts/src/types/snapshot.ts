@@ -193,8 +193,9 @@ export class PairSnapshot {
         // Create Order instance to use its getters for validation
         const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
 
-        // Fair price deviation check (for place orders, this is already checked in isTickFeasibleForLimitOrder via validatePlaceParam's internal logic)
-        // But we keep it here for explicit validation since it's part of the contract requirements
+        // Fair price deviation check: verify AMM fair price (from sqrtPX96) is within IMR of mark price
+        // Note: This is distinct from the target price check in isTickFeasibleForLimitOrder (which checks order tick price vs mark)
+        // This check ensures the AMM's current fair price hasn't deviated too far from oracle mark price
         const fairPrice = sqrtX96ToWad(amm.sqrtPX96);
         const imr = ratioToWad(instrumentSetting.imr);
         if (wdiv(abs(fairPrice - markPrice), markPrice) > imr) {
@@ -498,6 +499,33 @@ export class PairSnapshot {
 
     /**
      * Comprehensive check if a tick is feasible for placing a LimitOrder.
+     *
+     * This is the recommended method for validating limit order placement as it performs
+     * a complete feasibility check including:
+     * - Instrument tradability (condition, status, pause state)
+     * - Tick validation (bounds, spacing, side, price deviation)
+     * - Order slot availability (checks if tick is already occupied)
+     *
+     * Use this method when you want a single comprehensive check before placing an order.
+     *
+     * **Comparison with InstrumentSetting.isTickValidForLimitOrder():**
+     * - `PairSnapshot.isTickFeasibleForLimitOrder()` (this method): Full context-aware check
+     *   including market state and existing orders. Use for actual order placement validation.
+     * - `InstrumentSetting.isTickValidForLimitOrder()`: Lower-level tick validation without
+     *   checking market state or order slots. Use for theoretical tick range calculations.
+     *
+     * @param tick - The tick to validate
+     * @param side - Order side (LONG or SHORT)
+     * @returns Object with `feasible` boolean and optional `reason` string if not feasible
+     *
+     * @example
+     * ```typescript
+     * const snapshot = await fetchOnchainContext(...);
+     * const result = snapshot.isTickFeasibleForLimitOrder(1000, Side.LONG);
+     * if (!result.feasible) {
+     *   console.error(`Cannot place order: ${result.reason}`);
+     * }
+     * ```
      */
     isTickFeasibleForLimitOrder(tick: number, side: Side): { feasible: boolean; reason?: string } {
         const tradability = this.isOrderPlacementTradable();

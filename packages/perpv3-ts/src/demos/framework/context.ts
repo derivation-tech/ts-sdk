@@ -18,8 +18,9 @@ export async function createDemoContext(
     const { kit, publicClient, perpInfo, instrumentSettingMap } = await prepare(chainName);
     const { instrumentAddress } = findInstrumentBySymbol(instrumentSymbol, instrumentSettingMap);
 
+    const account = await getAccount(kit, signerId);
     const walletClient = createWalletClient({
-        account: getAccount(kit, signerId),
+        account,
         chain: kit.chain,
         transport: http(kit.chain.rpcUrls.default.http[0]),
     });

@@ -10,6 +10,7 @@ TypeScript SDK for simulating and interacting with SynFutures V3 Perpetual Contr
 - 🎯 **Contract-First** - Types mirror Solidity contracts exactly
 - 💼 **Simulation API** - Class-based input classes for trade, order, and range operations
 - 🔄 **Unified Queries** - Single API for fetching data from RPC or API endpoints
+- ✅ **Validation Helpers** - Comprehensive helper methods for order placement, position management, and range operations
 - 🎬 **Demo Framework** - Built-in demo framework for testing and examples
 
 ## Installation
@@ -263,6 +264,98 @@ const removeLiquidity = new RemoveInput(
 );
 const [removeParam, simulation] = removeLiquidity.simulate(onchainContext);
 ```
+
+### Validation Helpers
+
+The SDK provides comprehensive helper methods to validate operations before simulation. These methods return structured results with clear error messages.
+
+#### Quick Reference
+
+```typescript
+import { Side } from '@synfutures/perpv3-ts/types';
+
+// ✅ Recommended: Full feasibility check for order placement
+const result = snapshot.isTickFeasibleForLimitOrder(1000, Side.LONG);
+if (!result.feasible) {
+  console.error(`Cannot place order: ${result.reason}`);
+}
+
+// Check if instrument is tradable
+const tradability = snapshot.isTradable();
+if (!tradability.tradable) {
+  console.error(`Cannot trade: ${tradability.reason}`);
+}
+
+// Get feasible tick range for limit orders
+const range = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
+if (range) {
+  console.log(`Can place LONG orders from tick ${range.minTick} to ${range.maxTick}`);
+}
+
+// Check if margin can be withdrawn
+const withdrawalCheck = snapshot.isWithdrawalAllowed();
+const maxWithdrawable = snapshot.getMaxWithdrawableMargin();
+
+// Check if leverage is valid
+if (!snapshot.instrumentSetting.isLeverageValid(5n * WAD)) {
+  console.error('Leverage too high');
+}
+
+// Get available orders (not fully taken)
+const availableOrders = snapshot.getAvailableOrders();
+```
+
+#### Key Methods Comparison
+
+**`PairSnapshot.isTickFeasibleForLimitOrder(tick, side)`** - Use for actual order placement
+- ✅ Checks instrument tradability (condition, status, pause state)
+- ✅ Validates tick (bounds, spacing, side, price deviation)
+- ✅ Checks if tick is already occupied by existing order
+
+**`InstrumentSetting.isTickValidForLimitOrder(tick, side, ammTick, markPrice)`** - Use for theoretical calculations
+- ✅ Validates tick properties only
+- ❌ Does NOT check market state or order slots
+
+**Example - Finding available tick:**
+```typescript
+const range = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
+if (range) {
+  const spacing = snapshot.instrumentSetting.orderSpacing;
+  // Iterate from best price to find first available tick
+  for (let tick = range.maxTick; tick >= range.minTick; tick -= spacing) {
+    const result = snapshot.isTickFeasibleForLimitOrder(tick, Side.LONG);
+    if (result.feasible) {
+      console.log(`Available tick: ${tick}`);
+      break;
+    }
+  }
+}
+```
+
+**Available Helper Methods:**
+
+*PairSnapshot (context-aware):*
+- `isTradable()` - Basic tradability check
+- `isOrderPlacementTradable()` - Order placement check (includes pause state)
+- `isTickFeasibleForLimitOrder(tick, side)` - Comprehensive tick validation
+- `getFeasibleLimitOrderTickRange(side)` - Get feasible tick range
+- `getOccupiedLimitOrderTicks()` - Get occupied tick list
+- `getAvailableOrders()` - Get orders not fully taken
+- `isWithdrawalAllowed()` - Check if withdrawal is allowed
+- `getMaxWithdrawableMargin()` - Get max withdrawable amount
+- `isRemoveLiquidityFeasible(tickLower, tickUpper)` - Check range removal
+
+*InstrumentSetting (pure validation):*
+- `isLeverageValid(leverage)` - Check leverage validity
+- `minOrderSizeAtTick(tick)` - Calculate min order size at tick
+- `getFeasibleLimitOrderTickRange(side, ammTick, markPrice)` - Get theoretical range
+- `isTickValidForLimitOrder(tick, side, ammTick, markPrice)` - Validate tick properties
+- `isRangeTickPairValid(tickLower, tickUpper, ammTick)` - Validate range ticks
+
+*Position:*
+- `canAdjustToLeverage(targetLeverage, amm, markPrice, imr)` - Check leverage adjustment
+
+See method JSDoc comments in source code for detailed documentation.
 
 ### Data Fetching
 
