@@ -395,7 +395,7 @@ export class InstrumentSetting {
                 return null;
             }
 
-            if (alignedMinTick >= alignedMaxTick) {
+            if (alignedMinTick > alignedMaxTick) {
                 return null;
             }
 
