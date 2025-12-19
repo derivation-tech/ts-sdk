@@ -108,6 +108,17 @@ import { axiosGet, bigInitObjectCheckByKeys } from '../utils';
 import { getDepthRangeDataByLiquidityDetails } from '../frontend/chart';
 import { getStartEndTimeByRangeType } from '../frontend/history';
 
+export const fetchMmServerTime = async (
+    authInfo?: AuthInfo
+): Promise<number> => {
+    const res = await axiosGet({
+        url: API_URLS.MARKET.MM_SERVER_TIME,
+        config: {},
+        authInfo,
+    });
+    return res.data.data;
+};
+
 // Main function: fetchFuturesInstrument
 export const fetchFuturesInstrument = async (
     { chainId, address }: FetchFuturesInstrumentInput,
@@ -155,13 +166,13 @@ export const fetchMarketOnChainContext = async (
 
     const normalizedQuotation = inquireRes
         ? (() => {
-              const inquireData = bigInitObjectCheckByKeys(inquireRes, INQUIRE_BIGINT_KEYS);
-              return {
-                  ...inquireData,
-                  tick: Number(inquireData.tick),
-                  postTick: Number(inquireData.postTick),
-              };
-          })()
+            const inquireData = bigInitObjectCheckByKeys(inquireRes, INQUIRE_BIGINT_KEYS);
+            return {
+                ...inquireData,
+                tick: Number(inquireData.tick),
+                postTick: Number(inquireData.postTick),
+            };
+        })()
         : null;
 
     const normalizedPortfolio = portfolioRes
@@ -313,6 +324,7 @@ export const fetchPortfolioListFromApi = async (
     }
     return null;
 };
+
 export const fetchFuturesPairOrderBook = async (
     { chainId, address, expiry }: FetchFuturesPairOrderBookInput,
     authInfo?: AuthInfo
@@ -604,13 +616,13 @@ export const fetchTradeHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -653,13 +665,13 @@ export const fetchOrdersHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -703,13 +715,13 @@ export const fetchFundingHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -746,13 +758,13 @@ export const fetchTransferHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -794,13 +806,13 @@ export const fetchLiquidityHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -836,11 +848,11 @@ export const fetchAccountBalanceHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                          ...(pageSize !== undefined && { size: pageSize }),
-                      }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                    }),
             },
         },
         authInfo,
@@ -976,24 +988,24 @@ function normalizePortfolioFromQuery(raw?: OnChainQueryPortfolioFromApi | null):
     const oids = Array.isArray(raw.Oids) ? raw.Oids.map((oid) => Number(oid ?? 0)) : [];
     const orders = Array.isArray(raw.Orders)
         ? raw.Orders.map((order, index) => {
-              const oid = oids[index];
-              if (oid === undefined) {
-                  throw new Error('Order oid is missing');
-              }
-              const { tick, nonce } = Order.unpackKey(oid);
-              return normalizeOrderFromQuery(order, tick, nonce);
-          })
+            const oid = oids[index];
+            if (oid === undefined) {
+                throw new Error('Order oid is missing');
+            }
+            const { tick, nonce } = Order.unpackKey(oid);
+            return normalizeOrderFromQuery(order, tick, nonce);
+        })
         : [];
     const rids = Array.isArray(raw.Rids) ? raw.Rids.map((rid) => Number(rid ?? 0)) : [];
     const ranges = Array.isArray(raw.Ranges)
         ? raw.Ranges.map((range, index) => {
-              const rid = rids[index];
-              if (rid === undefined) {
-                  throw new Error('Range rid is missing');
-              }
-              const { tickLower, tickUpper } = Range.unpackKey(rid);
-              return normalizeRangeFromQuery(range, tickLower, tickUpper);
-          })
+            const rid = rids[index];
+            if (rid === undefined) {
+                throw new Error('Range rid is missing');
+            }
+            const { tickLower, tickUpper } = Range.unpackKey(rid);
+            return normalizeRangeFromQuery(range, tickLower, tickUpper);
+        })
         : [];
     const ordersTaken = Array.isArray(raw.OrdersTaken) ? raw.OrdersTaken.map((value) => toBigIntValue(value)) : [];
 
