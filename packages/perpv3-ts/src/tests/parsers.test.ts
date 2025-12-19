@@ -3,12 +3,16 @@ import { createInstrumentParser, createGateParser } from '../parsers';
 import type { ContractParser } from '@synfutures/viem-kit';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-type ParseEventInput = Parameters<ContractParser['parseEvent']>[0];
-type ParseErrorInput = Parameters<ContractParser['parseError']>[0];
+type ParseEventInput = Parameters<NonNullable<ContractParser['parseEvent']>>[0];
+type ParseErrorInput = Parameters<NonNullable<ContractParser['parseError']>>[0];
 
 describe('SynFutures parser integration', () => {
     it('formats instrument add transactions', async () => {
         const parser: ContractParser = createInstrumentParser();
+        const parseTransaction = parser.parseTransaction;
+        if (!parseTransaction) {
+            throw new Error('parseTransaction is not implemented');
+        }
         const encodedArgs = encodeAddParam({
             limitTicks: 0,
             amount: 1_000_000_000_000_000_000n,
@@ -18,7 +22,7 @@ describe('SynFutures parser integration', () => {
             deadline: 1_700_000_600,
         });
 
-        const formatted = await parser.parseTransaction({
+        const formatted = await parseTransaction({
             functionName: 'add',
             args: [encodedArgs],
         });
@@ -49,8 +53,12 @@ describe('SynFutures parser integration', () => {
 
         const token = '0x00000000000000000000000000000000000000f1';
         const arg = encodeDepositParam(token, 5_000_000n);
+        const parseTransaction = parser.parseTransaction;
+        if (!parseTransaction) {
+            throw new Error('parseTransaction is not implemented');
+        }
 
-        const formatted = await parser.parseTransaction({
+        const formatted = await parseTransaction({
             functionName: 'deposit',
             args: [arg] as const,
         });
@@ -61,7 +69,11 @@ describe('SynFutures parser integration', () => {
 
     it('formats instrument trade events', async () => {
         const parser: ContractParser = createInstrumentParser();
-        const formatted = await parser.parseEvent({
+        const parseEvent = parser.parseEvent;
+        if (!parseEvent) {
+            throw new Error('parseEvent is not implemented');
+        }
+        const formatted = await parseEvent({
             eventName: 'Trade',
             args: {
                 expiry: 1_700_000_000,
@@ -84,7 +96,11 @@ describe('SynFutures parser integration', () => {
 
     it('formats instrument errors with parameters', async () => {
         const parser: ContractParser = createInstrumentParser();
-        const formatted = await parser.parseError({
+        const parseError = parser.parseError;
+        if (!parseError) {
+            throw new Error('parseError is not implemented');
+        }
+        const formatted = await parseError({
             name: 'OrderImrUnsafe',
             args: [1_000_000_000_000_000_000n, 2_000_000_000_000_000_000n],
         } as unknown as ParseErrorInput);

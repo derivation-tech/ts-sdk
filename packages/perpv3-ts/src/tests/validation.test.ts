@@ -206,6 +206,22 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
             expect(Math.abs(range!.minTick % setting.orderSpacing)).toBe(0);
             expect(Math.abs(range!.maxTick % setting.orderSpacing)).toBe(0);
         });
+
+        it('should allow a single-tick range when boundaries collapse', () => {
+            const setting = createTestSetting(1, 10);
+            const ammTick = 10;
+            const markPrice = tickToWad(1);
+
+            const range = setting.getFeasibleLimitOrderTickRange(Side.LONG, ammTick, markPrice);
+
+            expect(range).not.toBeNull();
+            const minTick = Object.is(range!.minTick, -0) ? 0 : range!.minTick;
+            const maxTick = Object.is(range!.maxTick, -0) ? 0 : range!.maxTick;
+            expect(minTick).toBe(maxTick);
+            expect(minTick).toBe(0);
+            const tickCheck = setting.isTickValidForLimitOrder(minTick, Side.LONG, ammTick, markPrice);
+            expect(tickCheck.valid).toBe(true);
+        });
     });
 
     describe('SHORT orders (tick > ammTick)', () => {

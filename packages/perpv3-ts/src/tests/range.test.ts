@@ -6,9 +6,10 @@ import { RATIO_BASE, WAD } from '../constants';
 import { AddInput, RemoveInput } from '../actions/range';
 import { Position } from '../types/position';
 import { Range } from '../types/range';
-import { UserSetting } from '../types';
-import { Condition, PERP_EXPIRY, type Amm, type Portfolio, type Setting } from '../types/contract';
+import { Order, UserSetting } from '../types';
+import { Condition, PERP_EXPIRY, Status, type Amm, type Portfolio, type Setting } from '../types/contract';
 import { PairSnapshot } from '../types/snapshot';
+import { tickToWad } from '../math';
 
 const abcOnchainContext = parseOnchainContext(onchainFixture.context);
 const fixtureInstrumentAddress = onchainFixture.instrumentAddress as Address;
@@ -165,6 +166,8 @@ describe('simulateAdd', () => {
                     range: ADD_TEST_SPACING.rangeSpacing,
                 },
                 blockInfo: { timestamp: 0, height: 0 },
+                portfolio: PairSnapshot.emptyPortfolio(),
+                quoteState: fixtureQuoteState,
             });
             const [, result] = addInput.simulate(onchainContext, userSetting);
 
@@ -283,6 +286,8 @@ describe('simulateAdd', () => {
                 range: ADD_TEST_SPACING.rangeSpacing,
             },
             blockInfo: { timestamp: 0, height: 0 },
+            portfolio: PairSnapshot.emptyPortfolio(),
+            quoteState: fixtureQuoteState,
         });
         const [, result] = addInput.simulate(onchainContext, userSetting);
 
@@ -371,12 +376,12 @@ function clonePortfolio(portfolio: Portfolio): Portfolio {
     };
 }
 
-// Helper function to create OnchainContext with custom values
+// Helper function to create PairSnapshot with custom values
 function createOnchainContext(
     amm: Amm = fixtureAmm,
     portfolio: Portfolio = fixturePortfolio,
     setting: Setting = fixtureSetting
-): OnchainContext {
+): PairSnapshot {
     return new PairSnapshot({
         setting,
         condition: Condition.NORMAL,
@@ -503,7 +508,7 @@ describe('simulateRemove', () => {
         });
 
         it('should handle zero balance position', () => {
-            const positionWithZeroBalance = { ...fixturePosition, balance: 0n };
+            const positionWithZeroBalance = fixturePosition.withBalanceDelta(-fixturePosition.balance);
             const portfolio: Portfolio = { ...fixturePortfolio, position: positionWithZeroBalance };
             const [, result] = fixtureRemoveInput.simulate(
                 createOnchainContext(fixtureAmm, portfolio),
@@ -515,7 +520,13 @@ describe('simulateRemove', () => {
         });
 
         it('should handle zero size position', () => {
-            const positionWithZeroSize = { ...fixturePosition, size: 0n };
+            const positionWithZeroSize = new Position(
+                fixturePosition.balance,
+                0n,
+                fixturePosition.entryNotional,
+                fixturePosition.entrySocialLossIndex,
+                fixturePosition.entryFundingIndex
+            );
             const portfolioWithZeroSize: Portfolio = {
                 ...fixturePortfolio,
                 position: positionWithZeroSize,
@@ -588,13 +599,13 @@ describe('simulateRemove', () => {
         });
 
         it('should handle very large position', () => {
-            const largePosition = {
-                balance: 1000000000000000000n,
-                size: 1000000000000000000n,
-                entryNotional: 1000000000000000000n,
-                entrySocialLossIndex: 1000000n,
-                entryFundingIndex: 1000000n,
-            };
+            const largePosition = new Position(
+                1000000000000000000n,
+                1000000000000000000n,
+                1000000000000000000n,
+                1000000n,
+                1000000n
+            );
 
             const portfolio: Portfolio = { ...fixturePortfolio, position: largePosition };
             const [, result] = fixtureRemoveInput.simulate(
@@ -607,13 +618,7 @@ describe('simulateRemove', () => {
         });
 
         it('should handle very small position', () => {
-            const smallPosition = {
-                balance: 1n,
-                size: 1n,
-                entryNotional: 1n,
-                entrySocialLossIndex: 1n,
-                entryFundingIndex: 1n,
-            };
+            const smallPosition = new Position(1n, 1n, 1n, 1n, 1n);
 
             const portfolio: Portfolio = { ...fixturePortfolio, position: smallPosition };
             const [, result] = fixtureRemoveInput.simulate(
@@ -709,10 +714,13 @@ describe('simulateRemove', () => {
                 fixtureRange.tickUpper
             );
 
-            const realisticPosition: Position = {
-                ...fixturePosition,
-                size: fixturePosition.size + 1n,
-            };
+            const realisticPosition = new Position(
+                fixturePosition.balance,
+                fixturePosition.size + 1n,
+                fixturePosition.entryNotional,
+                fixturePosition.entrySocialLossIndex,
+                fixturePosition.entryFundingIndex
+            );
 
             const realisticInput = new RemoveInput(
                 fixtureTraderAddress,
@@ -747,5 +755,54 @@ describe('simulateRemove', () => {
             expect(typeof result.removedPosition.balance).toBe('bigint');
             expect(typeof result.postPosition.balance).toBe('bigint');
         });
+    });
+
+    it('allows add liquidity when AMM is dormant by deriving init price', () => {
+        const userSetting = new UserSetting(0, 0, 3n * WAD);
+        const addInput = new AddInput(fixtureTraderAddress, 1000n * WAD, -1000, 1000);
+
+        const spotPrice = tickToWad(0);
+        const setting: Setting = {
+            ...fixtureSetting,
+            initialMarginRatio: 1000,
+            maintenanceMarginRatio: 500,
+            param: {
+                ...fixtureSetting.param,
+                minMarginAmount: WAD,
+            },
+        };
+
+        const onchainContext = new PairSnapshot({
+            setting,
+            condition: Condition.NORMAL,
+            amm: {
+                ...fixtureAmm,
+                expiry: PERP_EXPIRY,
+                status: Status.DORMANT,
+                tick: 0,
+                sqrtPX96: 0n,
+            },
+            priceData: {
+                ...fixturePriceData,
+                instrument: fixtureInstrumentAddress,
+                expiry: PERP_EXPIRY,
+                markPrice: 0n,
+                spotPrice,
+                benchmarkPrice: spotPrice,
+            },
+            portfolio: PairSnapshot.emptyPortfolio(),
+            quoteState: fixtureQuoteState,
+            spacing: {
+                pearl: 1,
+                order: 1,
+                range: 1,
+            },
+            blockInfo: fixtureBlockInfo,
+        });
+
+        const [addParam] = addInput.simulate(onchainContext, userSetting);
+
+        expect(addParam.tickDeltaLower).toBe(1000);
+        expect(addParam.tickDeltaUpper).toBe(1000);
     });
 });

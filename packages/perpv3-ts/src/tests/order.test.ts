@@ -570,7 +570,7 @@ describe('CrossLimitOrderInput.simulate', () => {
 // ============================================================================
 
 function buildContext(customize?: (context: OnchainContext) => void): {
-    onchainContext: OnchainContext;
+    onchainContext: PairSnapshot;
     instrumentSetting: InstrumentSetting;
 } {
     const { context, instrumentSetting } = buildFixtureContext(customize);

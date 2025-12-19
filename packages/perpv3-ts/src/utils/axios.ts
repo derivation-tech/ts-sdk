@@ -28,9 +28,6 @@ export async function axiosGet({
         url += (url.includes('?') ? '&' : '?') + params;
         config.params = undefined;
     }
-    if (!url.startsWith(API_DOMAIN)) {
-        url = API_DOMAIN + url;
-    }
     let extraHeaders;
     if (authInfo) {
         extraHeaders = await getHeaders({
@@ -38,6 +35,9 @@ export async function axiosGet({
             requestPath: url,
             ...authInfo,
         });
+    }
+    if (!url.startsWith(API_DOMAIN)) {
+        url = API_DOMAIN + url;
     }
     return await axios.get(url, {
         ...config,
@@ -53,7 +53,7 @@ export async function axiosGet({
 // Utility Functions
 // ============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function bigInitObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
     if (!bigIntKeys || bigIntKeys.length === 0) {
         return obj;

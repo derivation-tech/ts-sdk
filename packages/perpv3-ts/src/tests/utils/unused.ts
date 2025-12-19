@@ -463,7 +463,6 @@ export function addIn256(x: bigint, y: bigint): bigint {
 
 // === FROM helpers.ts ===
 import { wmul, tickToWad } from '../../math';
-import { WAD } from '../../constants';
 
 export interface UserMarginState {
     reserve: bigint;

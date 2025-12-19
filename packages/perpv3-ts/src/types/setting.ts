@@ -388,10 +388,14 @@ export class InstrumentSetting {
             const effectiveMinTick = Math.max(MIN_TICK, minDeviationTick);
             const effectiveMaxTick = maxTick;
 
-            const alignedMinTick = this.alignOrderTick(effectiveMinTick);
+            const alignedMinTick = this.alignTickStrictlyAbove(effectiveMinTick - 1);
             const alignedMaxTick = this.alignTickStrictlyBelow(effectiveMaxTick + 1);
 
-            if (alignedMinTick >= alignedMaxTick) {
+            if (alignedMinTick < MIN_TICK || alignedMaxTick > MAX_TICK) {
+                return null;
+            }
+
+            if (alignedMinTick > alignedMaxTick) {
                 return null;
             }
 
@@ -407,7 +411,11 @@ export class InstrumentSetting {
             const effectiveMaxTick = Math.min(MAX_TICK, maxDeviationTick);
 
             const alignedMinTick = this.alignTickStrictlyAbove(effectiveMinTick - 1);
-            const alignedMaxTick = this.alignOrderTick(effectiveMaxTick);
+            const alignedMaxTick = this.alignTickStrictlyBelow(effectiveMaxTick + 1);
+
+            if (alignedMinTick < MIN_TICK || alignedMaxTick > MAX_TICK) {
+                return null;
+            }
 
             if (alignedMinTick > alignedMaxTick) {
                 return null;
@@ -419,6 +427,35 @@ export class InstrumentSetting {
 
     /**
      * Check if a specific tick is valid for placing a LimitOrder of the given side.
+     *
+     * This performs lower-level tick validation without checking market state or order slots:
+     * - Tick bounds (MIN_TICK to MAX_TICK)
+     * - Tick spacing alignment (orderSpacing)
+     * - Side constraint (LONG < ammTick, SHORT > ammTick)
+     * - Price deviation from mark price (within 2×IMR)
+     *
+     * **Comparison with PairSnapshot.isTickFeasibleForLimitOrder():**
+     * - `InstrumentSetting.isTickValidForLimitOrder()` (this method): Pure tick validation
+     *   without market state or order slot checks. Use for theoretical calculations.
+     * - `PairSnapshot.isTickFeasibleForLimitOrder()`: Full feasibility check including
+     *   market state, pause status, and existing orders. Use for actual order placement.
+     *
+     * @param tick - The tick to validate
+     * @param side - Order side (LONG or SHORT)
+     * @param ammTick - Current AMM tick
+     * @param markPrice - Current mark price in WAD
+     * @returns Object with `valid` boolean and optional `reason` string if invalid
+     *
+     * @example
+     * ```typescript
+     * const setting = snapshot.instrumentSetting;
+     * const result = setting.isTickValidForLimitOrder(
+     *   1000,
+     *   Side.LONG,
+     *   snapshot.amm.tick,
+     *   snapshot.priceData.markPrice
+     * );
+     * ```
      */
     isTickValidForLimitOrder(
         tick: number,
