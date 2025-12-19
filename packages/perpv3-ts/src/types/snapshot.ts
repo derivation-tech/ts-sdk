@@ -520,18 +520,19 @@ export class PairSnapshot {
     }
 
     /**
-     * Get list of available orders (not taken).
+     * Get list of available orders (not fully taken).
      */
     getAvailableOrders(): Array<{ orderId: number; order: Order }> {
         const available: Array<{ orderId: number; order: Order }> = [];
-        const takenSet = new Set(this.portfolio.ordersTaken.map((id) => Number(id)));
 
         for (let i = 0; i < this.portfolio.oids.length; i++) {
             const orderId = this.portfolio.oids[i];
-            if (!takenSet.has(orderId)) {
+            const order = this.portfolio.orders[i];
+            const taken = this.portfolio.ordersTaken[i] ?? ZERO;
+            if (abs(taken) < abs(order.size)) {
                 available.push({
                     orderId,
-                    order: this.portfolio.orders[i],
+                    order,
                 });
             }
         }

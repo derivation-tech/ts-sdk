@@ -2,6 +2,7 @@ import { describe, it, expect } from "@jest/globals";
 import { InstrumentSetting } from "../types/setting";
 import { PairSnapshot } from "../types/snapshot";
 import { Position } from "../types/position";
+import { Order } from "../types/order";
 import { Side, Condition, Status, QuoteType } from "../types/contract";
 import {
     tickToWad,
@@ -543,5 +544,35 @@ describe("PairSnapshot.getFeasibleLimitOrderTickRange (P1 fix)", () => {
         const range = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
 
         expect(range).toBeNull();
+    });
+});
+
+describe("PairSnapshot.getAvailableOrders", () => {
+    it("returns orders that are not fully taken", () => {
+        const ammTick = 1000;
+        const markPrice = tickToWad(1000);
+        const snapshot = createTestSnapshot(ammTick, markPrice);
+
+        const orders = [
+            new Order(0n, 10n, 990, 1),
+            new Order(0n, -8n, 1010, 2),
+        ];
+        const oids = [Order.packKey(990, 1), Order.packKey(1010, 2)];
+        const ordersTaken = [10n, -3n];
+
+        const updatedSnapshot = snapshot.with({
+            portfolio: {
+                ...snapshot.portfolio,
+                orders,
+                oids,
+                ordersTaken,
+            },
+        });
+
+        const available = updatedSnapshot.getAvailableOrders();
+
+        expect(available).toHaveLength(1);
+        expect(available[0]?.orderId).toBe(oids[1]);
+        expect(available[0]?.order).toBe(orders[1]);
     });
 });
