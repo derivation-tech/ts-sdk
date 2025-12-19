@@ -88,13 +88,8 @@ export class CrossLimitOrderInput {
         const { instrumentSetting, portfolio } = snapshot;
 
         // Validate leverage
-<<<<<<< HEAD
         if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
             userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
-=======
-        if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
-            this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
->>>>>>> origin/main
         }
 
         // Validate cross limit order feasibility

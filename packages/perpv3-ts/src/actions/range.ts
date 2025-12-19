@@ -141,13 +141,8 @@ export class AddInput {
             tickDeltaLower,
             tickDeltaUpper,
             amount: this.marginAmount,
-<<<<<<< HEAD
             limitTicks: Number(userSetting.getEncodedLiquidityLimitTicks(ammForAdd.sqrtPX96)),
             deadline: userSetting.getDeadline(),
-=======
-            limitTicks: Number(this.userSetting.getEncodedLiquidityLimitTicks(ammForAdd.sqrtPX96)),
-            deadline: this.userSetting.getDeadline(),
->>>>>>> origin/main
         };
 
         // Note: Validation is done above using original ticks before converting to deltas
