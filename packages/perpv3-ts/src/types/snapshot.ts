@@ -183,15 +183,7 @@ export class PairSnapshot {
         // Use comprehensive tick feasibility check
         const tickFeasibility = this.isTickFeasibleForLimitOrder(placeParam.tick, side);
         if (!tickFeasibility.feasible) {
-            // Map helper method reasons to expected error messages for backward compatibility
-            let errorMessage = tickFeasibility.reason || 'Invalid tick for limit order';
-            if (errorMessage.includes('Tick must be multiple of order spacing')) {
-                errorMessage = `Order tick must be multiple of order spacing ${instrumentSetting.orderSpacing}`;
-            } else if (errorMessage.includes('LONG orders must be placed at ticks <') || errorMessage.includes('SHORT orders must be placed at ticks >')) {
-                errorMessage = 'Order on wrong side of current AMM tick';
-            }
-            
-            throw Errors.validation(errorMessage, ErrorCode.INVALID_TICK, {
+            throw Errors.validation(tickFeasibility.reason || 'Invalid tick for limit order', ErrorCode.INVALID_TICK, {
                 tick: placeParam.tick,
                 side,
                 ammTick: amm.tick,

@@ -185,7 +185,7 @@ const errorTestCases = [
             amount: baseMargin,
             deadline: DEFAULT_DEADLINE,
         },
-        expectedError: 'Order tick must be multiple of order spacing',
+        expectedError: 'Tick must be multiple of order spacing',
         customizeContext: (context: OnchainContext) => {
             context.spacing.order = 5;
         },
@@ -199,7 +199,7 @@ const errorTestCases = [
             amount: baseMargin,
             deadline: DEFAULT_DEADLINE,
         },
-        expectedError: 'Order on wrong side of current AMM tick',
+        expectedError: 'LONG orders must be placed at ticks <',
     },
     {
         name: 'Wrong side order (short below current tick)',
@@ -210,7 +210,7 @@ const errorTestCases = [
             amount: baseMargin,
             deadline: DEFAULT_DEADLINE,
         },
-        expectedError: 'Order on wrong side of current AMM tick',
+        expectedError: 'SHORT orders must be placed at ticks >',
     },
     {
         name: 'Leverage exceeds maximum',
