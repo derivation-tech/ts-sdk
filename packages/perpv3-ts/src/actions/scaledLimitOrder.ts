@@ -13,11 +13,7 @@ import { PlaceInput, type PlaceInputSimulation } from './order';
 // ============================================================================
 
 export class ScaledLimitOrderInput {
-    public readonly instrumentAddress: Address;
-    public readonly expiry: number;
     public readonly traderAddress: Address;
-
-    public readonly userSetting: UserSetting;
 
     public readonly side: Side;
     public readonly baseQuantity: bigint;
@@ -25,14 +21,11 @@ export class ScaledLimitOrderInput {
     public readonly sizeDistribution: BatchOrderSizeDistribution;
 
     constructor(
-        instrumentAddress: Address,
-        expiry: number,
         traderAddress: Address,
         side: Side,
         baseQuantity: bigint,
         priceInfo: (bigint | number)[],
-        sizeDistribution: BatchOrderSizeDistribution,
-        userSetting: UserSetting
+        sizeDistribution: BatchOrderSizeDistribution
     ) {
         if (baseQuantity <= 0n) {
             throw Errors.validation('baseQuantity must be positive', ErrorCode.INVALID_SIZE, {
@@ -47,21 +40,18 @@ export class ScaledLimitOrderInput {
             );
         }
 
-        this.instrumentAddress = instrumentAddress;
-        this.expiry = expiry;
         this.traderAddress = traderAddress;
         this.side = side;
         this.baseQuantity = baseQuantity;
         this.priceInfo = priceInfo;
         this.sizeDistribution = sizeDistribution;
-        this.userSetting = userSetting;
     }
 
-    simulate(snapshot: PairSnapshot): ScaledLimitOrderSimulation {
+    simulate(snapshot: PairSnapshot, userSetting: UserSetting): ScaledLimitOrderSimulation {
         const { instrumentSetting } = snapshot;
 
         // Validate leverage
-        this.userSetting.validateLeverage(instrumentSetting.maxLeverage);
+        userSetting.validateLeverage(instrumentSetting.maxLeverage);
 
         // Align ticks from priceInfo
         const alignedTicks = this.priceInfo.map((price) => {
@@ -89,17 +79,9 @@ export class ScaledLimitOrderInput {
             }
 
             try {
-                const placeInput = new PlaceInput(
-                    this.instrumentAddress,
-                    this.expiry,
-                    this.traderAddress,
-                    tick,
-                    basePortion,
-                    this.side,
-                    this.userSetting
-                );
+                const placeInput = new PlaceInput(this.traderAddress, tick, basePortion, this.side);
 
-                const [placeParam, simulation] = placeInput.simulate(snapshot);
+                const [placeParam, simulation] = placeInput.simulate(snapshot, userSetting);
 
                 orders.push({
                     ratio: ratios[i],

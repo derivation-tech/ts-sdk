@@ -261,15 +261,7 @@ function placeParamToInput(
 ): PlaceInput {
     const baseQuantity = abs(placeParam.size);
     const side = placeParam.size >= 0n ? Side.LONG : Side.SHORT;
-    return new PlaceInput(
-        fixtureInstrumentAddress,
-        placeParam.expiry,
-        fixtureTraderAddress,
-        placeParam.tick,
-        baseQuantity,
-        side,
-        userSetting
-    );
+    return new PlaceInput(fixtureTraderAddress, placeParam.tick, baseQuantity, side);
 }
 
 describe('simulatePlace', () => {
@@ -281,7 +273,7 @@ describe('simulatePlace', () => {
                 const userSetting = new UserSetting(testCase.param.deadline, DEFAULT_USER_SLIPPAGE, 3n * WAD, 0);
                 const input = placeParamToInput(testCase.param, userSetting);
 
-                const [placeParam] = input.simulate(context);
+                const [placeParam] = input.simulate(context, userSetting);
 
                 expect(placeParam.tick).toBe(testCase.expectedResult.tick);
                 expect(abs(placeParam.size)).toBe(abs(testCase.expectedResult.size));
@@ -326,7 +318,7 @@ describe('simulatePlace', () => {
                     expect(() => placeParamToInput(testCase.param, userSetting)).toThrow(testCase.expectedError);
                 } else {
                     const input = placeParamToInput(testCase.param, userSetting);
-                    expect(() => input.simulate(context)).toThrow(testCase.expectedError);
+                    expect(() => input.simulate(context, userSetting)).toThrow(testCase.expectedError);
                 }
             });
         });
@@ -353,7 +345,7 @@ describe('simulatePlace', () => {
                 const userSetting = new UserSetting(placeParam.deadline, DEFAULT_USER_SLIPPAGE, 3n * WAD, 0);
                 const input = placeParamToInput(placeParam, userSetting);
 
-                const [simulatedPlaceParam] = input.simulate(context);
+                const [simulatedPlaceParam] = input.simulate(context, userSetting);
                 // Calculate expected fee income (fee rebate) using Order methods
                 const order = new Order(
                     simulatedPlaceParam.amount,
@@ -386,16 +378,13 @@ describe('ScaledLimitOrderInput.simulate', () => {
         ];
         const userSetting = new UserSetting(300, 50, 3n * WAD);
         const input = new ScaledLimitOrderInput(
-            fixtureInstrumentAddress,
-            FIXTURE_EXPIRY,
             fixtureTraderAddress,
             Side.LONG,
             9n * BASE,
             scaledTicks,
-            BatchOrderSizeDistribution.FLAT,
-            userSetting
+            BatchOrderSizeDistribution.FLAT
         );
-        const result = input.simulate(onchainContext);
+        const result = input.simulate(onchainContext, userSetting);
 
         expect(result.orders.length).toBe(3);
         expect(result.orders.every((order) => order !== null)).toBe(true);
@@ -423,15 +412,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         const { onchainContext } = buildContext();
         const targetTick = FIXTURE_TICK + ORDER_TICK_OFFSET;
         const userSetting = new UserSetting(300, 50, 3n * WAD);
-        const input = new CrossLimitOrderInput(
-            fixtureInstrumentAddress,
-            FIXTURE_EXPIRY,
-            fixtureTraderAddress,
-            Side.LONG,
-            5n * BASE,
-            targetTick,
-            userSetting
-        );
+        const input = new CrossLimitOrderInput(fixtureTraderAddress, Side.LONG, 5n * BASE, targetTick);
         const swapQuote = new QuotationWithSize(2n * BASE, {
             benchmark: 0n,
             sqrtFairPX96: 1n << 96n,
@@ -481,7 +462,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         jest.spyOn(TradeModule.TradeInput.prototype, 'simulate').mockReturnValue([mockTradeParam, mockTradeResult]);
         jest.spyOn(PlaceInput.prototype, 'simulate').mockReturnValue(mockLimitSimulationResult);
 
-        const result = input.simulate(onchainContext, swapQuote);
+        const result = input.simulate(onchainContext, swapQuote, userSetting);
 
         expect(abs(result.tradeParam.size)).toBe(2n * BASE);
         expect(abs(result.placeParam.size)).toBe(3n * BASE);
@@ -498,15 +479,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         });
         const userSetting = new UserSetting(300, 50, 3n * WAD);
         const targetTick = FIXTURE_TICK + 7; // not aligned to orderSpacing=10
-        const input = new CrossLimitOrderInput(
-            fixtureInstrumentAddress,
-            FIXTURE_EXPIRY,
-            fixtureTraderAddress,
-            Side.LONG,
-            5n * BASE,
-            targetTick,
-            userSetting
-        );
+        const input = new CrossLimitOrderInput(fixtureTraderAddress, Side.LONG, 5n * BASE, targetTick);
 
         const postTick = targetTick + 1;
         const swapQuote = new QuotationWithSize(2n * BASE, {
@@ -536,7 +509,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         };
         jest.spyOn(TradeModule.TradeInput.prototype, 'simulate').mockReturnValue([mockTradeParam, mockTradeResult]);
 
-        const result = input.simulate(onchainContext, swapQuote);
+        const result = input.simulate(onchainContext, swapQuote, userSetting);
 
         expect(targetTick % onchainContext.instrumentSetting.orderSpacing).not.toBe(0);
         expect(Math.abs(result.placeParam.tick) % onchainContext.instrumentSetting.orderSpacing).toBe(0);
@@ -551,15 +524,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         });
         const userSetting = new UserSetting(300, 50, 3n * WAD);
         const targetTick = FIXTURE_TICK + ORDER_TICK_OFFSET;
-        const input = new CrossLimitOrderInput(
-            fixtureInstrumentAddress,
-            FIXTURE_EXPIRY,
-            fixtureTraderAddress,
-            Side.LONG,
-            5n * BASE,
-            targetTick,
-            userSetting
-        );
+        const input = new CrossLimitOrderInput(fixtureTraderAddress, Side.LONG, 5n * BASE, targetTick);
 
         const postTick = targetTick + 1;
         const swapQuote = new QuotationWithSize(2n * BASE, {
@@ -591,19 +556,11 @@ describe('CrossLimitOrderInput.simulate', () => {
 
         // Without updating `amm.sqrtPX96` to post-trade value, place validation would fail.
         const snapshotTickOnly = onchainContext.with({ amm: { ...onchainContext.amm, tick: postTick } });
-        const tickOnlyPlaceInput = new PlaceInput(
-            fixtureInstrumentAddress,
-            FIXTURE_EXPIRY,
-            fixtureTraderAddress,
-            targetTick,
-            3n * BASE,
-            Side.LONG,
-            userSetting
-        );
-        expect(() => tickOnlyPlaceInput.simulate(snapshotTickOnly)).toThrow();
+        const tickOnlyPlaceInput = new PlaceInput(fixtureTraderAddress, targetTick, 3n * BASE, Side.LONG);
+        expect(() => tickOnlyPlaceInput.simulate(snapshotTickOnly, userSetting)).toThrow();
 
         // CrossLimitOrderInput should succeed by using quotation.sqrtPostFairPX96 for the post-trade snapshot.
-        const result = input.simulate(onchainContext, swapQuote);
+        const result = input.simulate(onchainContext, swapQuote, userSetting);
         expect(result.placeParam.tick).toBeLessThan(postTick);
     });
 });

@@ -452,15 +452,7 @@ async function runMarketByMarginScenario(
         portfolioContext
     );
 
-    const tradeInput = new TradeInput(
-        scenario.instrumentAddress,
-        scenario.expiry,
-        traderAddress,
-        bigAbs(signedSize),
-        side,
-        userSetting,
-        { margin: marginAmount }
-    );
+    const tradeInput = new TradeInput(traderAddress, bigAbs(signedSize), side, userSetting, { margin: marginAmount });
 
     // Use the original onchainContext for API side (it was passed to loadMarketArtifacts)
     const apiOnchainContextWithQuotation = onchainContext.with({
@@ -472,7 +464,7 @@ async function runMarketByMarginScenario(
     });
 
     const apiQuotationWithSize = artifacts.quotationWithSize;
-    const [, apiResult] = tradeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize);
+    const [, apiResult] = tradeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -485,7 +477,7 @@ async function runMarketByMarginScenario(
         throw new Error('Quotation is required');
     }
     const rpcQuotationWithSize = new QuotationWithSize(signedSize, rpcOnchainContext.quotation);
-    const [, rpcResult] = tradeInput.simulate(rpcOnchainContext, rpcQuotationWithSize);
+    const [, rpcResult] = tradeInput.simulate(rpcOnchainContext, rpcQuotationWithSize, userSetting);
 
     compareTradeResults(apiResult, rpcResult);
 }
@@ -538,14 +530,7 @@ async function runMarketByLeverageScenario(
         userSetting.markPriceBufferInBps,
         userSetting.strictMode
     );
-    const tradeInput = new TradeInput(
-        scenario.instrumentAddress,
-        scenario.expiry,
-        traderAddress,
-        bigAbs(signedSize),
-        side,
-        leverageUserSetting
-    );
+    const tradeInput = new TradeInput(traderAddress, bigAbs(signedSize), side, leverageUserSetting);
 
     // Use the original onchainContext for API side (it was passed to loadMarketArtifacts)
     const apiOnchainContextWithQuotation = onchainContext.with({
@@ -557,7 +542,7 @@ async function runMarketByLeverageScenario(
     });
 
     const apiQuotationWithSize = artifacts.quotationWithSize;
-    const [, apiResult] = tradeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize);
+    const [, apiResult] = tradeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -570,7 +555,7 @@ async function runMarketByLeverageScenario(
         throw new Error('Quotation is required');
     }
     const rpcQuotationWithSize = new QuotationWithSize(signedSize, rpcOnchainContext.quotation);
-    const [, rpcResult] = tradeInput.simulate(rpcOnchainContext, rpcQuotationWithSize);
+    const [, rpcResult] = tradeInput.simulate(rpcOnchainContext, rpcQuotationWithSize, userSetting);
 
     compareTradeResults(apiResult, rpcResult);
 }
@@ -603,8 +588,6 @@ async function runMarketCloseScenario(
 
     const closeSide = signedSize >= ZERO ? Side.LONG : Side.SHORT;
     const closeInput = new TradeInput(
-        scenario.instrumentAddress,
-        scenario.expiry,
         traderAddress,
         abs(signedSize), // positive quantity
         closeSide, // side determined from signed size
@@ -632,7 +615,7 @@ async function runMarketCloseScenario(
     });
 
     const apiQuotationWithSize = artifacts.quotationWithSize;
-    const [, apiResult] = closeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize);
+    const [, apiResult] = closeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -645,7 +628,7 @@ async function runMarketCloseScenario(
         throw new Error('Quotation is required');
     }
     const rpcQuotationWithSize = new QuotationWithSize(signedSize, rpcOnchainContext.quotation);
-    const [, rpcResult] = closeInput.simulate(rpcOnchainContext, rpcQuotationWithSize);
+    const [, rpcResult] = closeInput.simulate(rpcOnchainContext, rpcQuotationWithSize, userSetting);
 
     compareTradeResults(apiResult, rpcResult);
 
@@ -686,19 +669,12 @@ async function runAdjustMarginScenario(
     const position = portfolioContext?.portfolio.position ?? createEmptyPortfolio().position;
 
     const userSetting = new UserSetting(0, 0, 3n * WAD);
-    const adjustInput = new AdjustInput(
-        instrumentAddress,
-        expiry,
-        traderAddress,
-        userSetting,
-        amount,
-        scenario.input.transferIn
-    );
+    const adjustInput = new AdjustInput(traderAddress, userSetting, amount, scenario.input.transferIn);
 
     const apiOnchainContext = onchainContext.with({
         portfolio: portfolioContext?.portfolio ?? createEmptyPortfolio(),
     });
-    const [apiParam, apiResult] = adjustInput.simulate(apiOnchainContext);
+    const [apiParam, apiResult] = adjustInput.simulate(apiOnchainContext, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -706,7 +682,7 @@ async function runAdjustMarginScenario(
         cloneRpcConfigWithBlock(rpcConfig, onchainContext.blockInfo?.height),
         traderAddress
     );
-    const [rpcParam, rpcResult] = adjustInput.simulate(rpcOnchainContext);
+    const [rpcParam, rpcResult] = adjustInput.simulate(rpcOnchainContext, userSetting);
 
     // TypeScript narrows the types after checking
     // apiResult and rpcResult are AdjustSimulation
@@ -756,12 +732,12 @@ async function runAdjustMarginByLeverageScenario(
     const position = portfolioContext?.portfolio.position ?? createEmptyPortfolio().position;
 
     const userSetting = new UserSetting(0, 0, targetLeverage);
-    const adjustInput = new AdjustInput(instrumentAddress, expiry, traderAddress, userSetting);
+    const adjustInput = new AdjustInput(traderAddress, userSetting);
 
     const apiOnchainContext = onchainContext.with({
         portfolio: portfolioContext?.portfolio ?? createEmptyPortfolio(),
     });
-    const [apiParam, apiResult] = adjustInput.simulate(apiOnchainContext);
+    const [apiParam, apiResult] = adjustInput.simulate(apiOnchainContext, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -769,7 +745,7 @@ async function runAdjustMarginByLeverageScenario(
         cloneRpcConfigWithBlock(rpcConfig, onchainContext.blockInfo?.height),
         traderAddress
     );
-    const [rpcParam, rpcResult] = adjustInput.simulate(rpcOnchainContext);
+    const [rpcParam, rpcResult] = adjustInput.simulate(rpcOnchainContext, userSetting);
 
     // TypeScript narrows the types after checking
     // apiResult and rpcResult are AdjustSimulation
@@ -839,21 +815,13 @@ async function runLimitOrderScenario(
         userSetting.strictMode
     );
 
-    const placeInput = new PlaceInput(
-        scenario.instrumentAddress,
-        scenario.expiry,
-        scenario.traderAddress,
-        targetTick,
-        baseQuantity,
-        side,
-        userSettingWithBuffer
-    );
+    const placeInput = new PlaceInput(scenario.traderAddress, targetTick, baseQuantity, side, userSettingWithBuffer);
 
     // Simulate with API context
     const apiContextWithPortfolio = context.with({
         portfolio,
     });
-    const [apiPlaceParam] = placeInput.simulate(apiContextWithPortfolio);
+    const [apiPlaceParam] = placeInput.simulate(apiContextWithPortfolio, userSettingWithBuffer);
 
     const rpcContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -866,7 +834,7 @@ async function runLimitOrderScenario(
         ...getOnchainContextOptions(rpcContext),
         portfolio,
     });
-    const [rpcPlaceParam] = placeInput.simulate(rpcContextWithPortfolio);
+    const [rpcPlaceParam] = placeInput.simulate(rpcContextWithPortfolio, userSettingWithBuffer);
 
     // Verify both produce the same placeParam
     expect(normalizeData(apiPlaceParam)).toEqual(normalizeData(rpcPlaceParam));

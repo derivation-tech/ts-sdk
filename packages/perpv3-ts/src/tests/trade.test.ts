@@ -206,8 +206,6 @@ describe('trade simulations (ABC fixture data)', () => {
                 const context = data.context;
                 const quotationWithSize = new QuotationWithSize(data.signedSize, data.quotation);
                 const input = new TradeInput(
-                    data.instrumentAddress,
-                    context.amm.expiry,
                     data.traderAddress,
                     data.baseQuantity,
                     data.side as Side,
@@ -215,7 +213,7 @@ describe('trade simulations (ABC fixture data)', () => {
                     { margin: data.margin }
                 );
 
-                const [, simulation] = input.simulate(context, quotationWithSize);
+                const [, simulation] = input.simulate(context, quotationWithSize, data.userSetting);
                 expect(omitLeverage(normalizeBigIntObject(simulation) as unknown)).toEqual(
                     omitLeverage(expectedSimulation)
                 );
@@ -239,16 +237,9 @@ describe('trade simulations (ABC fixture data)', () => {
 
                 const context = data.context;
                 const quotationWithSize = new QuotationWithSize(data.signedSize, data.quotation);
-                const input = new TradeInput(
-                    data.instrumentAddress,
-                    context.amm.expiry,
-                    data.traderAddress,
-                    data.baseQuantity,
-                    data.side as Side,
-                    data.userSetting
-                );
+                const input = new TradeInput(data.traderAddress, data.baseQuantity, data.side as Side);
 
-                const [, simulation] = input.simulate(context, quotationWithSize);
+                const [, simulation] = input.simulate(context, quotationWithSize, data.userSetting);
                 expect(omitLeverage(normalizeBigIntObject(simulation) as unknown)).toEqual(
                     omitLeverage(expectedSimulation)
                 );
@@ -265,16 +256,13 @@ describe('trade simulations (ABC fixture data)', () => {
                 // Determine side from signedSize: positive = LONG, negative = SHORT
                 const closeSide = data.signedSize >= ZERO ? Side.LONG : Side.SHORT;
                 const input = new TradeInput(
-                    data.instrumentAddress,
-                    context.amm.expiry,
                     data.traderAddress,
                     abs(data.signedSize), // positive quantity from signedSize
                     closeSide, // side determined from signedSize
-                    data.userSetting,
                     { margin: 0n } // no margin for closing
                 );
 
-                const [, simulation] = input.simulate(context, quotationWithSize);
+                const [, simulation] = input.simulate(context, quotationWithSize, data.userSetting);
                 expect(omitLeverage(normalizeBigIntObject(simulation) as unknown)).toEqual(
                     omitLeverage(expectedSimulation)
                 );
@@ -286,15 +274,8 @@ describe('trade simulations (ABC fixture data)', () => {
         adjustMarginScenarios.forEach(({ data, expectedSimulation }) => {
             test(data.name, () => {
                 const context = data.context; // PairSnapshot is immutable, no need to clone
-                const input = new AdjustInput(
-                    data.instrumentAddress,
-                    context.amm.expiry,
-                    data.traderAddress,
-                    data.userSetting,
-                    data.amount,
-                    data.transferIn
-                );
-                const [, simulation] = input.simulate(context);
+                const input = new AdjustInput(data.traderAddress, data.amount, data.transferIn);
+                const [, simulation] = input.simulate(context, data.userSetting);
                 // Transform old expected simulation structure to new postPosition structure
                 const oldExpected = expectedSimulation as {
                     positionMargin: string;

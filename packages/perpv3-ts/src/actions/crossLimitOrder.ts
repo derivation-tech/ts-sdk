@@ -27,11 +27,7 @@ import { PlaceInput, type PlaceInputSimulation } from './order';
  * - Place a limit order at a better price after the push
  */
 export class CrossLimitOrderInput {
-    public readonly instrumentAddress: Address;
-    public readonly expiry: number;
     public readonly traderAddress: Address;
-
-    public readonly userSetting: UserSetting;
 
     public readonly side: Side;
     public readonly baseQuantity: bigint;
@@ -40,36 +36,22 @@ export class CrossLimitOrderInput {
     /**
      * Create a new CrossLimitOrderInput instance.
      *
-     * @param instrumentAddress - Address of the instrument contract
-     * @param expiry - Expiry identifier for the futures/perpetual contract (PERP_EXPIRY for perpetuals, Unix timestamp for futures)
      * @param traderAddress - Address of the trader placing the order
      * @param side - Order side (LONG or SHORT)
      * @param baseQuantity - Total base quantity to split between market and limit legs
      * @param targetTick - Target tick for the market leg (determines how much to trade)
-     * @param userSetting - User settings (deadline, slippage, leverage, etc.)
      */
-    constructor(
-        instrumentAddress: Address,
-        expiry: number,
-        traderAddress: Address,
-        side: Side,
-        baseQuantity: bigint,
-        targetTick: number,
-        userSetting: UserSetting
-    ) {
+    constructor(traderAddress: Address, side: Side, baseQuantity: bigint, targetTick: number) {
         if (baseQuantity <= 0n) {
             throw Errors.validation('baseQuantity must be positive', ErrorCode.INVALID_SIZE, {
                 baseQuantity: baseQuantity.toString(),
             });
         }
 
-        this.instrumentAddress = instrumentAddress;
-        this.expiry = expiry;
         this.traderAddress = traderAddress;
         this.side = side;
         this.baseQuantity = baseQuantity;
         this.targetTick = targetTick;
-        this.userSetting = userSetting;
     }
 
     /**
@@ -88,16 +70,21 @@ export class CrossLimitOrderInput {
      *
      * @param snapshot - Pair snapshot with current on-chain state
      * @param quotationWithSize - Quotation for the market leg trade (determines market leg size)
+     * @param userSetting - User settings (deadline, slippage, leverage, etc.)
      * @returns CrossLimitOrderSimulation with both legs' parameters and aggregated totals
      * @throws {ValidationError} If validation fails (tick, size, leverage, etc.)
      * @throws {SimulationError} If simulation fails (instrument not tradable, etc.)
      */
-    simulate(snapshot: PairSnapshot, quotationWithSize: QuotationWithSize): CrossLimitOrderSimulation {
+    simulate(
+        snapshot: PairSnapshot,
+        quotationWithSize: QuotationWithSize,
+        userSetting: UserSetting
+    ): CrossLimitOrderSimulation {
         const { instrumentSetting, portfolio } = snapshot;
 
         // Validate leverage
-        if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
-            this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
+        if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
+            userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
         }
 
         // Validate cross limit order feasibility
@@ -122,16 +109,13 @@ export class CrossLimitOrderInput {
 
         // Simulate market leg: execute trade immediately at current price
         // The market leg size is determined by quotationWithSize.baseQuantity
-        const marketTradeInput = new TradeInput(
-            this.instrumentAddress,
-            this.expiry,
-            this.traderAddress,
-            quotationWithSize.baseQuantity,
-            this.side,
-            this.userSetting
-        );
+        const marketTradeInput = new TradeInput(this.traderAddress, quotationWithSize.baseQuantity, this.side);
 
-        const [marketTradeParam, marketSimulation] = marketTradeInput.simulate(snapshot, quotationWithSize);
+        const [marketTradeParam, marketSimulation] = marketTradeInput.simulate(
+            snapshot,
+            quotationWithSize,
+            userSetting
+        );
 
         // Validate market leg meets minimum trade value requirement (only for opening new positions)
         // This prevents dust trades when opening positions
@@ -191,17 +175,9 @@ export class CrossLimitOrderInput {
         }
 
         // Simulate limit leg: place order at calculated tick with remaining base quantity
-        const limitOrderPlaceInput = new PlaceInput(
-            this.instrumentAddress,
-            this.expiry,
-            this.traderAddress,
-            limitOrderTick,
-            remainingBase,
-            this.side,
-            this.userSetting
-        );
+        const limitOrderPlaceInput = new PlaceInput(this.traderAddress, limitOrderTick, remainingBase, this.side);
 
-        const [limitPlaceParam, limitSimulation] = limitOrderPlaceInput.simulate(updatedSnapshot);
+        const [limitPlaceParam, limitSimulation] = limitOrderPlaceInput.simulate(updatedSnapshot, userSetting);
 
         // Calculate limit leg trade value using Order getter
         const limitOrder = new Order(limitPlaceParam.amount, limitPlaceParam.size, limitPlaceParam.tick, 0);

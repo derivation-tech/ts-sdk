@@ -13,30 +13,16 @@ import { type PairSnapshot } from '../types/snapshot';
 // ============================================================================
 
 export class AddInput {
-    public readonly instrumentAddress: Address;
-    public readonly expiry: number;
     public readonly traderAddress: Address;
     public readonly marginAmount: bigint;
     public readonly tickLower: number;
     public readonly tickUpper: number;
-    public readonly userSetting: UserSetting;
 
-    constructor(
-        instrumentAddress: Address,
-        expiry: number,
-        traderAddress: Address,
-        marginAmount: bigint,
-        tickLower: number,
-        tickUpper: number,
-        userSetting: UserSetting
-    ) {
-        this.instrumentAddress = instrumentAddress;
-        this.expiry = expiry;
+    constructor(traderAddress: Address, marginAmount: bigint, tickLower: number, tickUpper: number) {
         this.traderAddress = traderAddress;
         this.marginAmount = marginAmount;
         this.tickLower = tickLower;
         this.tickUpper = tickUpper;
-        this.userSetting = userSetting;
     }
 
     /**
@@ -44,9 +30,10 @@ export class AddInput {
      * Handles all validation, parameter conversion, and simulation in one call.
      *
      * @param snapshot - Pair snapshot (must include amm)
+     * @param userSetting - User settings (deadline, slippage, etc.)
      * @returns Tuple of [validated AddParam, simulation result]
      */
-    simulate(snapshot: PairSnapshot): [AddParam, AddSimulation] {
+    simulate(snapshot: PairSnapshot, userSetting: UserSetting): [AddParam, AddSimulation] {
         const { instrumentSetting } = snapshot;
         const { amm } = snapshot;
 
@@ -143,13 +130,14 @@ export class AddInput {
             upperPosition,
         };
 
+        const expiry = snapshot.amm.expiry;
         const addParam: AddParam = {
-            expiry: this.expiry,
+            expiry,
             tickDeltaLower,
             tickDeltaUpper,
             amount: this.marginAmount,
-            limitTicks: Number(this.userSetting.getEncodedLiquidityLimitTicks(amm.sqrtPX96)),
-            deadline: this.userSetting.getDeadline(),
+            limitTicks: Number(userSetting.getEncodedLiquidityLimitTicks(amm.sqrtPX96)),
+            deadline: userSetting.getDeadline(),
         };
 
         // Note: Validation is done above using original ticks before converting to deltas
@@ -160,27 +148,14 @@ export class AddInput {
 }
 
 export class RemoveInput {
-    public readonly instrumentAddress: Address;
-    public readonly expiry: number;
     public readonly traderAddress: Address;
     public readonly tickLower: number;
     public readonly tickUpper: number;
-    public readonly userSetting: UserSetting;
 
-    constructor(
-        instrumentAddress: Address,
-        expiry: number,
-        traderAddress: Address,
-        tickLower: number,
-        tickUpper: number,
-        userSetting: UserSetting
-    ) {
-        this.instrumentAddress = instrumentAddress;
-        this.expiry = expiry;
+    constructor(traderAddress: Address, tickLower: number, tickUpper: number) {
         this.traderAddress = traderAddress;
         this.tickLower = tickLower;
         this.tickUpper = tickUpper;
-        this.userSetting = userSetting;
     }
 
     /**
@@ -188,9 +163,10 @@ export class RemoveInput {
      * Handles all validation, parameter conversion, and simulation in one call.
      *
      * @param snapshot - Pair snapshot (must include portfolio and amm)
+     * @param userSetting - User settings (deadline, slippage, etc.)
      * @returns Tuple of [validated RemoveParam, simulation result]
      */
-    simulate(snapshot: PairSnapshot): [RemoveParam, RemoveSimulation] {
+    simulate(snapshot: PairSnapshot, userSetting: UserSetting): [RemoveParam, RemoveSimulation] {
         const { instrumentSetting, amm, portfolio } = snapshot;
 
         // Validate basic constraints first
@@ -251,8 +227,8 @@ export class RemoveInput {
         const removedPosition = rangeWithTicks.toPosition(amm);
         const postPosition = Position.combine(amm, removedPosition, portfolio.position).position;
 
-        const sqrtStrikePX96Lower = amm.sqrtPX96 - wmulDown(amm.sqrtPX96, ratioToWad(this.userSetting.slippage));
-        const sqrtStrikePX96Upper = amm.sqrtPX96 + wmulDown(amm.sqrtPX96, ratioToWad(this.userSetting.slippage));
+        const sqrtStrikePX96Lower = amm.sqrtPX96 - wmulDown(amm.sqrtPX96, ratioToWad(userSetting.slippage));
+        const sqrtStrikePX96Upper = amm.sqrtPX96 + wmulDown(amm.sqrtPX96, ratioToWad(userSetting.slippage));
 
         const lowerTick = sqrtStrikePX96Lower === ZERO ? Number(MIN_INT_24) : sqrtX96ToTick(sqrtStrikePX96Lower) + 1;
         const upperTick = sqrtStrikePX96Upper === ZERO ? Number(MAX_INT_24) : sqrtX96ToTick(sqrtStrikePX96Upper);
@@ -267,13 +243,14 @@ export class RemoveInput {
             ),
         };
 
+        const expiry = snapshot.amm.expiry;
         const removeParam: RemoveParam = {
-            expiry: this.expiry,
+            expiry,
             target: this.traderAddress,
             tickLower: this.tickLower,
             tickUpper: this.tickUpper,
-            limitTicks: Number(this.userSetting.getEncodedLiquidityLimitTicks(amm.sqrtPX96)),
-            deadline: this.userSetting.getDeadline(),
+            limitTicks: Number(userSetting.getEncodedLiquidityLimitTicks(amm.sqrtPX96)),
+            deadline: userSetting.getDeadline(),
         };
 
         return [removeParam, simulation];
