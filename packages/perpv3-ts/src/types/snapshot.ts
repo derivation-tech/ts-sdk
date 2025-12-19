@@ -505,7 +505,7 @@ export class PairSnapshot {
             return { feasible: false, reason: tradability.reason };
         }
 
-        const { instrumentSetting, amm, portfolio, priceData } = this;
+        const { instrumentSetting, amm, priceData } = this;
         const markPrice = priceData.markPrice;
         const ammTick = amm.tick;
 
@@ -515,15 +515,13 @@ export class PairSnapshot {
             return { feasible: false, reason: tickValidation.reason };
         }
 
-        // Check if order slot is occupied
-        for (const oid of portfolio.oids) {
-            const { tick: orderTick } = Order.unpackKey(oid);
-            if (orderTick === tick) {
-                return {
-                    feasible: false,
-                    reason: `Order slot already occupied at tick ${tick}`,
-                };
-            }
+        // Check if order slot is occupied using helper method
+        const occupiedTicks = this.getOccupiedLimitOrderTicks();
+        if (occupiedTicks.includes(tick)) {
+            return {
+                feasible: false,
+                reason: `Order slot already occupied at tick ${tick}`,
+            };
         }
 
         return { feasible: true };
