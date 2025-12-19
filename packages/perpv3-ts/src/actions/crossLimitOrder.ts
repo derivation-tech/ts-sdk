@@ -96,20 +96,20 @@ export class CrossLimitOrderInput {
         const { instrumentSetting, portfolio } = snapshot;
 
         // Validate leverage
-        this.userSetting.validateLeverage(instrumentSetting.maxLeverage);
+        if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
+            this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
+        }
 
-        const amm = snapshot.amm;
-        const isLong = this.side === Side.LONG;
-
-        // Validate target tick is on the correct side of current AMM tick
-        // For LONG: targetTick must be > amm.tick (above current price)
-        // For SHORT: targetTick must be < amm.tick (below current price)
-        if ((isLong && this.targetTick <= amm.tick) || (!isLong && this.targetTick >= amm.tick)) {
-            throw Errors.validation('Target tick is on the wrong side of current price', ErrorCode.INVALID_TICK, {
+        // Validate cross limit order feasibility
+        const feasibility = snapshot.isCrossLimitOrderFeasible(this.side, this.targetTick);
+        if (!feasibility.feasible) {
+            throw Errors.validation(feasibility.reason || 'Cross limit order not feasible', ErrorCode.INVALID_TICK, {
                 targetTick: this.targetTick,
-                ammTick: amm.tick,
+                ammTick: snapshot.amm.tick,
             });
         }
+
+        const isLong = this.side === Side.LONG;
 
         // Validate quotation matches expected side
         // For LONG: quotation size should be positive
@@ -158,6 +158,7 @@ export class CrossLimitOrderInput {
 
         // After market execution, the AMM tick moves to postTick
         // For limit order validation, we need to use the post-market tick, not the original tick
+        const amm = snapshot.amm;
         const postAmmTick = quotationWithSize.quotation.postTick;
         // Place validation relies on both `amm.tick` (side check) and `amm.sqrtPX96` (fair-price deviation check).
         // Use post-trade values from quotation to avoid inconsistent snapshot state.

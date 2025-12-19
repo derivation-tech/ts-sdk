@@ -63,6 +63,12 @@ export class AdjustInput {
         const markPrice = snapshot.priceData.markPrice;
         const position = Position.ensureInstance(portfolio.position);
 
+        // Check if instrument is tradable
+        const tradability = snapshot.isTradable();
+        if (!tradability.tradable) {
+            throw Errors.simulation(tradability.reason || 'Instrument not tradable', ErrorCode.SIMULATION_FAILED);
+        }
+
         const imr = instrumentSetting.initialMarginRatio;
 
         let marginDelta: bigint;
@@ -78,15 +84,23 @@ export class AdjustInput {
             marginDelta = this.transferIn ? this.amount : -this.amount;
 
             if (!this.transferIn) {
-                this.validateWithdrawal(snapshot, position, amm, imr, markPrice, marginDelta);
+                this.validateWithdrawal(snapshot, position, marginDelta);
             }
         } else {
             // Mode 2: Leverage adjustment
-            this.userSetting.validateLeverage(instrumentSetting.maxLeverage);
+            if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
+                this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
+            }
+
+            // Check if leverage adjustment is feasible
+            if (!position.canAdjustToLeverage(this.userSetting.leverage, amm, markPrice, imr)) {
+                throw Errors.simulation('Cannot adjust to target leverage', ErrorCode.SIMULATION_FAILED);
+            }
+
             marginDelta = position.transferAmountFromTargetLeverage(amm, this.userSetting.leverage, markPrice);
 
             if (marginDelta < ZERO && position.size !== ZERO) {
-                this.validateWithdrawal(snapshot, position, amm, imr, markPrice, marginDelta, 'leverage adjustment');
+                this.validateWithdrawal(snapshot, position, marginDelta, 'leverage adjustment');
             }
         }
 
@@ -112,15 +126,17 @@ export class AdjustInput {
     private validateWithdrawal(
         snapshot: PairSnapshot,
         position: Position,
-        amm: typeof snapshot.amm,
-        imr: number,
-        markPrice: bigint,
         marginDelta: bigint,
         context: string = 'margin adjustment'
     ): void {
-        snapshot.validateNegativeAdjustFairDeviation();
+        // Check if withdrawal is allowed (fair price deviation check)
+        const withdrawalCheck = snapshot.isWithdrawalAllowed();
+        if (!withdrawalCheck.allowed) {
+            throw Errors.validation(withdrawalCheck.reason || 'Withdrawal not allowed', ErrorCode.INVALID_PARAM);
+        }
+
         if (position.size !== ZERO) {
-            const maxWithdrawable = position.maxWithdrawable(amm, imr, markPrice);
+            const maxWithdrawable = snapshot.getMaxWithdrawableMargin();
             const absMargin = abs(marginDelta);
             if (absMargin > maxWithdrawable) {
                 throw Errors.simulation(

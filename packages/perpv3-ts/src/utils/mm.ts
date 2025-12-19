@@ -16,11 +16,7 @@ type SubtleCryptoLike = {
         extractable: boolean,
         keyUsages: Array<'sign'>
     ) => Promise<unknown>;
-    sign: (
-        algorithm: { name: 'HMAC' },
-        key: unknown,
-        data: ArrayBufferView
-    ) => Promise<ArrayBuffer>;
+    sign: (algorithm: { name: 'HMAC' }, key: unknown, data: ArrayBufferView) => Promise<ArrayBuffer>;
 };
 
 function getSubtleCrypto(): SubtleCryptoLike {

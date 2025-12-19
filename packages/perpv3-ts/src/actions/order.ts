@@ -1,5 +1,5 @@
 import type { Address } from 'viem';
-import { abs, wmulDown, ratioToWad, tickToWad, wdivUp } from '../math';
+import { abs, wmulDown, ratioToWad, tickToWad } from '../math';
 import { Order } from '../types/order';
 import { UserSetting } from '../types';
 import { type PlaceParam, Side, sideSign } from '../types/contract';
@@ -65,7 +65,9 @@ export class PlaceInput {
         const markPrice = snapshot.priceData.markPrice;
 
         // Validate leverage (baseQuantity validation is done in constructor)
-        this.userSetting.validateLeverage(instrumentSetting.maxLeverage);
+        if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
+            this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
+        }
 
         // Calculate required margin based on leverage
         // Since leverage is validated to be <= maxLeverage, and maxLeverage = 10000 / IMR,
@@ -96,7 +98,7 @@ export class PlaceInput {
 
         // Calculate expected fee income (fee rebate) for the order
         const minFeeRebate = wmulDown(order.value, ratioToWad(instrumentSetting.orderFeeRebateRatio));
-        const minOrderSize = wdivUp(instrumentSetting.minOrderValue, order.targetPrice);
+        const minOrderSize = instrumentSetting.minOrderSizeAtTick(this.tick);
         // Check if order size meets minimum requirement (validatePlaceParam already checks order.value >= minOrderValue,
         // but we still calculate canPlaceOrder explicitly for clarity and to match the interface contract)
         const canPlaceOrder = abs(placeParam.size) >= minOrderSize;

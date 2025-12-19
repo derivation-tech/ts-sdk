@@ -1,10 +1,11 @@
-import { abs, wdiv, wmul, sqrtX96ToWad, ratioToWad, mulDivNearest } from '../math';
-import { ZERO } from '../constants';
+import { abs, wdiv, wmul, sqrtX96ToWad, ratioToWad, mulDivNearest, wadToTick, wadToSqrtX96 } from '../math';
+import { ZERO, MIN_TICK, MAX_TICK } from '../constants';
 import { Errors, ErrorCode } from './error';
 import { Order } from './order';
 import { InstrumentSetting } from './setting';
 import { QuotationWithSize } from './quotation';
 import { Position } from './position';
+import { Range } from './range';
 import type {
     Amm,
     PriceData,
@@ -15,7 +16,7 @@ import type {
     PlaceParam,
     OnchainContext,
 } from './contract';
-import { Condition, Status, PERP_EXPIRY } from './contract';
+import { Condition, Status, PERP_EXPIRY, Side } from './contract';
 import type { Address } from 'viem';
 
 /**
@@ -161,20 +162,13 @@ export class PairSnapshot {
      * @throws {ValidationError} If validation fails (tick, price deviation, margin, order slot)
      */
     validatePlaceParam(placeParam: PlaceParam): void {
-        const { instrumentSetting, amm, portfolio } = this;
+        const { instrumentSetting, amm } = this;
         const markPrice = this.priceData.markPrice;
 
-        if (instrumentSetting.condition !== Condition.NORMAL) {
-            throw Errors.simulation('Instrument not tradable (condition)', ErrorCode.SIMULATION_FAILED);
-        }
-
-        if (instrumentSetting.placePaused) {
-            throw Errors.simulation('Placing orders is paused', ErrorCode.SIMULATION_FAILED);
-        }
-
-        const status = amm.status;
-        if (status !== Status.TRADING && status !== Status.SETTLING) {
-            throw Errors.simulation('Instrument not tradable in current status', ErrorCode.SIMULATION_FAILED);
+        // Check order placement tradability
+        const tradability = this.isOrderPlacementTradable();
+        if (!tradability.tradable) {
+            throw Errors.simulation(tradability.reason || 'Instrument not tradable', ErrorCode.SIMULATION_FAILED);
         }
 
         if (placeParam.size === 0n) {
@@ -183,40 +177,27 @@ export class PairSnapshot {
             });
         }
 
-        if (Math.abs(placeParam.tick) % instrumentSetting.orderSpacing !== 0) {
-            throw Errors.validation(
-                `Order tick must be multiple of order spacing ${instrumentSetting.orderSpacing}`,
-                ErrorCode.INVALID_TICK,
-                { tick: placeParam.tick, orderSpacing: instrumentSetting.orderSpacing }
-            );
-        }
+        // Determine side from signed size
+        const side = placeParam.size > 0n ? Side.LONG : Side.SHORT;
 
-        if (
-            (placeParam.size > 0 && placeParam.tick >= amm.tick) ||
-            (placeParam.size < 0 && placeParam.tick <= amm.tick)
-        ) {
-            throw Errors.validation('Order on wrong side of current AMM tick', ErrorCode.INVALID_PARAM, {
+        // Use comprehensive tick feasibility check
+        const tickFeasibility = this.isTickFeasibleForLimitOrder(placeParam.tick, side);
+        if (!tickFeasibility.feasible) {
+            throw Errors.validation(tickFeasibility.reason || 'Invalid tick for limit order', ErrorCode.INVALID_TICK, {
                 tick: placeParam.tick,
+                side,
                 ammTick: amm.tick,
-                size: placeParam.size.toString(),
             });
         }
-
-        const imr = ratioToWad(instrumentSetting.imr);
 
         // Create Order instance to use its getters for validation
         const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
-        const targetPrice = order.targetPrice;
 
-        if (wdiv(abs(targetPrice - markPrice), markPrice) > imr * 2n) {
-            throw Errors.validation('Order too far from mark price', ErrorCode.INVALID_PARAM, {
-                targetPrice: targetPrice.toString(),
-                markPrice: markPrice.toString(),
-                maxDeviation: (imr * 2n).toString(),
-            });
-        }
-
+        // Fair price deviation check: verify AMM fair price (from sqrtPX96) is within IMR of mark price
+        // Note: This is distinct from the target price check in isTickFeasibleForLimitOrder (which checks order tick price vs mark)
+        // This check ensures the AMM's current fair price hasn't deviated too far from oracle mark price
         const fairPrice = sqrtX96ToWad(amm.sqrtPX96);
+        const imr = ratioToWad(instrumentSetting.imr);
         if (wdiv(abs(fairPrice - markPrice), markPrice) > imr) {
             throw Errors.validation('Fair price deviation too large', ErrorCode.INVALID_PARAM, {
                 fairPrice: fairPrice.toString(),
@@ -245,17 +226,6 @@ export class PairSnapshot {
                 minOrderValue: instrumentSetting.minOrderValue.toString(),
             });
         }
-
-        // Check if order slot is already occupied
-        for (const oid of portfolio.oids) {
-            const { tick: orderTick } = Order.unpackKey(oid);
-            if (orderTick === placeParam.tick) {
-                throw Errors.validation('Order slot already occupied', ErrorCode.INVALID_PARAM, {
-                    tick: placeParam.tick.toString(),
-                    orderId: oid.toString(),
-                });
-            }
-        }
     }
 
     /**
@@ -273,6 +243,7 @@ export class PairSnapshot {
         const fair = sqrtX96ToWad(this.amm.sqrtPX96);
         const imrWad = ratioToWad(instrumentSetting.imr);
         const deviation = wdiv(abs(fair - markPrice), markPrice);
+
         if (deviation > imrWad) {
             throw Errors.validation('Fair price deviation too large', ErrorCode.INVALID_PARAM, {
                 fair: fair.toString(),
@@ -296,16 +267,10 @@ export class PairSnapshot {
         const { instrumentSetting, portfolio } = this;
         const position = prePosition ?? Position.ensureInstance(portfolio.position);
 
-        // Check 1: Condition must be NORMAL
-        if (instrumentSetting.condition !== Condition.NORMAL) {
-            throw Errors.simulation('Instrument not tradable (condition)', ErrorCode.SIMULATION_FAILED);
-        }
-
-        // Check 2: Status must be TRADING or SETTLING (30-minute grace period) only for dated futures
-        // Contract error: "NotTradeable - instrument status is neither TRADING nor SETTLING"
-        const status = this.amm.status;
-        if (status !== Status.TRADING && status !== Status.SETTLING) {
-            throw Errors.simulation('Instrument not tradable in current status', ErrorCode.SIMULATION_FAILED);
+        // Check if instrument is tradable
+        const tradability = this.isTradable();
+        if (!tradability.tradable) {
+            throw Errors.simulation(tradability.reason || 'Instrument not tradable', ErrorCode.SIMULATION_FAILED);
         }
 
         // Check 3: Price deviation check (only prevents trades that INCREASE deviation)
@@ -472,5 +437,354 @@ export class PairSnapshot {
             shortFundingIndex,
             insuranceFund: updatedInsuranceFund,
         };
+    }
+
+    /**
+     * Check if the instrument is tradable (basic prerequisite check).
+     */
+    isTradable(): { tradable: boolean; reason?: string } {
+        if (this.instrumentSetting.condition !== Condition.NORMAL) {
+            return { tradable: false, reason: 'Instrument not tradable (condition)' };
+        }
+
+        const status = this.amm.status;
+        if (status !== Status.TRADING && status !== Status.SETTLING) {
+            return { tradable: false, reason: 'Instrument not tradable in current status' };
+        }
+
+        return { tradable: true };
+    }
+
+    /**
+     * Check if adding liquidity is allowed.
+     * Allows DORMANT for the initial add, but blocks non-NORMAL condition and SETTLED status.
+     */
+    isAddLiquidityAllowed(): { allowed: boolean; reason?: string } {
+        if (this.instrumentSetting.condition !== Condition.NORMAL) {
+            return { allowed: false, reason: 'Instrument not tradable (condition)' };
+        }
+
+        if (this.amm.status === Status.SETTLED) {
+            return { allowed: false, reason: 'Instrument not tradable in current status' };
+        }
+
+        return { allowed: true };
+    }
+
+    /**
+     * Check if LimitOrder placement is tradable (includes placePaused check).
+     */
+    isOrderPlacementTradable(): { tradable: boolean; reason?: string } {
+        const baseCheck = this.isTradable();
+        if (!baseCheck.tradable) {
+            return baseCheck;
+        }
+
+        if (this.instrumentSetting.placePaused) {
+            return { tradable: false, reason: 'Placing orders is paused' };
+        }
+
+        return { tradable: true };
+    }
+
+    /**
+     * Get effective AMM state for add-liquidity simulation.
+     * For DORMANT, derive tick/sqrtPX96 from the expected initial mark price.
+     */
+    getAmmForAddLiquidity(): Amm {
+        if (this.amm.status !== Status.DORMANT) {
+            return this.amm;
+        }
+
+        const markPrice = this.getExpectedInitMarkPrice();
+        if (markPrice <= 0n) {
+            throw Errors.simulation('Cannot derive mark price for dormant AMM', ErrorCode.SIMULATION_FAILED);
+        }
+
+        const tick = wadToTick(markPrice);
+        const sqrtPX96 = wadToSqrtX96(markPrice);
+
+        return {
+            ...this.amm,
+            tick,
+            sqrtPX96,
+            status: Status.TRADING,
+        };
+    }
+
+    /**
+     * Get list of ticks that already have LimitOrders placed.
+     */
+    getOccupiedLimitOrderTicks(): number[] {
+        const occupiedTicks: number[] = [];
+        for (const oid of this.portfolio.oids) {
+            const { tick } = Order.unpackKey(oid);
+            occupiedTicks.push(tick);
+        }
+        return occupiedTicks;
+    }
+
+    /**
+     * Get list of available orders (not fully taken).
+     */
+    getAvailableOrders(): Array<{ orderId: number; order: Order }> {
+        const available: Array<{ orderId: number; order: Order }> = [];
+
+        for (let i = 0; i < this.portfolio.oids.length; i++) {
+            const orderId = this.portfolio.oids[i];
+            const order = this.portfolio.orders[i];
+            const taken = this.portfolio.ordersTaken[i] ?? ZERO;
+            if (abs(taken) < abs(order.size)) {
+                available.push({
+                    orderId,
+                    order,
+                });
+            }
+        }
+
+        return available;
+    }
+
+    /**
+     * Comprehensive check if a tick is feasible for placing a LimitOrder.
+     *
+     * This is the recommended method for validating limit order placement as it performs
+     * a complete feasibility check including:
+     * - Instrument tradability (condition, status, pause state)
+     * - Tick validation (bounds, spacing, side, price deviation)
+     * - Order slot availability (checks if tick is already occupied)
+     *
+     * Use this method when you want a single comprehensive check before placing an order.
+     *
+     * **Comparison with InstrumentSetting.isTickValidForLimitOrder():**
+     * - `PairSnapshot.isTickFeasibleForLimitOrder()` (this method): Full context-aware check
+     *   including market state and existing orders. Use for actual order placement validation.
+     * - `InstrumentSetting.isTickValidForLimitOrder()`: Lower-level tick validation without
+     *   checking market state or order slots. Use for theoretical tick range calculations.
+     *
+     * @param tick - The tick to validate
+     * @param side - Order side (LONG or SHORT)
+     * @returns Object with `feasible` boolean and optional `reason` string if not feasible
+     *
+     * @example
+     * ```typescript
+     * const snapshot = await fetchOnchainContext(...);
+     * const result = snapshot.isTickFeasibleForLimitOrder(1000, Side.LONG);
+     * if (!result.feasible) {
+     *   console.error(`Cannot place order: ${result.reason}`);
+     * }
+     * ```
+     */
+    isTickFeasibleForLimitOrder(tick: number, side: Side): { feasible: boolean; reason?: string } {
+        const tradability = this.isOrderPlacementTradable();
+        if (!tradability.tradable) {
+            return { feasible: false, reason: tradability.reason };
+        }
+
+        const { instrumentSetting, amm, priceData } = this;
+        const markPrice = priceData.markPrice;
+        const ammTick = amm.tick;
+
+        // Use InstrumentSetting's validation
+        const tickValidation = instrumentSetting.isTickValidForLimitOrder(tick, side, ammTick, markPrice);
+        if (!tickValidation.valid) {
+            return { feasible: false, reason: tickValidation.reason };
+        }
+
+        // Check if order slot is occupied using helper method
+        const occupiedTicks = this.getOccupiedLimitOrderTicks();
+        if (occupiedTicks.includes(tick)) {
+            return {
+                feasible: false,
+                reason: `Order slot already occupied at tick ${tick}`,
+            };
+        }
+
+        return { feasible: true };
+    }
+
+    /**
+     * Get feasible tick range for placing LimitOrders.
+     *
+     * Returns the overall range of ticks where limit orders can be placed based on:
+     * - Current AMM tick position
+     * - Mark price deviation limits (2*IMR)
+     * - Instrument's order spacing
+     *
+     * Note: This method returns the overall feasible range. Individual ticks within
+     * this range may still be occupied by existing orders. Use isTickFeasibleForLimitOrder()
+     * to check if a specific tick is available for placing a new order.
+     *
+     * @param side - Order side (LONG or SHORT)
+     * @returns Feasible tick range {minTick, maxTick} or null if no valid range exists
+     */
+    getFeasibleLimitOrderTickRange(side: Side): { minTick: number; maxTick: number } | null {
+        const tradability = this.isOrderPlacementTradable();
+        if (!tradability.tradable) {
+            return null;
+        }
+
+        const { instrumentSetting, amm, priceData } = this;
+        const markPrice = priceData.markPrice;
+        const ammTick = amm.tick;
+
+        return instrumentSetting.getFeasibleLimitOrderTickRange(side, ammTick, markPrice);
+    }
+
+    /**
+     * Check if a cross LimitOrder is feasible.
+     */
+    isCrossLimitOrderFeasible(side: Side, targetTick: number): { feasible: boolean; reason?: string } {
+        const tradability = this.isTradable();
+        if (!tradability.tradable) {
+            return { feasible: false, reason: tradability.reason };
+        }
+
+        const { amm } = this;
+        const ammTick = amm.tick;
+
+        // Check target tick is on correct side of AMM tick
+        if (side === Side.LONG && targetTick <= ammTick) {
+            return {
+                feasible: false,
+                reason: `LONG cross limit order target tick must be > current AMM tick (${ammTick})`,
+            };
+        }
+        if (side === Side.SHORT && targetTick >= ammTick) {
+            return {
+                feasible: false,
+                reason: `SHORT cross limit order target tick must be < current AMM tick (${ammTick})`,
+            };
+        }
+
+        return { feasible: true };
+    }
+
+    /**
+     * Get feasible target tick range for cross LimitOrder's market leg.
+     */
+    getFeasibleTargetTickRange(side: Side): { minTick: number; maxTick: number } | null {
+        const tradability = this.isTradable();
+        if (!tradability.tradable) {
+            return null;
+        }
+
+        const { instrumentSetting, amm, priceData } = this;
+        const markPrice = priceData.markPrice;
+        const ammTick = amm.tick;
+
+        const imr = ratioToWad(instrumentSetting.imr);
+        const maxDeviation = imr * 2n;
+
+        if (side === Side.LONG) {
+            // LONG: targetTick > ammTick, price deviation within [markPrice, markPrice + 2*IMR*markPrice]
+            const minTick = ammTick + 1;
+            const maxDeviationPrice = markPrice + wmul(markPrice, maxDeviation);
+            const maxDeviationTick = wadToTick(maxDeviationPrice);
+
+            // minTick is the lower bound, maxDeviationTick is the upper bound
+            const effectiveMinTick = minTick;
+            const effectiveMaxTick = Math.min(MAX_TICK, maxDeviationTick);
+
+            const alignedMinTick = instrumentSetting.alignTickStrictlyAbove(effectiveMinTick - 1);
+            const alignedMaxTick = instrumentSetting.alignTickStrictlyBelow(effectiveMaxTick + 1);
+            if (alignedMinTick > alignedMaxTick || alignedMinTick < MIN_TICK || alignedMaxTick > MAX_TICK) {
+                return null;
+            }
+            return { minTick: alignedMinTick, maxTick: alignedMaxTick };
+        } else {
+            // SHORT: targetTick < ammTick, price deviation within [markPrice - 2*IMR*markPrice, markPrice]
+            const maxTick = ammTick - 1;
+            const minDeviationPrice = markPrice - wmul(markPrice, maxDeviation);
+            const minDeviationTick = wadToTick(minDeviationPrice);
+
+            // minDeviationTick is the lower bound, maxTick is the upper bound
+            const effectiveMinTick = Math.max(MIN_TICK, minDeviationTick);
+            const effectiveMaxTick = maxTick;
+
+            const alignedMinTick = instrumentSetting.alignTickStrictlyAbove(effectiveMinTick - 1);
+            const alignedMaxTick = instrumentSetting.alignTickStrictlyBelow(effectiveMaxTick + 1);
+            if (alignedMinTick > alignedMaxTick || alignedMinTick < MIN_TICK || alignedMaxTick > MAX_TICK) {
+                return null;
+            }
+            return { minTick: alignedMinTick, maxTick: alignedMaxTick };
+        }
+    }
+
+    private getExpectedInitMarkPrice(): bigint {
+        if (this.priceData.markPrice > 0n) {
+            return this.priceData.markPrice;
+        }
+
+        if (this.amm.expiry === PERP_EXPIRY) {
+            return this.priceData.spotPrice;
+        }
+
+        return this.priceData.benchmarkPrice;
+    }
+
+    /**
+     * Check if margin withdrawal is allowed (fair price deviation check).
+     */
+    isWithdrawalAllowed(): { allowed: boolean; reason?: string } {
+        const { instrumentSetting } = this;
+        const markPrice = this.priceData.markPrice;
+        const fair = sqrtX96ToWad(this.amm.sqrtPX96);
+        const imrWad = ratioToWad(instrumentSetting.imr);
+        const deviation = wdiv(abs(fair - markPrice), markPrice);
+
+        if (deviation > imrWad) {
+            return {
+                allowed: false,
+                reason: `Fair price deviation too large (deviation: ${deviation.toString()}, max: ${imrWad.toString()})`,
+            };
+        }
+
+        return { allowed: true };
+    }
+
+    /**
+     * Get maximum margin that can be withdrawn from the current position.
+     */
+    getMaxWithdrawableMargin(): bigint {
+        const position = Position.ensureInstance(this.portfolio.position);
+        const markPrice = this.priceData.markPrice;
+        return position.maxWithdrawable(this.amm, this.instrumentSetting.initialMarginRatio, markPrice);
+    }
+
+    /**
+     * Check if removing a specific liquidity range is feasible.
+     */
+    isRemoveLiquidityFeasible(tickLower: number, tickUpper: number): { feasible: boolean; reason?: string } {
+        const tradability = this.isTradable();
+        if (!tradability.tradable) {
+            return { feasible: false, reason: tradability.reason };
+        }
+
+        // Check if range exists in portfolio
+        const rangeKey = Range.packKey(tickLower, tickUpper);
+        const rangeIndex = this.portfolio.rids.indexOf(rangeKey);
+        if (rangeIndex === -1) {
+            return {
+                feasible: false,
+                reason: `Range not found in portfolio (tickLower: ${tickLower}, tickUpper: ${tickUpper})`,
+            };
+        }
+
+        return { feasible: true };
+    }
+
+    /**
+     * Get list of ranges that can be removed.
+     */
+    getAvailableRanges(): Array<{ rangeId: number; range: Range }> {
+        const available: Array<{ rangeId: number; range: Range }> = [];
+        for (let i = 0; i < this.portfolio.rids.length; i++) {
+            available.push({
+                rangeId: this.portfolio.rids[i],
+                range: this.portfolio.ranges[i],
+            });
+        }
+        return available;
     }
 }

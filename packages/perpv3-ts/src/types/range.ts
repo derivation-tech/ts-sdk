@@ -263,4 +263,14 @@ export class Range {
         const tickUpper = asInt24(numericKey & Number(MAX_UINT_24));
         return { tickLower, tickUpper };
     }
+
+    /**
+     * Calculate minimum margin required to create a liquidity range with the given liquidity amount.
+     *
+     * @param liquidity - The liquidity amount to calculate margin requirement for
+     */
+    static minMargin(tickLower: number, tickUpper: number, sqrtPX96: bigint, liquidity: bigint, imr: number): bigint {
+        const tempRange = new Range(0n, 0n, 0n, sqrtPX96, tickLower, tickUpper);
+        return tempRange.calcMarginFromLiquidity(sqrtPX96, liquidity, imr);
+    }
 }

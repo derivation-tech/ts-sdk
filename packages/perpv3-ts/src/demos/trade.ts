@@ -326,12 +326,7 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
         DefaultUserSetting.markPriceBufferInBps,
         DefaultUserSetting.strictMode
     );
-    const adjustInput = new AdjustInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        targetLeverageUserSetting
-    );
+    const adjustInput = new AdjustInput(instrumentAddress, PERP_EXPIRY, walletAddress, targetLeverageUserSetting);
 
     const [adjustParam, simulation] = adjustInput.simulate(snapshot);
 
@@ -358,6 +353,7 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
 
     console.log(`📈 Adjusting leverage to ${formatWad(targetLeverage)}x...`);
     console.log(`ℹ️ New position margin: ${formatWad(postPosition.balance)}`);
+    console.log(`ℹ️ New leverage: ${formatWad(newLeverage)}x`);
     console.log(`ℹ️ Margin delta: ${formatWad(marginDelta)}`);
     console.log(`ℹ️ Transfer in: ${marginDelta >= ZERO}`);
     console.log(`ℹ️ Liquidation price: ${formatWad(newLiquidationPrice)}`);
