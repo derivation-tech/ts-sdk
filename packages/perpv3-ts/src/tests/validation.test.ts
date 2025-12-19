@@ -1,22 +1,131 @@
-import { describe, it, expect } from '@jest/globals';
-import { InstrumentSetting } from '../types/setting';
-import { PairSnapshot } from '../types/snapshot';
-import { Side, Condition, Status } from '../types/contract';
-import { tickToWad, wadToTick, ratioToWad, wdiv, abs, wmul, tickToSqrtX96 } from '../math';
-import { WAD } from '../constants';
+import { describe, it, expect } from "@jest/globals";
+import { InstrumentSetting } from "../types/setting";
+import { PairSnapshot } from "../types/snapshot";
+import { Position } from "../types/position";
+import { Side, Condition, Status, QuoteType } from "../types/contract";
+import {
+    tickToWad,
+    wadToTick,
+    ratioToWad,
+    wdiv,
+    abs,
+    wmul,
+    tickToSqrtX96,
+} from "../math";
+import { WAD } from "../constants";
+import { zeroAddress } from "viem";
 
 /**
  * Test suite for validation helper methods added in commit e38b1e5
  * Focus on P0 fixes for getFeasibleLimitOrderTickRange and getFeasibleTargetTickRange
  */
 
-describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
+const buildSetting = (imr: number, placePaused: boolean = false) => ({
+    symbol: "TEST",
+    config: zeroAddress,
+    gate: zeroAddress,
+    market: zeroAddress,
+    quote: zeroAddress,
+    decimals: 18,
+    param: {
+        minMarginAmount: WAD,
+        tradingFeeRatio: 50,
+        protocolFeeRatio: 0,
+        qtype: QuoteType.STABLE,
+        tip: 0n,
+    },
+    initialMarginRatio: imr,
+    maintenanceMarginRatio: 500,
+    placePaused,
+    fundingHour: 8,
+    disableOrderRebate: false,
+});
+
+const createTestSnapshot = (
+    ammTick: number,
+    markPrice: bigint,
+    imr: number = 1000,
+    placePaused: boolean = false
+) =>
+    new PairSnapshot({
+        setting: buildSetting(imr, placePaused),
+        condition: Condition.NORMAL,
+        spacing: {
+            pearl: 10,
+            order: 10,
+            range: 100,
+        },
+        amm: {
+            expiry: 0,
+            timestamp: 0,
+            status: Status.TRADING,
+            tick: ammTick,
+            sqrtPX96: tickToSqrtX96(ammTick),
+            liquidity: WAD,
+            totalLiquidity: WAD,
+            totalLong: 0n,
+            totalShort: 0n,
+            openInterests: 0n,
+            involvedFund: 0n,
+            feeIndex: 0n,
+            protocolFee: 0n,
+            longSocialLossIndex: 0n,
+            shortSocialLossIndex: 0n,
+            longFundingIndex: 0n,
+            shortFundingIndex: 0n,
+            insuranceFund: 0n,
+            settlementPrice: 0n,
+        },
+        priceData: {
+            instrument: zeroAddress,
+            expiry: 0,
+            markPrice,
+            spotPrice: markPrice,
+            benchmarkPrice: markPrice,
+            feeder0: zeroAddress,
+            feeder1: zeroAddress,
+            feeder0UpdatedAt: 0n,
+            feeder1UpdatedAt: 0n,
+        },
+        portfolio: {
+            position: Position.empty(),
+            orders: [],
+            oids: [],
+            ordersTaken: [],
+            ranges: [],
+            rids: [],
+        },
+        quoteState: {
+            quote: zeroAddress,
+            decimals: 18,
+            symbol: "QUOTE",
+            threshold: 0n,
+            reserve: 0n,
+            balance: 0n,
+            allowance: 0n,
+            fundFlow: {
+                totalIn: 0n,
+                totalOut: 0n,
+            },
+            pending: {
+                timestamp: 0,
+                native: false,
+                amount: 0n,
+                exemption: 0n,
+            },
+        },
+        blockInfo: {
+            timestamp: 0,
+            height: 0,
+        },
+    });
+
+describe("InstrumentSetting.getFeasibleLimitOrderTickRange", () => {
     // Create a minimal InstrumentSetting for testing
     const createTestSetting = (imr: number = 1000, orderSpacing: number = 10) => {
-        const zeroAddress = '0x0000000000000000000000000000000000000000' as const;
         return new InstrumentSetting(
             {
-                symbol: 'TEST',
+                symbol: "TEST",
                 config: zeroAddress,
                 gate: zeroAddress,
                 market: zeroAddress,
@@ -25,6 +134,9 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
                 param: {
                     minMarginAmount: WAD,
                     tradingFeeRatio: 50,
+                    protocolFeeRatio: 0,
+                    qtype: QuoteType.STABLE,
+                    tip: 0n,
                 },
                 initialMarginRatio: imr,
                 maintenanceMarginRatio: 500,
@@ -39,25 +151,33 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
         );
     };
 
-    describe('LONG orders (tick < ammTick)', () => {
-        it('should return range below ammTick', () => {
+    describe("LONG orders (tick < ammTick)", () => {
+        it("should return range below ammTick", () => {
             const setting = createTestSetting();
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.LONG, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.LONG,
+                ammTick,
+                markPrice
+            );
 
             expect(range).not.toBeNull();
             expect(range!.minTick).toBeLessThan(range!.maxTick);
             expect(range!.maxTick).toBeLessThan(ammTick);
         });
 
-        it('should respect 2*IMR price deviation limit', () => {
+        it("should respect 2*IMR price deviation limit", () => {
             const setting = createTestSetting(1000); // 10% IMR
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.LONG, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.LONG,
+                ammTick,
+                markPrice
+            );
 
             expect(range).not.toBeNull();
 
@@ -76,12 +196,16 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
             expect(maxDeviation2).toBeLessThanOrEqual(maxDeviation);
         });
 
-        it('should have minTick at or above the deviation lower bound', () => {
+        it("should have minTick at or above the deviation lower bound", () => {
             const setting = createTestSetting(1000); // 10% IMR
             const ammTick = 10000;
             const markPrice = tickToWad(10000);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.LONG, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.LONG,
+                ammTick,
+                markPrice
+            );
 
             expect(range).not.toBeNull();
 
@@ -91,15 +215,21 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
             const minDeviationTick = wadToTick(minDeviationPrice);
 
             // minTick should be at or above minDeviationTick (accounting for alignment)
-            expect(range!.minTick).toBeGreaterThanOrEqual(minDeviationTick - setting.orderSpacing);
+            expect(range!.minTick).toBeGreaterThanOrEqual(
+                minDeviationTick - setting.orderSpacing
+            );
         });
 
-        it('should align ticks to orderSpacing', () => {
+        it("should align ticks to orderSpacing", () => {
             const setting = createTestSetting(1000, 10);
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.LONG, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.LONG,
+                ammTick,
+                markPrice
+            );
 
             expect(range).not.toBeNull();
             expect(Math.abs(range!.minTick % setting.orderSpacing)).toBe(0);
@@ -107,25 +237,33 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
         });
     });
 
-    describe('SHORT orders (tick > ammTick)', () => {
-        it('should return range above ammTick', () => {
+    describe("SHORT orders (tick > ammTick)", () => {
+        it("should return range above ammTick", () => {
             const setting = createTestSetting();
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.SHORT, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.SHORT,
+                ammTick,
+                markPrice
+            );
 
             expect(range).not.toBeNull();
             expect(range!.minTick).toBeLessThan(range!.maxTick);
             expect(range!.minTick).toBeGreaterThan(ammTick);
         });
 
-        it('should respect 2*IMR price deviation limit', () => {
+        it("should respect 2*IMR price deviation limit", () => {
             const setting = createTestSetting(1000); // 10% IMR
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.SHORT, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.SHORT,
+                ammTick,
+                markPrice
+            );
 
             expect(range).not.toBeNull();
 
@@ -144,12 +282,16 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
             expect(maxDeviation2).toBeLessThanOrEqual(maxDeviation);
         });
 
-        it('should have maxTick at or below the deviation upper bound', () => {
+        it("should have maxTick at or below the deviation upper bound", () => {
             const setting = createTestSetting(1000); // 10% IMR
             const ammTick = 10000;
             const markPrice = tickToWad(10000);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.SHORT, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.SHORT,
+                ammTick,
+                markPrice
+            );
 
             expect(range).not.toBeNull();
 
@@ -159,15 +301,21 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
             const maxDeviationTick = wadToTick(maxDeviationPrice);
 
             // maxTick should be at or below maxDeviationTick (accounting for alignment)
-            expect(range!.maxTick).toBeLessThanOrEqual(maxDeviationTick + setting.orderSpacing);
+            expect(range!.maxTick).toBeLessThanOrEqual(
+                maxDeviationTick + setting.orderSpacing
+            );
         });
 
-        it('should align ticks to orderSpacing', () => {
+        it("should align ticks to orderSpacing", () => {
             const setting = createTestSetting(1000, 10);
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.SHORT, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.SHORT,
+                ammTick,
+                markPrice
+            );
 
             expect(range).not.toBeNull();
             expect(Math.abs(range!.minTick) % setting.orderSpacing).toBe(0);
@@ -175,13 +323,17 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
         });
     });
 
-    describe('Edge cases', () => {
-        it('should return null when no valid range exists', () => {
+    describe("Edge cases", () => {
+        it("should return null when no valid range exists", () => {
             const setting = createTestSetting(1000, 1000); // Large orderSpacing but not overflow
             const ammTick = 100;
             const markPrice = tickToWad(100);
 
-            const range = setting.getFeasibleLimitOrderTickRange(Side.LONG, ammTick, markPrice);
+            const range = setting.getFeasibleLimitOrderTickRange(
+                Side.LONG,
+                ammTick,
+                markPrice
+            );
 
             // With large orderSpacing relative to the range, there might be no valid range
             if (range === null) {
@@ -194,84 +346,9 @@ describe('InstrumentSetting.getFeasibleLimitOrderTickRange', () => {
     });
 });
 
-describe('PairSnapshot.getFeasibleTargetTickRange', () => {
-    // Create minimal snapshot for testing
-    const createTestSnapshot = (ammTick: number, markPrice: bigint, imr: number = 1000) => {
-        const zeroAddress = '0x0000000000000000000000000000000000000000' as const;
-        const setting = new InstrumentSetting(
-            {
-                symbol: 'TEST',
-                config: zeroAddress,
-                gate: zeroAddress,
-                market: zeroAddress,
-                quote: zeroAddress,
-                decimals: 18,
-                param: {
-                    minMarginAmount: WAD,
-                    tradingFeeRatio: 50,
-                },
-                initialMarginRatio: imr,
-                maintenanceMarginRatio: 500,
-                placePaused: false,
-                fundingHour: 8,
-                disableOrderRebate: false,
-            },
-            Condition.NORMAL,
-            10, // pearlSpacing
-            10, // orderSpacing
-            100 // rangeSpacing
-        );
-
-        return new PairSnapshot({
-            setting: setting as any,
-            condition: Condition.NORMAL,
-            spacing: {
-                pearl: 10,
-                order: 10,
-                range: 100,
-            },
-            amm: {
-                tick: ammTick,
-                sqrtPX96: tickToSqrtX96(ammTick),
-                totalLiquidity: WAD,
-                totalLong: 0n,
-                totalShort: 0n,
-                feeIndex: 0n,
-                status: Status.TRADING,
-            },
-            priceData: {
-                markPrice: markPrice,
-                indexPrice: markPrice,
-                indexPriceRaw: markPrice,
-            },
-            portfolio: {
-                position: {
-                    balance: 0n,
-                    size: 0n,
-                    entryNotional: 0n,
-                    entrySocialLossIndex: 0n,
-                    entryFundingIndex: 0n,
-                },
-                orders: [],
-                oids: [],
-                ordersTaken: [],
-                ranges: [],
-                rids: [],
-            },
-            quoteState: {
-                totalQuote: 0n,
-                accountQuote: 0n,
-            },
-            accountMargin: 0n,
-            blockInfo: {
-                timestamp: 0,
-                number: 0n,
-            },
-        });
-    };
-
-    describe('LONG cross limit order (targetTick > ammTick)', () => {
-        it('should return range above ammTick', () => {
+describe("PairSnapshot.getFeasibleTargetTickRange", () => {
+    describe("LONG cross limit order (targetTick > ammTick)", () => {
+        it("should return range above ammTick", () => {
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
             const snapshot = createTestSnapshot(ammTick, markPrice);
@@ -283,7 +360,7 @@ describe('PairSnapshot.getFeasibleTargetTickRange', () => {
             expect(range!.minTick).toBeGreaterThan(ammTick);
         });
 
-        it('should respect 2*IMR price deviation limit', () => {
+        it("should respect 2*IMR price deviation limit", () => {
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
             const snapshot = createTestSnapshot(ammTick, markPrice, 1000);
@@ -305,7 +382,7 @@ describe('PairSnapshot.getFeasibleTargetTickRange', () => {
             expect(maxDeviation2).toBeLessThanOrEqual(maxDeviation);
         });
 
-        it('should have maxTick at or below the deviation upper bound', () => {
+        it("should have maxTick at or below the deviation upper bound", () => {
             const ammTick = 10000;
             const markPrice = tickToWad(10000);
             const snapshot = createTestSnapshot(ammTick, markPrice, 1000);
@@ -321,12 +398,14 @@ describe('PairSnapshot.getFeasibleTargetTickRange', () => {
 
             // maxTick should be at or below maxDeviationTick (accounting for alignment)
             const orderSpacing = snapshot.instrumentSetting.orderSpacing;
-            expect(range!.maxTick).toBeLessThanOrEqual(maxDeviationTick + orderSpacing);
+            expect(range!.maxTick).toBeLessThanOrEqual(
+                maxDeviationTick + orderSpacing
+            );
         });
     });
 
-    describe('SHORT cross limit order (targetTick < ammTick)', () => {
-        it('should return range below ammTick', () => {
+    describe("SHORT cross limit order (targetTick < ammTick)", () => {
+        it("should return range below ammTick", () => {
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
             const snapshot = createTestSnapshot(ammTick, markPrice);
@@ -338,7 +417,7 @@ describe('PairSnapshot.getFeasibleTargetTickRange', () => {
             expect(range!.maxTick).toBeLessThan(ammTick);
         });
 
-        it('should respect 2*IMR price deviation limit', () => {
+        it("should respect 2*IMR price deviation limit", () => {
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
             const snapshot = createTestSnapshot(ammTick, markPrice, 1000);
@@ -360,7 +439,7 @@ describe('PairSnapshot.getFeasibleTargetTickRange', () => {
             expect(maxDeviation2).toBeLessThanOrEqual(maxDeviation);
         });
 
-        it('should have minTick at or above the deviation lower bound', () => {
+        it("should have minTick at or above the deviation lower bound", () => {
             const ammTick = 10000;
             const markPrice = tickToWad(10000);
             const snapshot = createTestSnapshot(ammTick, markPrice, 1000);
@@ -376,35 +455,93 @@ describe('PairSnapshot.getFeasibleTargetTickRange', () => {
 
             // minTick should be at or above minDeviationTick (accounting for alignment)
             const orderSpacing = snapshot.instrumentSetting.orderSpacing;
-            expect(range!.minTick).toBeGreaterThanOrEqual(minDeviationTick - orderSpacing);
+            expect(range!.minTick).toBeGreaterThanOrEqual(
+                minDeviationTick - orderSpacing
+            );
         });
     });
 
-    describe('Tradability checks', () => {
-        it('should return null when instrument is not tradable', () => {
+    describe("Tradability checks", () => {
+        it("should return null when instrument is not tradable", () => {
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
             const snapshot = createTestSnapshot(ammTick, markPrice);
 
-            // Modify to make it not tradable
-            snapshot.instrumentSetting.condition = Condition.DISABLED;
+            const frozenSnapshot = snapshot.with({ condition: Condition.FROZEN });
 
-            const range = snapshot.getFeasibleTargetTickRange(Side.LONG);
+            const range = frozenSnapshot.getFeasibleTargetTickRange(Side.LONG);
 
             expect(range).toBeNull();
         });
 
-        it('should return null when AMM status is not trading', () => {
+        it("should return null when AMM status is not trading", () => {
             const ammTick = 1000;
             const markPrice = tickToWad(1000);
             const snapshot = createTestSnapshot(ammTick, markPrice);
 
-            // Modify AMM status
-            snapshot.amm.status = Status.SETTLED;
+            const settledSnapshot = snapshot.with({
+                amm: { ...snapshot.amm, status: Status.SETTLED },
+            });
 
-            const range = snapshot.getFeasibleTargetTickRange(Side.LONG);
+            const range = settledSnapshot.getFeasibleTargetTickRange(Side.LONG);
 
             expect(range).toBeNull();
         });
+    });
+});
+
+describe("PairSnapshot.getFeasibleLimitOrderTickRange (P1 fix)", () => {
+    it("should work without excludeOccupiedTicks parameter", () => {
+        const ammTick = 1000;
+        const markPrice = tickToWad(1000);
+        const snapshot = createTestSnapshot(ammTick, markPrice);
+
+        // Method should work with just the side parameter
+        const range = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
+
+        expect(range).not.toBeNull();
+        expect(range!.minTick).toBeLessThan(range!.maxTick);
+        expect(range!.maxTick).toBeLessThan(ammTick);
+    });
+
+    it("should return same result regardless of occupied ticks", () => {
+        const ammTick = 1000;
+        const markPrice = tickToWad(1000);
+        const snapshot = createTestSnapshot(ammTick, markPrice);
+
+        // Get range
+        const range = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
+
+        // Method always returns the full feasible range
+        // Individual ticks should be checked with isTickFeasibleForLimitOrder()
+        expect(range).not.toBeNull();
+        expect(range!.minTick).toBeLessThan(range!.maxTick);
+    });
+
+    it("should delegate to InstrumentSetting method correctly", () => {
+        const ammTick = 1000;
+        const markPrice = tickToWad(1000);
+        const snapshot = createTestSnapshot(ammTick, markPrice);
+
+        const snapshotRange = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
+        const settingRange =
+            snapshot.instrumentSetting.getFeasibleLimitOrderTickRange(
+                Side.LONG,
+                ammTick,
+                markPrice
+            );
+
+        // Should return the same result as the underlying InstrumentSetting method
+        expect(snapshotRange).toEqual(settingRange);
+    });
+
+    it("should return null when order placement is paused", () => {
+        const ammTick = 1000;
+        const markPrice = tickToWad(1000);
+        const snapshot = createTestSnapshot(ammTick, markPrice, 1000, true);
+
+        const range = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
+
+        expect(range).toBeNull();
     });
 });

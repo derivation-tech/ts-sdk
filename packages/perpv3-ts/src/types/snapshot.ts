@@ -574,30 +574,30 @@ export class PairSnapshot {
 
     /**
      * Get feasible tick range for placing LimitOrders.
+     *
+     * Returns the overall range of ticks where limit orders can be placed based on:
+     * - Current AMM tick position
+     * - Mark price deviation limits (2*IMR)
+     * - Instrument's order spacing
+     *
+     * Note: This method returns the overall feasible range. Individual ticks within
+     * this range may still be occupied by existing orders. Use isTickFeasibleForLimitOrder()
+     * to check if a specific tick is available for placing a new order.
+     *
+     * @param side - Order side (LONG or SHORT)
+     * @returns Feasible tick range {minTick, maxTick} or null if no valid range exists
      */
-    getFeasibleLimitOrderTickRange(side: Side, excludeOccupiedTicks: boolean = true): { minTick: number; maxTick: number } | null {
+    getFeasibleLimitOrderTickRange(side: Side): { minTick: number; maxTick: number } | null {
         const tradability = this.isOrderPlacementTradable();
         if (!tradability.tradable) {
             return null;
         }
 
-        const { instrumentSetting, amm, portfolio, priceData } = this;
+        const { instrumentSetting, amm, priceData } = this;
         const markPrice = priceData.markPrice;
         const ammTick = amm.tick;
 
-        const range = instrumentSetting.getFeasibleLimitOrderTickRange(side, ammTick, markPrice);
-        if (!range) {
-            return null;
-        }
-
-        if (excludeOccupiedTicks) {
-            const occupiedTicks = new Set(this.getOccupiedLimitOrderTicks());
-            // Note: We return the range, but individual ticks should be checked for occupancy
-            // This is a limitation - we can't easily return a range excluding all occupied ticks
-            // Users should check individual ticks with isTickFeasibleForLimitOrder()
-        }
-
-        return range;
+        return instrumentSetting.getFeasibleLimitOrderTickRange(side, ammTick, markPrice);
     }
 
     /**
