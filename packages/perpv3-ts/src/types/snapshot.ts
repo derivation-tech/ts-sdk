@@ -165,17 +165,10 @@ export class PairSnapshot {
         const { instrumentSetting, amm, portfolio } = this;
         const markPrice = this.priceData.markPrice;
 
-        if (instrumentSetting.condition !== Condition.NORMAL) {
-            throw Errors.simulation('Instrument not tradable (condition)', ErrorCode.SIMULATION_FAILED);
-        }
-
-        if (instrumentSetting.placePaused) {
-            throw Errors.simulation('Placing orders is paused', ErrorCode.SIMULATION_FAILED);
-        }
-
-        const status = amm.status;
-        if (status !== Status.TRADING && status !== Status.SETTLING) {
-            throw Errors.simulation('Instrument not tradable in current status', ErrorCode.SIMULATION_FAILED);
+        // Check order placement tradability
+        const tradability = this.isOrderPlacementTradable();
+        if (!tradability.tradable) {
+            throw Errors.simulation(tradability.reason || 'Instrument not tradable', ErrorCode.SIMULATION_FAILED);
         }
 
         if (placeParam.size === 0n) {
@@ -184,40 +177,34 @@ export class PairSnapshot {
             });
         }
 
-        if (Math.abs(placeParam.tick) % instrumentSetting.orderSpacing !== 0) {
-            throw Errors.validation(
-                `Order tick must be multiple of order spacing ${instrumentSetting.orderSpacing}`,
-                ErrorCode.INVALID_TICK,
-                { tick: placeParam.tick, orderSpacing: instrumentSetting.orderSpacing }
-            );
-        }
+        // Determine side from signed size
+        const side = placeParam.size > 0n ? Side.LONG : Side.SHORT;
 
-        if (
-            (placeParam.size > 0 && placeParam.tick >= amm.tick) ||
-            (placeParam.size < 0 && placeParam.tick <= amm.tick)
-        ) {
-            throw Errors.validation('Order on wrong side of current AMM tick', ErrorCode.INVALID_PARAM, {
+        // Use comprehensive tick feasibility check
+        const tickFeasibility = this.isTickFeasibleForLimitOrder(placeParam.tick, side);
+        if (!tickFeasibility.feasible) {
+            // Map helper method reasons to expected error messages for backward compatibility
+            let errorMessage = tickFeasibility.reason || 'Invalid tick for limit order';
+            if (errorMessage.includes('Tick must be multiple of order spacing')) {
+                errorMessage = `Order tick must be multiple of order spacing ${instrumentSetting.orderSpacing}`;
+            } else if (errorMessage.includes('LONG orders must be placed at ticks <') || errorMessage.includes('SHORT orders must be placed at ticks >')) {
+                errorMessage = 'Order on wrong side of current AMM tick';
+            }
+            
+            throw Errors.validation(errorMessage, ErrorCode.INVALID_TICK, {
                 tick: placeParam.tick,
+                side,
                 ammTick: amm.tick,
-                size: placeParam.size.toString(),
             });
         }
-
-        const imr = ratioToWad(instrumentSetting.imr);
 
         // Create Order instance to use its getters for validation
         const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
-        const targetPrice = order.targetPrice;
 
-        if (wdiv(abs(targetPrice - markPrice), markPrice) > imr * 2n) {
-            throw Errors.validation('Order too far from mark price', ErrorCode.INVALID_PARAM, {
-                targetPrice: targetPrice.toString(),
-                markPrice: markPrice.toString(),
-                maxDeviation: (imr * 2n).toString(),
-            });
-        }
-
+        // Fair price deviation check (for place orders, this is already checked in isTickFeasibleForLimitOrder via validatePlaceParam's internal logic)
+        // But we keep it here for explicit validation since it's part of the contract requirements
         const fairPrice = sqrtX96ToWad(amm.sqrtPX96);
+        const imr = ratioToWad(instrumentSetting.imr);
         if (wdiv(abs(fairPrice - markPrice), markPrice) > imr) {
             throw Errors.validation('Fair price deviation too large', ErrorCode.INVALID_PARAM, {
                 fairPrice: fairPrice.toString(),
@@ -246,17 +233,6 @@ export class PairSnapshot {
                 minOrderValue: instrumentSetting.minOrderValue.toString(),
             });
         }
-
-        // Check if order slot is already occupied
-        for (const oid of portfolio.oids) {
-            const { tick: orderTick } = Order.unpackKey(oid);
-            if (orderTick === placeParam.tick) {
-                throw Errors.validation('Order slot already occupied', ErrorCode.INVALID_PARAM, {
-                    tick: placeParam.tick.toString(),
-                    orderId: oid.toString(),
-                });
-            }
-        }
     }
 
     /**
@@ -269,18 +245,12 @@ export class PairSnapshot {
      * @throws {ValidationError} If fair price deviation exceeds initial margin ratio
      */
     validateNegativeAdjustFairDeviation(): void {
-        const { instrumentSetting } = this;
-        const markPrice = this.priceData.markPrice;
-        const fair = sqrtX96ToWad(this.amm.sqrtPX96);
-        const imrWad = ratioToWad(instrumentSetting.imr);
-        const deviation = wdiv(abs(fair - markPrice), markPrice);
-        if (deviation > imrWad) {
-            throw Errors.validation('Fair price deviation too large', ErrorCode.INVALID_PARAM, {
-                fair: fair.toString(),
-                markPrice: markPrice.toString(),
-                deviation: deviation.toString(),
-                maxDeviation: imrWad.toString(),
-            });
+        const withdrawalCheck = this.isWithdrawalAllowed();
+        if (!withdrawalCheck.allowed) {
+            throw Errors.validation(
+                withdrawalCheck.reason || 'Fair price deviation too large',
+                ErrorCode.INVALID_PARAM
+            );
         }
     }
 
@@ -297,16 +267,10 @@ export class PairSnapshot {
         const { instrumentSetting, portfolio } = this;
         const position = prePosition ?? Position.ensureInstance(portfolio.position);
 
-        // Check 1: Condition must be NORMAL
-        if (instrumentSetting.condition !== Condition.NORMAL) {
-            throw Errors.simulation('Instrument not tradable (condition)', ErrorCode.SIMULATION_FAILED);
-        }
-
-        // Check 2: Status must be TRADING or SETTLING (30-minute grace period) only for dated futures
-        // Contract error: "NotTradeable - instrument status is neither TRADING nor SETTLING"
-        const status = this.amm.status;
-        if (status !== Status.TRADING && status !== Status.SETTLING) {
-            throw Errors.simulation('Instrument not tradable in current status', ErrorCode.SIMULATION_FAILED);
+        // Check if instrument is tradable
+        const tradability = this.isTradable();
+        if (!tradability.tradable) {
+            throw Errors.simulation(tradability.reason || 'Instrument not tradable', ErrorCode.SIMULATION_FAILED);
         }
 
         // Check 3: Price deviation check (only prevents trades that INCREASE deviation)
