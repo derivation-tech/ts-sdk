@@ -4,8 +4,7 @@
  */
 
 import { createPublicClient, http } from 'viem';
-import { ChainKitRegistry } from '../index';
-import { abctest } from '../chains/abctest';
+import { ChainKitRegistry, abctest } from '../src/index';
 
 async function abcTestnetExample() {
     console.log('\n🧪 SynFutures ABC Testnet Example\n');

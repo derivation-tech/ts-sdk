@@ -10,7 +10,7 @@
 import { createPublicClient, createWalletClient, http, parseAbi, decodeEventLog } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
-import { ChainKitRegistry, type Address } from '../index';
+import { ChainKitRegistry, type Address } from '../src/index';
 
 // ==========================================
 // SETUP: Initialize Base chain registry (once, anywhere)
