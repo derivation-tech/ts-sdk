@@ -6,8 +6,8 @@
 import 'dotenv/config';
 import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
-import { ChainKitRegistry, batchSendTxWithLog, LoggerFactory, LogLevel, type Address } from '../index';
-import { abctest } from '../chains/abctest';
+import { ChainKitRegistry, batchSendTxWithLog, LoggerFactory, LogLevel } from '../src/index';
+import { abctest } from '../src/chains/abctest';
 
 const logger = LoggerFactory.getLogger('Batch-Transfer', LogLevel.Info);
 
