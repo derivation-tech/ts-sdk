@@ -17,6 +17,7 @@ import {
     type RpcConfig,
     type ReadOptions,
 } from './queries';
+import type { RpcConfig as RpcConfigType } from './queries/config';
 import type { TradeParam, PlaceParam, AdjustParam } from './types/contract';
 import { Side } from './types/contract';
 import type { Quotation } from './types/contract';
@@ -36,7 +37,7 @@ import { DEFAULT_PUBLIC_WS_URL } from './apis/constants';
  * a clean API for queries, simulations, and WebSocket subscriptions.
  */
 export class PerpClient {
-    private readonly config: ApiConfig | RpcConfig;
+    private readonly _config: ApiConfig | RpcConfig;
     private readonly _userSetting: UserSetting;
     private readonly _instrumentAddress: Address;
     private readonly _expiry: number;
@@ -63,7 +64,7 @@ export class PerpClient {
             wsOptions?: PublicWebsocketClientOptions;
         }
     ) {
-        this.config = config;
+        this._config = config;
         this._userSetting = userSetting;
         this._instrumentAddress = instrumentAddress;
         this._expiry = expiry;
@@ -94,6 +95,13 @@ export class PerpClient {
     }
 
     /**
+     * Get the config (API or RPC) used by this client.
+     */
+    get config(): ApiConfig | RpcConfig {
+        return this._config;
+    }
+
+    /**
      * Check if this client is scoped to a specific pair.
      */
     isForPair(instrumentAddress: Address, expiry: number): boolean {
@@ -115,7 +123,7 @@ export class PerpClient {
         return fetchOnchainContext(
             this._instrumentAddress,
             this._expiry,
-            this.config,
+            this._config,
             traderAddress,
             signedSize,
             options
@@ -129,7 +137,7 @@ export class PerpClient {
      * @returns Object with size and quotation
      */
     async getQuotation(tick: number, options?: ReadOptions): Promise<{ size: bigint; quotation: Quotation }> {
-        return inquireByTick(this._instrumentAddress, this._expiry, tick, this.config, options);
+        return inquireByTick(this._instrumentAddress, this._expiry, tick, this._config, options);
     }
 
     /**
@@ -139,7 +147,7 @@ export class PerpClient {
      * @returns Order book data with bids/asks
      */
     async getOrderBook(length?: number, options?: ReadOptions) {
-        return fetchOrderBook(this._instrumentAddress, this._expiry, this.config, length, options);
+        return fetchOrderBook(this._instrumentAddress, this._expiry, this._config, length, options);
     }
 
     // ============================================================================
@@ -298,7 +306,7 @@ export class PerpClient {
         const subscription = this.wsManager.subscribeOrderBook(
             this.wsUrl,
             {
-                chainId: this.config.chainId,
+                chainId: (this._config as RpcConfigType).chainId,
                 instrument: this._instrumentAddress,
                 expiry: this._expiry,
                 type: 'orderBook',
@@ -319,7 +327,7 @@ export class PerpClient {
         const subscription = this.wsManager.subscribePortfolio(
             this.wsUrl,
             {
-                chainId: this.config.chainId,
+                chainId: (this._config as RpcConfigType).chainId,
                 userAddress,
                 type: 'portfolio',
             },
@@ -338,7 +346,7 @@ export class PerpClient {
         const subscription = this.wsManager.subscribeInstrument(
             this.wsUrl,
             {
-                chainId: this.config.chainId,
+                chainId: (this._config as RpcConfigType).chainId,
                 instrument: this._instrumentAddress,
                 expiry: this._expiry,
                 type: 'instrument',

@@ -18,6 +18,7 @@ import type {
 } from './contract';
 import { Condition, Status, PERP_EXPIRY, Side } from './contract';
 import type { Address } from 'viem';
+import { formatInTimeZone } from 'date-fns-tz';
 
 /**
  * PairSnapshot represents a snapshot of the complete on-chain state of a trading pair and trader's portfolio.
@@ -64,6 +65,28 @@ export class PairSnapshot {
             options.spacing.range
         );
         this.quotation = options.quotation;
+    }
+
+    /**
+     * Get the instrument symbol (e.g., "ETH-USDM").
+     */
+    get instrumentSymbol(): string {
+        return this.instrumentSetting.symbol;
+    }
+
+    /**
+     * Get the pair symbol (e.g., "ETH-USDM-PERP" for perpetuals or "ETH-USDM-241225" for dated contracts).
+     * Format: {instrumentSymbol}-{PERP|YYMMDD}
+     */
+    get pairSymbol(): string {
+        const symbol = this.instrumentSymbol;
+        if (this.expiry === PERP_EXPIRY) {
+            return `${symbol}-PERP`;
+        }
+        // Format expiry as YYMMDD (2-digit year, month, day)
+        const expiryDate = new Date(this.expiry * 1000);
+        const yyMMdd = formatInTimeZone(expiryDate, 'UTC', 'yyMMdd');
+        return `${symbol}-${yyMMdd}`;
     }
 
     /**

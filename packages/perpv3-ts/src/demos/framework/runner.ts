@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 import { createDemoContext, refreshDemoContext } from './context';
 import { getDemo, listDemos, getDemoNames } from './registry';
-import { closePositionIfExists, removeAllRanges, DefaultUserSetting } from '../utils';
+import { closePositionIfExists, removeAllRanges } from '../utils';
 
 dotenv.config();
 
@@ -102,19 +102,19 @@ export async function runDemos(options: RunOptions = {}): Promise<void> {
                 context.publicClient,
                 context.walletClient,
                 context.kit,
-                context.instrumentAddress,
-                context.rpcConfig,
+                context.perpClient.instrumentAddress,
+                context.perpClient.config as any,
                 context.walletAddress,
-                DefaultUserSetting
+                context.perpClient.userSetting
             );
             await closePositionIfExists(
                 context.publicClient,
                 context.walletClient,
                 context.kit,
-                context.instrumentAddress,
-                context.rpcConfig,
+                context.perpClient.instrumentAddress,
+                context.perpClient.config as any,
                 context.walletAddress,
-                DefaultUserSetting
+                context.perpClient.userSetting
             );
             console.log('✅ Cleanup completed');
         } catch (error) {

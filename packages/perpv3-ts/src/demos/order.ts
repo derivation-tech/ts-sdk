@@ -1,18 +1,14 @@
 import { parseUnits } from 'viem';
 import { abs, wmul } from '../math';
 import { WAD_DECIMALS } from '../constants';
-import { PERP_EXPIRY, Side } from '../types/contract';
-import { PlaceInput } from '../actions/order';
-import { CrossLimitOrderInput } from '../actions/crossLimitOrder';
-import { ScaledLimitOrderInput, BatchOrderSizeDistribution } from '../actions/scaledLimitOrder';
+import { Side } from '../types/contract';
 import { Order } from '../types/order';
 import { buildInquireByTickResult } from '../types/quotation';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { fetchOnchainContext } from '../queries';
 import { encodePlaceParam, encodeBatchPlaceParam, encodeTradeParam, encodeCancelParam } from '../utils/encode';
 import { formatTick, formatWad, formatTokenAmount } from '../utils/format';
+import { BatchOrderSizeDistribution } from '../actions/scaledLimitOrder';
 import {
-    DefaultUserSetting,
     ensureMarginAndAllowance,
     cancelOrdersAtTicks,
     closePositionIfExists,
@@ -26,16 +22,11 @@ import { registerDemo } from './framework/registry';
  * Demo: Place and cancel a limit order
  */
 export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
-    const {
-        instrumentAddress,
-        walletAddress,
-        snapshot,
-        instrumentSetting,
-        publicClient,
-        walletClient,
-        kit,
-        rpcConfig,
-    } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
+    const { instrumentSetting } = snapshot;
 
     // Prepare place input: SHORT limit order at closest tick above current fair price with 3x leverage
     // SHORT orders must be placed above current tick (to sell at higher price)
@@ -45,7 +36,7 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Current AMM tick: ${formatTick(currentTick)}`);
     console.log(`ℹ️ Target tick for SHORT order: ${formatTick(targetTick)}`);
 
-    const placeInput = new PlaceInput(
+    const placeInput = perpClient.createPlaceInput(
         walletAddress,
         targetTick,
         parseUnits('0.01', WAD_DECIMALS), // baseQuantity (unsigned)
@@ -53,7 +44,7 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     );
 
     // Simulate the order (handles validation and parameter conversion)
-    const [placeParam] = placeInput.simulate(snapshot, DefaultUserSetting);
+    const [placeParam] = placeInput.simulate(snapshot, perpClient.userSetting);
 
     // Create Order instance to use its methods for display
     const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
@@ -72,18 +63,18 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     const validPlaceParam = await ensureValidPlaceParam(
         placeInput,
         placeParam,
-        rpcConfig,
+        perpClient.config as any, // rpcConfig
         walletAddress,
-        instrumentAddress,
-        PERP_EXPIRY,
-        DefaultUserSetting
+        perpClient.instrumentAddress,
+        perpClient.expiry,
+        perpClient.userSetting
     );
 
     // Execute place order transaction
     console.log(`📝 Placing SHORT limit order at ${formatTick(targetTick)}...`);
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'place',
         args: [encodePlaceParam(validPlaceParam)],
@@ -96,14 +87,14 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     // Cancel the order
     console.log(`🗑️ Canceling order at ${formatTick(targetTick)}...`);
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'cancel',
         args: [
             encodeCancelParam({
-                expiry: PERP_EXPIRY,
+                expiry: perpClient.expiry,
                 ticks: [targetTick],
-                deadline: DefaultUserSetting.getDeadline(),
+                deadline: perpClient.userSetting.getDeadline(),
             }),
         ],
         gas: BigInt(500000),
@@ -114,16 +105,11 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
  * Demo: Cross market limit order (market leg + limit leg)
  */
 export async function demoCrossLimitOrder(context: DemoContext, side: Side = Side.LONG): Promise<void> {
-    const {
-        instrumentAddress,
-        walletAddress,
-        snapshot,
-        instrumentSetting,
-        publicClient,
-        walletClient,
-        kit,
-        rpcConfig,
-    } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
+    const { instrumentSetting } = snapshot;
 
     // Prepare cross market order input
     // First, get the swap quote to determine the actual market size needed
@@ -141,11 +127,11 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
 
     // Get swap quote first to know the actual market size
     const crossMarketSwapQuote = await buildInquireByTickResult(
-        instrumentAddress,
-        PERP_EXPIRY,
+        perpClient.instrumentAddress,
+        perpClient.expiry,
         side,
         targetTickForPush,
-        rpcConfig
+        perpClient.config as any
     );
 
     const actualMarketQuantity = abs(crossMarketSwapQuote.size);
@@ -170,10 +156,10 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         `✅ Calculated quantities: market=${formatWad(actualMarketQuantity)}, limit=${formatWad(limitQuantity)}, total=${formatWad(baseQuantity)}`
     );
 
-    const crossLimitInput = new CrossLimitOrderInput(walletAddress, side, baseQuantity, targetTickForPush);
+    const crossLimitInput = perpClient.createCrossLimitOrderInput(walletAddress, side, baseQuantity, targetTickForPush);
 
     console.log(`🔄 Simulating cross limit order...`);
-    const crossResult = crossLimitInput.simulate(snapshot, crossMarketSwapQuote, DefaultUserSetting);
+    const crossResult = crossLimitInput.simulate(snapshot, crossMarketSwapQuote, perpClient.userSetting);
 
     if (!crossResult.placeSimulation.canPlaceOrder) {
         throw new Error(
@@ -217,18 +203,18 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
             `📈 Executing market leg trade (size: ${formatWad(abs(tradeSize))}, side: ${isLong ? 'LONG' : 'SHORT'})...`
         );
         const tradePrice = crossMarketSwapQuote.tradePrice;
-        const limitTick = DefaultUserSetting.getTradeLimitTick(tradePrice, side);
+        const limitTick = perpClient.userSetting.getTradeLimitTick(tradePrice, side);
 
         const tradeParam = {
-            expiry: PERP_EXPIRY,
+            expiry: perpClient.expiry,
             size: tradeSize, // Use signed size directly
             amount: crossResult.tradeSimulation.marginDelta,
             limitTick,
-            deadline: DefaultUserSetting.getDeadline(),
+            deadline: perpClient.userSetting.getDeadline(),
         };
 
         await sendTxWithLog(publicClient, walletClient, kit, {
-            address: instrumentAddress,
+            address: perpClient.instrumentAddress,
             abi: CURRENT_INSTRUMENT_ABI,
             functionName: 'trade',
             args: [encodeTradeParam(tradeParam)],
@@ -238,7 +224,7 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
 
     if (crossResult.placeParam.size !== 0n) {
         // Re-fetch context after market leg execution to get actual post-market AMM tick
-        const updatedContext = await fetchOnchainContext(instrumentAddress, PERP_EXPIRY, rpcConfig, walletAddress);
+        const updatedContext = await perpClient.getSnapshot(walletAddress);
         const { instrumentSetting: updatedInstrumentSetting } = updatedContext;
         const actualPostMarketTick = updatedContext.amm.tick;
 
@@ -280,10 +266,10 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         const signedSize = crossResult.placeParam.size;
         const baseQuantity = abs(signedSize);
         const limitSide = signedSize >= 0n ? Side.LONG : Side.SHORT;
-        const limitPlaceInput = new PlaceInput(walletAddress, validLimitTick, baseQuantity, limitSide);
+        const limitPlaceInput = perpClient.createPlaceInput(walletAddress, validLimitTick, baseQuantity, limitSide);
 
         // Re-simulate with fresh context to get valid parameters
-        const [validLimitPlaceParam] = limitPlaceInput.simulate(updatedContext, DefaultUserSetting);
+        const [validLimitPlaceParam] = limitPlaceInput.simulate(updatedContext, perpClient.userSetting);
 
         // Final validation: ensure the place param tick is valid (simulation might adjust it)
         const finalTick = validLimitPlaceParam.tick;
@@ -296,7 +282,7 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
 
         console.log(`📝 Executing limit leg order at ${formatTick(finalTick)}...`);
         await sendTxWithLog(publicClient, walletClient, kit, {
-            address: instrumentAddress,
+            address: perpClient.instrumentAddress,
             abi: CURRENT_INSTRUMENT_ABI,
             functionName: 'place',
             args: [encodePlaceParam(validLimitPlaceParam)], // Use place param which has validated tick
@@ -306,19 +292,25 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         console.log(`✅ Cross market order executed successfully!`);
 
         // Cancel the limit order if it still exists
-        await cancelOrdersAtTicks(publicClient, walletClient, kit, instrumentAddress, rpcConfig, walletAddress, [
-            finalTick,
-        ]);
+        await cancelOrdersAtTicks(
+            publicClient,
+            walletClient,
+            kit,
+            perpClient.instrumentAddress,
+            perpClient.config as any,
+            walletAddress,
+            [finalTick]
+        );
 
         // Close position if one exists
         await closePositionIfExists(
             publicClient,
             walletClient,
             kit,
-            instrumentAddress,
-            rpcConfig,
+            perpClient.instrumentAddress,
+            perpClient.config as any,
             walletAddress,
-            DefaultUserSetting
+            perpClient.userSetting
         );
     } else {
         console.log(`✅ Cross market order executed successfully!`);
@@ -329,16 +321,11 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
  * Demo: Scaled limit order (multiple orders at different price levels)
  */
 export async function demoScaledLimitOrder(context: DemoContext): Promise<void> {
-    const {
-        instrumentAddress,
-        walletAddress,
-        snapshot,
-        instrumentSetting,
-        publicClient,
-        walletClient,
-        kit,
-        rpcConfig,
-    } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
+    const { instrumentSetting } = snapshot;
 
     // Prepare scaled limit order input: LONG orders at multiple price levels
     const baseQuantity = parseUnits('0.05', WAD_DECIMALS);
@@ -355,7 +342,7 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
 
     console.log(`ℹ️ Price levels: ${priceLevels.map((tick) => formatTick(tick)).join(', ')}`);
 
-    const scaledOrderInput = new ScaledLimitOrderInput(
+    const scaledOrderInput = perpClient.createScaledLimitOrderInput(
         walletAddress,
         Side.LONG,
         baseQuantity,
@@ -364,7 +351,7 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
     );
 
     console.log(`🔄 Simulating scaled limit order with ${priceLevels.length} price levels...`);
-    const scaledResult = scaledOrderInput.simulate(snapshot, DefaultUserSetting);
+    const scaledResult = scaledOrderInput.simulate(snapshot, perpClient.userSetting);
 
     const validOrders = scaledResult.orders.filter((order) => order !== null);
     if (validOrders.length === 0) {
@@ -400,11 +387,11 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
 
     // Re-validate ticks before batch placing
     const validTicks = await ensureValidBatchPlaceTicks(
-        instrumentAddress,
-        PERP_EXPIRY,
+        perpClient.instrumentAddress,
+        perpClient.expiry,
         alignedTicks,
         side,
-        rpcConfig,
+        perpClient.config as any,
         walletAddress
     );
 
@@ -435,17 +422,17 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
     );
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'batchPlace',
         args: [
             encodeBatchPlaceParam({
-                expiry: PERP_EXPIRY,
+                expiry: perpClient.expiry,
                 ticks: validTicks,
                 ratios: validRatios,
                 size: signedSize,
                 leverage,
-                deadline: DefaultUserSetting.getDeadline(),
+                deadline: perpClient.userSetting.getDeadline(),
             }),
         ],
         gas: BigInt(1000000),
@@ -458,8 +445,8 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
         publicClient,
         walletClient,
         kit,
-        instrumentAddress,
-        rpcConfig,
+        perpClient.instrumentAddress,
+        perpClient.config as any,
         walletAddress,
         validTicks.length > 0 ? validTicks : alignedTicks
     );
@@ -469,10 +456,10 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
         publicClient,
         walletClient,
         kit,
-        instrumentAddress,
-        rpcConfig,
+        perpClient.instrumentAddress,
+        perpClient.config as any,
         walletAddress,
-        DefaultUserSetting
+        perpClient.userSetting
     );
 }
 
