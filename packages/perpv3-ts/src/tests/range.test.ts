@@ -4,11 +4,19 @@ import onchainFixture from './fixtures/onchain-context.abc.json';
 import { parseOnchainContext } from './helpers/abcFixture';
 import { RATIO_BASE, WAD } from '../constants';
 import { AddInput, RemoveInput } from '../actions/range';
-import { Position } from '../types/position';
-import { Range } from '../types/range';
-import { Order, UserSetting } from '../types';
-import { Condition, PERP_EXPIRY, Status, type Amm, type Portfolio, type Setting } from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
+import {
+    Condition,
+    Order,
+    PairSnapshot,
+    PERP_EXPIRY,
+    Position,
+    Range,
+    Status,
+    UserSetting,
+    type Amm,
+    type Portfolio,
+    type Setting,
+} from '../types';
 import { tickToWad } from '../math';
 
 const abcOnchainContext = parseOnchainContext(onchainFixture.context);

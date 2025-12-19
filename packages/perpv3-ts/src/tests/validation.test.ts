@@ -1,9 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { InstrumentSetting } from '../types/setting';
-import { PairSnapshot } from '../types/snapshot';
-import { Position } from '../types/position';
-import { Order } from '../types/order';
-import { Side, Condition, Status, QuoteType } from '../types/contract';
+import { Condition, InstrumentSetting, Order, PairSnapshot, Position, QuoteType, Side, Status } from '../types';
 import { tickToWad, wadToTick, ratioToWad, wdiv, abs, wmul, tickToSqrtX96 } from '../math';
 import { MAX_TICK, MIN_TICK, WAD } from '../constants';
 import { zeroAddress } from 'viem';

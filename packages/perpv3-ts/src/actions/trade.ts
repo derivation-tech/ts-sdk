@@ -1,12 +1,17 @@
 import type { Address } from 'viem';
 import { abs } from '../math';
 import { ZERO } from '../constants';
-import { Errors, ErrorCode } from '../types/error';
-import { Position } from '../types/position';
-import { QuotationWithSize } from '../types/quotation';
-import { UserSetting } from '../types';
-import { type TradeParam, Side, sideSign } from '../types/contract';
-import { type PairSnapshot } from '../types/snapshot';
+import {
+    Errors,
+    ErrorCode,
+    Position,
+    QuotationWithSize,
+    UserSetting,
+    Side,
+    sideSign,
+    type PairSnapshot,
+    type TradeParam,
+} from '../types';
 
 // ============================================================================
 // Trade Input Classes

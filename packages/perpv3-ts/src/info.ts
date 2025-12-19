@@ -1,6 +1,6 @@
 import type { Address } from 'viem';
 
-import { Errors } from './types/error';
+import { Errors } from './types';
 
 // ============================================================================
 // Type Definitions

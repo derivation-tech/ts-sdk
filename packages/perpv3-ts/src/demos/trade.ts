@@ -1,16 +1,13 @@
 import { parseUnits } from 'viem';
-import { wmul, abs, sqrtX96ToWad } from '../math';
+import { abs, sqrtX96ToWad, wmul } from '../math';
 import { WAD_DECIMALS, ZERO } from '../constants';
-import { Side } from '../types/contract';
-import { QuotationWithSize } from '../types/quotation';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { encodeTradeParam, encodeAdjustParam } from '../utils/encode';
-import { ensureMarginAndAllowance } from './utils';
-import { formatTick, formatWad, formatTokenAmount } from '../utils/format';
-import { UserSetting } from '../types';
-import { DefaultUserSetting } from './utils';
+import { QuotationWithSize, Side, UserSetting } from '../types';
+import { encodeAdjustParam, encodeTradeParam } from '../utils/encode';
+import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
+import { DefaultUserSetting, ensureMarginAndAllowance } from './utils';
 
 /**
  * Demo: Trade by margin using TradeInput

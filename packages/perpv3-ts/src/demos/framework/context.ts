@@ -1,12 +1,11 @@
 import type { Address } from 'viem';
 import { createWalletClient, http } from 'viem';
 import { getAccount } from '@synfutures/viem-kit';
-import { PERP_EXPIRY } from '../../types/contract';
 import { PerpClient } from '../../client';
 import { getPerpInfo } from '../../info';
-import { DefaultUserSetting } from '../utils';
+import { PERP_EXPIRY } from '../../types/contract';
 import type { DemoContext } from './types';
-import { prepare, findInstrumentBySymbol } from '../utils';
+import { DefaultUserSetting, findInstrumentBySymbol, prepare } from '../utils';
 
 /**
  * Create a demo context with all necessary setup.

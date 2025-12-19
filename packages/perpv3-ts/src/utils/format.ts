@@ -3,8 +3,8 @@ import { formatUnits, getAddress, isAddress, Multicall } from '@synfutures/viem-
 import { formatInTimeZone } from 'date-fns-tz';
 import { sqrtX96ToWad, tickToSqrtX96 } from '../math';
 import { MAX_UINT_16, MAX_UINT_24, Q24 } from '../constants';
-import { PERP_EXPIRY } from '../types/contract';
 import type { ParserDeps } from '../parsers/types';
+import { PERP_EXPIRY } from '../types';
 
 // ============================================================================
 // Exported Constants and Interfaces

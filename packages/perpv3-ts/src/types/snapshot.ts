@@ -6,17 +6,20 @@ import { InstrumentSetting } from './setting';
 import { QuotationWithSize } from './quotation';
 import { Position } from './position';
 import { Range } from './range';
-import type {
-    Amm,
-    PriceData,
-    Portfolio,
-    Quotation,
-    QuoteState,
-    BlockInfo,
-    PlaceParam,
-    OnchainContext,
+import {
+    Condition,
+    Status,
+    PERP_EXPIRY,
+    Side,
+    type Amm,
+    type PriceData,
+    type Portfolio,
+    type Quotation,
+    type QuoteState,
+    type BlockInfo,
+    type PlaceParam,
+    type OnchainContext,
 } from './contract';
-import { Condition, Status, PERP_EXPIRY, Side } from './contract';
 import type { Address } from 'viem';
 import { formatInTimeZone } from 'date-fns-tz';
 

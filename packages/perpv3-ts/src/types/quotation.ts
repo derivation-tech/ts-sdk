@@ -1,11 +1,10 @@
 import type { Address } from 'viem';
-import { abs, wdiv, sqrtX96ToWad } from '../math';
+import { abs, sqrtX96ToWad, wdiv } from '../math';
 import { ZERO } from '../constants';
-import { Errors, ErrorCode } from './error';
-import { Side } from '../types';
 import { inquireByTick } from '../queries';
 import type { ApiConfig, RpcConfig } from '../queries/config';
-import type { Quotation } from './contract';
+import { Errors, ErrorCode } from './error';
+import { Side, type Quotation } from './contract';
 
 /**
  * QuotationWithSize combines a Quotation with size (signed: positive for LONG, negative for SHORT).

@@ -1,11 +1,7 @@
 import type { Address } from 'viem';
 import { abs } from '../math';
 import { ZERO } from '../constants';
-import { Errors, ErrorCode } from '../types/error';
-import { Position } from '../types/position';
-import { type AdjustParam } from '../types/contract';
-import { type PairSnapshot } from '../types/snapshot';
-import { UserSetting } from '../types';
+import { Errors, ErrorCode, Position, UserSetting, type AdjustParam, type PairSnapshot } from '../types';
 
 // ============================================================================
 // Adjust Input Classes

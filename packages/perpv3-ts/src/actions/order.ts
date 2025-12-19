@@ -1,10 +1,6 @@
 import type { Address } from 'viem';
 import { abs, wmulDown, ratioToWad, tickToWad } from '../math';
-import { Order } from '../types/order';
-import { UserSetting } from '../types';
-import { type PlaceParam, Side, sideSign } from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
-import { Errors, ErrorCode } from '../types/error';
+import { Errors, ErrorCode, Order, PairSnapshot, Side, sideSign, UserSetting, type PlaceParam } from '../types';
 
 export class PlaceInput {
     public readonly traderAddress: Address;

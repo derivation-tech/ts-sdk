@@ -100,10 +100,10 @@ import {
     SpacingConfig,
     BlockInfo,
     Quotation,
+    Order,
+    Position,
+    Range,
 } from '../types';
-import { Position } from '../types/position';
-import { Range } from '../types/range';
-import { Order } from '../types/order';
 import { axiosGet, bigInitObjectCheckByKeys } from '../utils';
 import { getDepthRangeDataByLiquidityDetails } from '../frontend/chart';
 import { getStartEndTimeByRangeType } from '../frontend/history';

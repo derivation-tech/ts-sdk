@@ -1,12 +1,17 @@
 import type { Address } from 'viem';
-import { wmulDown, wmul, abs, wdiv, sqrt, ratioToWad, sqrtX96ToWad, sqrtX96ToTick, tickToWad } from '../math';
-import { ZERO, MAX_INT_24, MIN_INT_24 } from '../constants';
-import { Errors, ErrorCode } from '../types/error';
-import { Position } from '../types/position';
-import { Range } from '../types/range';
-import { UserSetting } from '../types';
-import { type RemoveParam, type AddParam, Side } from '../types/contract';
-import { type PairSnapshot } from '../types/snapshot';
+import { abs, wdiv, wmul, wmulDown, ratioToWad, sqrt, sqrtX96ToTick, sqrtX96ToWad, tickToWad } from '../math';
+import { MAX_INT_24, MIN_INT_24, ZERO } from '../constants';
+import {
+    Errors,
+    ErrorCode,
+    Position,
+    Range,
+    Side,
+    UserSetting,
+    type AddParam,
+    type PairSnapshot,
+    type RemoveParam,
+} from '../types';
 
 // ============================================================================
 // Range Input Classes

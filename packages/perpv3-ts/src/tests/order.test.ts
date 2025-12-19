@@ -3,17 +3,23 @@ import onchainFixture from './fixtures/onchain-context.abc.json';
 import { parseOnchainContext } from './helpers/abcFixture';
 import { abs, wmulDown, ratioToWad, wadToSqrtX96 } from '../math';
 import { WAD } from '../constants';
-import { InstrumentSetting, UserSetting } from '../types/setting';
-import { Position } from '../types/position';
-import { type OnchainContext, type PlaceParam, type Portfolio, Side } from '../types/contract';
-import { Order } from '../types/order';
-import { PairSnapshot } from '../types/snapshot';
+import {
+    InstrumentSetting,
+    Order,
+    PairSnapshot,
+    Position,
+    Side,
+    UserSetting,
+    type OnchainContext,
+    type PlaceParam,
+    type Portfolio,
+} from '../types';
 import { PlaceInput, type PlaceInputSimulation } from '../actions/order';
 import { CrossLimitOrderInput } from '../actions/crossLimitOrder';
 import { ScaledLimitOrderInput, BatchOrderSizeDistribution } from '../actions/scaledLimitOrder';
 import type { TradeSimulation } from '../actions/trade';
 import * as TradeModule from '../actions/trade';
-import { QuotationWithSize } from '../types/quotation';
+import { QuotationWithSize } from '../types';
 
 // Mock the order module before importing
 jest.mock('../actions/order', () => {

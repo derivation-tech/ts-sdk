@@ -1,6 +1,6 @@
-import { abs, wdiv, wmul, max, wmulUp, wdivUp, tickToWad, asInt24, asUint24, shiftLeft, shiftRight } from '../math';
-import { ZERO, MAX_UINT_24, MAX_UINT_48, RATIO_BASE } from '../constants';
-import { Errors } from '../types/error';
+import { abs, asInt24, asUint24, max, shiftLeft, shiftRight, tickToWad, wdiv, wdivUp, wmul, wmulUp } from '../math';
+import { MAX_UINT_24, MAX_UINT_48, RATIO_BASE, ZERO } from '../constants';
+import { Errors } from './error';
 
 export class Order {
     public readonly balance: bigint; // uint128

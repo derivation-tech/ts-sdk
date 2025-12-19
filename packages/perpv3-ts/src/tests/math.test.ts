@@ -19,9 +19,7 @@ import {
 } from '../math';
 import { RATIO_DECIMALS, WAD } from '../constants';
 import { calcAsymmetricBoost, calcBoost } from '../actions/range';
-import { InstrumentSetting, UserSetting } from '../types/setting';
-import { Range } from '../types/range';
-import { QuoteType, Setting, Side, Condition } from '../types/contract';
+import { Condition, InstrumentSetting, QuoteType, Range, Setting, Side, UserSetting } from '../types';
 import { calcOrderLeverageByMargin, getNextSqrtPriceFromInput } from './utils/unused';
 import { zeroAddress } from 'viem';
 

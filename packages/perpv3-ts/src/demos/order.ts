@@ -1,22 +1,20 @@
 import { parseUnits } from 'viem';
 import { abs, wmul } from '../math';
 import { WAD_DECIMALS } from '../constants';
-import { Side } from '../types/contract';
-import { Order } from '../types/order';
-import { buildInquireByTickResult } from '../types/quotation';
-import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { encodePlaceParam, encodeBatchPlaceParam, encodeTradeParam, encodeCancelParam } from '../utils/encode';
-import { formatTick, formatWad, formatTokenAmount } from '../utils/format';
 import { BatchOrderSizeDistribution } from '../actions/scaledLimitOrder';
-import {
-    ensureMarginAndAllowance,
-    cancelOrdersAtTicks,
-    closePositionIfExists,
-    ensureValidPlaceParam,
-    ensureValidBatchPlaceTicks,
-} from './utils';
+import { CURRENT_INSTRUMENT_ABI } from '../abis';
+import { Order, Side, buildInquireByTickResult } from '../types';
+import { encodeBatchPlaceParam, encodeCancelParam, encodePlaceParam, encodeTradeParam } from '../utils/encode';
+import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
+import {
+    cancelOrdersAtTicks,
+    closePositionIfExists,
+    ensureMarginAndAllowance,
+    ensureValidBatchPlaceTicks,
+    ensureValidPlaceParam,
+} from './utils';
 
 /**
  * Demo: Place and cancel a limit order

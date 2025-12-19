@@ -1,35 +1,38 @@
 import type { Address } from 'viem';
-import { UserSetting } from './types';
-import { PairSnapshot } from './types/snapshot';
-import { QuotationWithSize } from './types/quotation';
-import { TradeInput, type TradeInputOptions, type TradeSimulation } from './actions/trade';
-import { PlaceInput, type PlaceInputSimulation } from './actions/order';
+import { AddInput, RemoveInput } from './actions/range';
 import { AdjustInput, type AdjustSimulation } from './actions/adjust';
 import { CrossLimitOrderInput } from './actions/crossLimitOrder';
+import { PlaceInput, type PlaceInputSimulation } from './actions/order';
 import { ScaledLimitOrderInput, BatchOrderSizeDistribution } from './actions/scaledLimitOrder';
-import { AddInput } from './actions/range';
-import { RemoveInput } from './actions/range';
+import { TradeInput, type TradeInputOptions, type TradeSimulation } from './actions/trade';
+import { DEFAULT_PUBLIC_WS_URL } from './apis/constants';
+import type {
+    InstrumentStreamData,
+    MarketPairInfoChangedData,
+    OrderBookStreamData,
+    PortfolioStreamData,
+    PublicWebsocketClientOptions,
+} from './apis/websocket';
 import {
     fetchOnchainContext,
-    inquireByTick,
     fetchOrderBook,
+    inquireByTick,
     type ApiConfig,
-    type RpcConfig,
     type ReadOptions,
+    type RpcConfig,
 } from './queries';
 import type { RpcConfig as RpcConfigType } from './queries/config';
-import type { TradeParam, PlaceParam, AdjustParam } from './types/contract';
-import { Side } from './types/contract';
-import type { Quotation } from './types/contract';
-import { WebSocketManager } from './wss';
 import {
-    type OrderBookStreamData,
-    type PortfolioStreamData,
-    type InstrumentStreamData,
-    type MarketPairInfoChangedData,
-    type PublicWebsocketClientOptions,
-} from './apis/websocket';
-import { DEFAULT_PUBLIC_WS_URL } from './apis/constants';
+    QuotationWithSize,
+    Side,
+    UserSetting,
+    type AdjustParam,
+    type PairSnapshot,
+    type PlaceParam,
+    type Quotation,
+    type TradeParam,
+} from './types';
+import { WebSocketManager } from './wss';
 
 /**
  * PerpClient is a scoped client for interacting with a specific trading pair (instrument + expiry).

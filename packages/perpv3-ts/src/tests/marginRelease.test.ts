@@ -1,7 +1,5 @@
-import { Position } from '../types/position';
-import { QuotationWithSize } from '../types/quotation';
 import { abs, tickToWad, wdiv, wmul } from '../math';
-import { PERP_EXPIRY, Status, type Amm, type Quotation, type TradeParam } from '../types/contract';
+import { PERP_EXPIRY, Position, QuotationWithSize, Status, type Amm, type Quotation, type TradeParam } from '../types';
 import { Q96, WAD, ZERO } from '../constants';
 
 describe('Position.marginForTargetLeverage', () => {

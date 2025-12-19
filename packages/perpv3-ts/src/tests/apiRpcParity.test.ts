@@ -5,14 +5,21 @@ import type { Address, Chain, PublicClient } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { base as baseChain } from 'viem/chains';
 import { abctest } from '@synfutures/viem-kit';
-import { SimulationError } from '../types/error';
-import { InstrumentSetting } from '../types/setting';
-import { type Amm, type BlockInfo, type Portfolio, type Quotation, type Setting, Side } from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
-import type { OnchainContext } from '../types/contract';
-import { Position } from '../types/position';
-import { QuotationWithSize } from '../types/quotation';
-import { UserSetting } from '../types';
+import {
+    InstrumentSetting,
+    PairSnapshot,
+    Position,
+    QuotationWithSize,
+    Side,
+    SimulationError,
+    UserSetting,
+    type Amm,
+    type BlockInfo,
+    type OnchainContext,
+    type Portfolio,
+    type Quotation,
+    type Setting,
+} from '../types';
 import { TradeInput } from '../actions/trade';
 import { AdjustInput } from '../actions/adjust';
 import { PlaceInput } from '../actions/order';

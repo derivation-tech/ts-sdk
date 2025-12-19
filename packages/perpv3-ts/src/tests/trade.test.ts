@@ -1,10 +1,7 @@
 import type { Address } from 'viem';
 import { TradeInput } from '../actions/trade';
 import { AdjustInput } from '../actions/adjust';
-import { type Quotation, Side } from '../types/contract';
-import { type PairSnapshot } from '../types/snapshot';
-import { UserSetting } from '../types';
-import { QuotationWithSize } from '../types/quotation';
+import { PairSnapshot, QuotationWithSize, Side, UserSetting, type Quotation } from '../types';
 import { WAD, ZERO } from '../constants';
 import { abs } from '../math';
 import tradeScenarios from './fixtures/trade-scenarios.abc.json';

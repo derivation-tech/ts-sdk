@@ -1,12 +1,12 @@
 import { parseUnits } from 'viem';
 import { ratioToWad, sqrtX96ToWad, wadToTick, wmul } from '../math';
 import { RATIO_BASE } from '../constants';
-import { encodeAddParam, encodeRemoveParam } from '../utils/encode';
-import { ensureMarginAndAllowance } from './utils';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { formatTick, formatWad, formatTokenAmount } from '../utils/format';
+import { encodeAddParam, encodeRemoveParam } from '../utils/encode';
+import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
+import { ensureMarginAndAllowance } from './utils';
 
 /**
  * Demo: Add liquidity using AddInput

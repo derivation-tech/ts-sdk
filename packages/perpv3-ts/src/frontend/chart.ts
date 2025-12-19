@@ -1,9 +1,7 @@
 import { formatUnits } from 'viem';
-import { MinimalPearl } from '../types/contract';
-import { wdiv } from '../math';
+import { wdiv, tickToSqrtX96, wadToTick, tickToWad } from '../math';
 import { WAD, ZERO } from '../constants';
-import { tickToSqrtX96, wadToTick, tickToWad } from '../math';
-import { Range } from '../types/range';
+import { MinimalPearl, Range } from '../types';
 import { DEFAULT_DECIMALS } from '../utils/format';
 import { ChartLiquidityDetailsFromApi, DepthChartData, DepthData } from '../apis/interfaces';
 

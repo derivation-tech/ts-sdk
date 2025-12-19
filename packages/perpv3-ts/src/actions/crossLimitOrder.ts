@@ -1,13 +1,18 @@
 import type { Address } from 'viem';
 import { ZERO } from '../constants';
-import { Errors, ErrorCode } from '../types/error';
-import { Order } from '../types/order';
-import { QuotationWithSize } from '../types/quotation';
-import { UserSetting } from '../types';
-import { type PlaceParam, type TradeParam, Side } from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
-import { TradeInput, type TradeSimulation } from './trade';
+import {
+    Errors,
+    ErrorCode,
+    Order,
+    PairSnapshot,
+    QuotationWithSize,
+    Side,
+    UserSetting,
+    type PlaceParam,
+    type TradeParam,
+} from '../types';
 import { PlaceInput, type PlaceInputSimulation } from './order';
+import { TradeInput, type TradeSimulation } from './trade';
 
 // ============================================================================
 // Cross Limit Order

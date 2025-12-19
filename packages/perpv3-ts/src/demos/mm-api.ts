@@ -8,7 +8,7 @@ import {
     fetchMmServerTime,
 } from '../apis';
 import 'dotenv/config';
-import { PERP_EXPIRY } from '../types/contract';
+import { PERP_EXPIRY } from '../types';
 
 const CHAIN_ID = 143;
 const SYMBOL = 'BTCUSDC';
