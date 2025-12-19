@@ -6,9 +6,7 @@
 import 'dotenv/config';
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
-import { ChainKitRegistry } from '../src/index';
-import { abctest } from '../src/chains/abctest';
-import * as ERC20 from '../src/contracts/erc20';
+import { ChainKitRegistry, abctest, ERC20 } from '../src/index';
 
 // Removed logger - using console.log instead
 
