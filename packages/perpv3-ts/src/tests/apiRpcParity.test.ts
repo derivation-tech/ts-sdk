@@ -277,7 +277,7 @@ beforeAll(async () => {
 
 if (!parityFixtureEnv || scenarios.length === 0) {
     describe('simulate api/rpc parity', () => {
-        test.skip('SIMULATE_PARITY_FIXTURE not provided, skipping parity tests', () => { });
+        test.skip('SIMULATE_PARITY_FIXTURE not provided, skipping parity tests', () => {});
     });
 } else {
     describe('simulate api/rpc parity', () => {

@@ -277,19 +277,19 @@ import { Side } from '@synfutures/perpv3-ts/types';
 // ✅ Recommended: Full feasibility check for order placement
 const result = snapshot.isTickFeasibleForLimitOrder(1000, Side.LONG);
 if (!result.feasible) {
-  console.error(`Cannot place order: ${result.reason}`);
+    console.error(`Cannot place order: ${result.reason}`);
 }
 
 // Check if instrument is tradable
 const tradability = snapshot.isTradable();
 if (!tradability.tradable) {
-  console.error(`Cannot trade: ${tradability.reason}`);
+    console.error(`Cannot trade: ${tradability.reason}`);
 }
 
 // Get feasible tick range for limit orders
 const range = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
 if (range) {
-  console.log(`Can place LONG orders from tick ${range.minTick} to ${range.maxTick}`);
+    console.log(`Can place LONG orders from tick ${range.minTick} to ${range.maxTick}`);
 }
 
 // Check if margin can be withdrawn
@@ -298,7 +298,7 @@ const maxWithdrawable = snapshot.getMaxWithdrawableMargin();
 
 // Check if leverage is valid
 if (!snapshot.instrumentSetting.isLeverageValid(5n * WAD)) {
-  console.error('Leverage too high');
+    console.error('Leverage too high');
 }
 
 // Get available orders (not fully taken)
@@ -308,33 +308,37 @@ const availableOrders = snapshot.getAvailableOrders();
 #### Key Methods Comparison
 
 **`PairSnapshot.isTickFeasibleForLimitOrder(tick, side)`** - Use for actual order placement
+
 - ✅ Checks instrument tradability (condition, status, pause state)
 - ✅ Validates tick (bounds, spacing, side, price deviation)
 - ✅ Checks if tick is already occupied by existing order
 
 **`InstrumentSetting.isTickValidForLimitOrder(tick, side, ammTick, markPrice)`** - Use for theoretical calculations
+
 - ✅ Validates tick properties only
 - ❌ Does NOT check market state or order slots
 
 **Example - Finding available tick:**
+
 ```typescript
 const range = snapshot.getFeasibleLimitOrderTickRange(Side.LONG);
 if (range) {
-  const spacing = snapshot.instrumentSetting.orderSpacing;
-  // Iterate from best price to find first available tick
-  for (let tick = range.maxTick; tick >= range.minTick; tick -= spacing) {
-    const result = snapshot.isTickFeasibleForLimitOrder(tick, Side.LONG);
-    if (result.feasible) {
-      console.log(`Available tick: ${tick}`);
-      break;
+    const spacing = snapshot.instrumentSetting.orderSpacing;
+    // Iterate from best price to find first available tick
+    for (let tick = range.maxTick; tick >= range.minTick; tick -= spacing) {
+        const result = snapshot.isTickFeasibleForLimitOrder(tick, Side.LONG);
+        if (result.feasible) {
+            console.log(`Available tick: ${tick}`);
+            break;
+        }
     }
-  }
 }
 ```
 
 **Available Helper Methods:**
 
-*PairSnapshot (context-aware):*
+_PairSnapshot (context-aware):_
+
 - `isTradable()` - Basic tradability check
 - `isOrderPlacementTradable()` - Order placement check (includes pause state)
 - `isTickFeasibleForLimitOrder(tick, side)` - Comprehensive tick validation
@@ -345,14 +349,16 @@ if (range) {
 - `getMaxWithdrawableMargin()` - Get max withdrawable amount
 - `isRemoveLiquidityFeasible(tickLower, tickUpper)` - Check range removal
 
-*InstrumentSetting (pure validation):*
+_InstrumentSetting (pure validation):_
+
 - `isLeverageValid(leverage)` - Check leverage validity
 - `minOrderSizeAtTick(tick)` - Calculate min order size at tick
 - `getFeasibleLimitOrderTickRange(side, ammTick, markPrice)` - Get theoretical range
 - `isTickValidForLimitOrder(tick, side, ammTick, markPrice)` - Validate tick properties
 - `isRangeTickPairValid(tickLower, tickUpper, ammTick)` - Validate range ticks
 
-*Position:*
+_Position:_
+
 - `canAdjustToLeverage(targetLeverage, amm, markPrice, imr)` - Check leverage adjustment
 
 See method JSDoc comments in source code for detailed documentation.

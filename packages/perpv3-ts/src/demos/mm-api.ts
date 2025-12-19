@@ -1,5 +1,12 @@
 import type { Address } from 'viem';
-import { fetchMmOrderBook, fetchMmWalletBalance, fetchMmPositionList, PublicWebsocketClient, AuthInfo, fetchMmServerTime } from '../apis';
+import {
+    fetchMmOrderBook,
+    fetchMmWalletBalance,
+    fetchMmPositionList,
+    PublicWebsocketClient,
+    AuthInfo,
+    fetchMmServerTime,
+} from '../apis';
 import 'dotenv/config';
 import { PERP_EXPIRY } from '../types/contract';
 
@@ -22,12 +29,14 @@ async function main(): Promise<void> {
         const serverTime = await fetchMmServerTime(authInfo);
         console.log('serverTime : ', serverTime);
 
-        const orderBook = await fetchMmOrderBook({
-            chainId: CHAIN_ID,
-            symbol: SYMBOL,
-            ...(Number.isFinite(DEPTH) ? { depth: DEPTH } : {}),
-
-        }, authInfo);
+        const orderBook = await fetchMmOrderBook(
+            {
+                chainId: CHAIN_ID,
+                symbol: SYMBOL,
+                ...(Number.isFinite(DEPTH) ? { depth: DEPTH } : {}),
+            },
+            authInfo
+        );
         if (orderBook) {
             const ratios = Object.keys(orderBook);
             const first = ratios[0];
@@ -128,10 +137,10 @@ async function main(): Promise<void> {
 
     const portfolioSub = USER_ADDRESS
         ? ws.subscribePortfolio({ chainId: CHAIN_ID, userAddress: USER_ADDRESS, type: 'portfolio' }, (payload) => {
-            console.log(
-                `[portfolio] type=${payload.type} instrument=${payload.instrument ?? '-'} expiry=${payload.expiry ?? '-'}`
-            );
-        })
+              console.log(
+                  `[portfolio] type=${payload.type} instrument=${payload.instrument ?? '-'} expiry=${payload.expiry ?? '-'}`
+              );
+          })
         : null;
 
     console.log(`listening for ${DURATION_MS}ms...`);
