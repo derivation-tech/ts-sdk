@@ -348,7 +348,7 @@ export class InstrumentSetting {
      * Check if a leverage value is within the instrument's maximum allowed leverage.
      */
     isLeverageValid(leverage: bigint): boolean {
-        return leverage <= this.maxLeverage;
+        return leverage > 0n && leverage <= this.maxLeverage;
     }
 
     /**
@@ -408,6 +408,13 @@ export class InstrumentSetting {
      * Check if a specific tick is valid for placing a LimitOrder of the given side.
      */
     isTickValidForLimitOrder(tick: number, side: Side, ammTick: number, markPrice: bigint): { valid: boolean; reason?: string } {
+        if (tick < MIN_TICK || tick > MAX_TICK) {
+            return {
+                valid: false,
+                reason: `Tick must be within [${MIN_TICK}, ${MAX_TICK}]`,
+            };
+        }
+
         // Check tick alignment
         if (Math.abs(tick) % this.orderSpacing !== 0) {
             return {

@@ -13,7 +13,7 @@ import {
     wmul,
     tickToSqrtX96,
 } from "../math";
-import { WAD } from "../constants";
+import { MAX_TICK, MIN_TICK, WAD } from "../constants";
 import { zeroAddress } from "viem";
 
 /**
@@ -121,36 +121,37 @@ const createTestSnapshot = (
         },
     });
 
+const createTestSetting = (imr: number = 1000, orderSpacing: number = 10) =>
+    new InstrumentSetting(
+        {
+            symbol: "TEST",
+            config: zeroAddress,
+            gate: zeroAddress,
+            market: zeroAddress,
+            quote: zeroAddress,
+            decimals: 18,
+            param: {
+                minMarginAmount: WAD,
+                tradingFeeRatio: 50,
+                protocolFeeRatio: 0,
+                qtype: QuoteType.STABLE,
+                tip: 0n,
+            },
+            initialMarginRatio: imr,
+            maintenanceMarginRatio: 500,
+            placePaused: false,
+            fundingHour: 8,
+            disableOrderRebate: false,
+        },
+        Condition.NORMAL,
+        10, // pearlSpacing
+        orderSpacing,
+        100 // rangeSpacing
+    );
+
 describe("InstrumentSetting.getFeasibleLimitOrderTickRange", () => {
     // Create a minimal InstrumentSetting for testing
-    const createTestSetting = (imr: number = 1000, orderSpacing: number = 10) => {
-        return new InstrumentSetting(
-            {
-                symbol: "TEST",
-                config: zeroAddress,
-                gate: zeroAddress,
-                market: zeroAddress,
-                quote: zeroAddress,
-                decimals: 18,
-                param: {
-                    minMarginAmount: WAD,
-                    tradingFeeRatio: 50,
-                    protocolFeeRatio: 0,
-                    qtype: QuoteType.STABLE,
-                    tip: 0n,
-                },
-                initialMarginRatio: imr,
-                maintenanceMarginRatio: 500,
-                placePaused: false,
-                fundingHour: 8,
-                disableOrderRebate: false,
-            },
-            Condition.NORMAL,
-            10, // pearlSpacing
-            orderSpacing,
-            100 // rangeSpacing
-        );
-    };
+    // createTestSetting is defined above for reuse across suites.
 
     describe("LONG orders (tick < ammTick)", () => {
         it("should return range below ammTick", () => {
@@ -344,6 +345,30 @@ describe("InstrumentSetting.getFeasibleLimitOrderTickRange", () => {
                 expect(range.minTick).toBeLessThan(range.maxTick);
             }
         });
+    });
+});
+
+describe("InstrumentSetting.isTickValidForLimitOrder", () => {
+    it("rejects ticks below MIN_TICK", () => {
+        const setting = createTestSetting(1000, 1);
+        const ammTick = 0;
+        const markPrice = tickToWad(0);
+
+        const result = setting.isTickValidForLimitOrder(MIN_TICK - 1, Side.LONG, ammTick, markPrice);
+
+        expect(result.valid).toBe(false);
+        expect(result.reason).toContain("Tick must be within");
+    });
+
+    it("rejects ticks above MAX_TICK", () => {
+        const setting = createTestSetting(1000, 1);
+        const ammTick = 0;
+        const markPrice = tickToWad(0);
+
+        const result = setting.isTickValidForLimitOrder(MAX_TICK + 1, Side.SHORT, ammTick, markPrice);
+
+        expect(result.valid).toBe(false);
+        expect(result.reason).toContain("Tick must be within");
     });
 });
 
@@ -574,5 +599,37 @@ describe("PairSnapshot.getAvailableOrders", () => {
         expect(available).toHaveLength(1);
         expect(available[0]?.orderId).toBe(oids[1]);
         expect(available[0]?.order).toBe(orders[1]);
+    });
+});
+
+describe("Leverage validation helpers", () => {
+    it("rejects non-positive leverage in InstrumentSetting", () => {
+        const setting = createTestSetting(1000, 10);
+
+        expect(setting.isLeverageValid(0n)).toBe(false);
+        expect(setting.isLeverageValid(-1n)).toBe(false);
+    });
+
+    it("rejects non-positive leverage in Position.canAdjustToLeverage", () => {
+        const markPrice = tickToWad(0);
+        const snapshot = createTestSnapshot(0, markPrice);
+        const position = snapshot.portfolio.position;
+
+        expect(
+            position.canAdjustToLeverage(
+                0n,
+                snapshot.amm,
+                markPrice,
+                snapshot.instrumentSetting.initialMarginRatio
+            )
+        ).toBe(false);
+        expect(
+            position.canAdjustToLeverage(
+                -1n,
+                snapshot.amm,
+                markPrice,
+                snapshot.instrumentSetting.initialMarginRatio
+            )
+        ).toBe(false);
     });
 });

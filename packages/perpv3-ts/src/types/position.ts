@@ -314,6 +314,10 @@ export class Position {
      * Check if the position can be adjusted to a target leverage.
      */
     canAdjustToLeverage(targetLeverage: bigint, amm: Amm, markPrice: bigint, initialMarginRatio: number): boolean {
+        if (targetLeverage <= 0n) {
+            return false;
+        }
+
         const marginDelta = this.transferAmountFromTargetLeverage(amm, targetLeverage, markPrice);
         
         // If withdrawal, check if it exceeds maxWithdrawable
