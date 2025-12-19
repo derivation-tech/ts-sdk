@@ -646,21 +646,29 @@ export class PairSnapshot {
         const maxDeviation = imr * 2n;
 
         if (side === Side.LONG) {
-            // LONG: targetTick > ammTick
+            // LONG: targetTick > ammTick, price deviation within [markPrice, markPrice + 2*IMR*markPrice]
             const minTick = ammTick + 1;
             const maxDeviationPrice = markPrice + wmul(markPrice, maxDeviation);
             const maxDeviationTick = wadToTick(maxDeviationPrice);
-            const effectiveMinTick = Math.max(minTick, maxDeviationTick);
+
+            // minTick is the lower bound, maxDeviationTick is the upper bound
+            const effectiveMinTick = minTick;
+            const effectiveMaxTick = Math.min(MAX_TICK, maxDeviationTick);
+
             const alignedMinTick = instrumentSetting.alignTickStrictlyAbove(effectiveMinTick - 1);
-            const alignedMaxTick = instrumentSetting.alignOrderTick(MAX_TICK);
+            const alignedMaxTick = instrumentSetting.alignOrderTick(effectiveMaxTick);
             return { minTick: alignedMinTick, maxTick: alignedMaxTick };
         } else {
-            // SHORT: targetTick < ammTick
+            // SHORT: targetTick < ammTick, price deviation within [markPrice - 2*IMR*markPrice, markPrice]
             const maxTick = ammTick - 1;
             const minDeviationPrice = markPrice - wmul(markPrice, maxDeviation);
             const minDeviationTick = wadToTick(minDeviationPrice);
-            const effectiveMaxTick = Math.min(maxTick, minDeviationTick);
-            const alignedMinTick = instrumentSetting.alignOrderTick(MIN_TICK);
+
+            // minDeviationTick is the lower bound, maxTick is the upper bound
+            const effectiveMinTick = Math.max(MIN_TICK, minDeviationTick);
+            const effectiveMaxTick = maxTick;
+
+            const alignedMinTick = instrumentSetting.alignOrderTick(effectiveMinTick);
             const alignedMaxTick = instrumentSetting.alignTickStrictlyBelow(effectiveMaxTick + 1);
             return { minTick: alignedMinTick, maxTick: alignedMaxTick };
         }

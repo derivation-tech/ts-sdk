@@ -365,36 +365,42 @@ export class InstrumentSetting {
     getFeasibleLimitOrderTickRange(side: Side, ammTick: number, markPrice: bigint): { minTick: number; maxTick: number } | null {
         const imr = ratioToWad(this.imr);
         const maxDeviation = imr * 2n;
-        
+
         if (side === Side.LONG) {
-            // LONG orders: ticks < ammTick
+            // LONG orders: ticks < ammTick, price deviation within [markPrice - 2*IMR*markPrice, markPrice]
             const maxTick = ammTick - 1;
             const minDeviationPrice = markPrice - wmul(markPrice, maxDeviation);
             const minDeviationTick = wadToTick(minDeviationPrice);
-            const effectiveMaxTick = Math.min(maxTick, minDeviationTick);
-            
-            const alignedMinTick = this.alignOrderTick(MIN_TICK);
+
+            // minDeviationTick is the lower bound, maxTick is the upper bound
+            const effectiveMinTick = Math.max(MIN_TICK, minDeviationTick);
+            const effectiveMaxTick = maxTick;
+
+            const alignedMinTick = this.alignOrderTick(effectiveMinTick);
             const alignedMaxTick = this.alignTickStrictlyBelow(effectiveMaxTick + 1);
-            
+
             if (alignedMinTick >= alignedMaxTick) {
                 return null;
             }
-            
+
             return { minTick: alignedMinTick, maxTick: alignedMaxTick };
         } else {
-            // SHORT orders: ticks > ammTick
+            // SHORT orders: ticks > ammTick, price deviation within [markPrice, markPrice + 2*IMR*markPrice]
             const minTick = ammTick + 1;
             const maxDeviationPrice = markPrice + wmul(markPrice, maxDeviation);
             const maxDeviationTick = wadToTick(maxDeviationPrice);
-            const effectiveMinTick = Math.max(minTick, maxDeviationTick);
-            
+
+            // minTick is the lower bound, maxDeviationTick is the upper bound
+            const effectiveMinTick = minTick;
+            const effectiveMaxTick = Math.min(MAX_TICK, maxDeviationTick);
+
             const alignedMinTick = this.alignTickStrictlyAbove(effectiveMinTick - 1);
-            const alignedMaxTick = this.alignOrderTick(MAX_TICK);
-            
+            const alignedMaxTick = this.alignOrderTick(effectiveMaxTick);
+
             if (alignedMinTick > alignedMaxTick) {
                 return null;
             }
-            
+
             return { minTick: alignedMinTick, maxTick: alignedMaxTick };
         }
     }
