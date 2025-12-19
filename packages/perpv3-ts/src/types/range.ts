@@ -265,16 +265,18 @@ export class Range {
     }
 
     /**
-     * Calculate minimum margin required to create a liquidity range.
+     * Calculate minimum margin required to create a liquidity range with the given liquidity amount.
+     *
+     * @param liquidity - The liquidity amount to calculate margin requirement for
      */
     static minMargin(
         tickLower: number,
         tickUpper: number,
         sqrtPX96: bigint,
-        minLiquidity: bigint,
+        liquidity: bigint,
         imr: number
     ): bigint {
         const tempRange = new Range(0n, 0n, 0n, sqrtPX96, tickLower, tickUpper);
-        return tempRange.calcMarginFromLiquidity(sqrtPX96, minLiquidity, imr);
+        return tempRange.calcMarginFromLiquidity(sqrtPX96, liquidity, imr);
     }
 }
