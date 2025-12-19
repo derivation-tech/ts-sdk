@@ -1,5 +1,5 @@
 import type { Address, PublicClient, WalletClient } from 'viem';
-import { ChainKit } from '@derivation-tech/viem-kit';
+import { ChainKit } from '@synfutures/viem-kit';
 import type { RpcConfig } from '../../queries/config';
 import type { InstrumentSetting, PairSnapshot } from '../../types';
 import type { PerpInfo } from '../../info';

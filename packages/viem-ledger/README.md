@@ -1,4 +1,4 @@
-# @derivation-tech/viem-ledger
+# @synfutures/viem-ledger
 
 Minimal Ledger helpers for viem, following ethers-ledger conventions:
 
@@ -16,7 +16,7 @@ Features:
 Usage:
 
 ```ts
-import { ledgerToAccount } from '@derivation-tech/viem-ledger';
+import { ledgerToAccount } from '@synfutures/viem-ledger';
 import { createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
 

@@ -65,14 +65,14 @@ export class Order {
      * @returns Margin required for the specified leverage (in WAD format)
      */
     marginForLeverage(markPrice: bigint, leverage: bigint, marginBufferInBps: number = 0): bigint {
-        const baseSize = abs(this.size);
+        const baseQuantity = abs(this.size);
 
         // Use max(targetPrice, markPrice) to deduce the base margin, by design of oyster amm
         const effectivePrice = max(this.targetPrice, markPrice);
 
-        // Calculate base margin: effectivePrice * baseSize / leverage
+        // Calculate base margin: effectivePrice * baseQuantity / leverage
         // Using wdivUp and wmulUp for conservative (rounding up) calculation
-        const baseMargin = wdivUp(wmulUp(effectivePrice, baseSize), leverage);
+        const baseMargin = wdivUp(wmulUp(effectivePrice, baseQuantity), leverage);
 
         // Apply buffer to the final margin if specified
         // e.g., marginBufferInBps=100 means 100/10000 = 1% = 0.01

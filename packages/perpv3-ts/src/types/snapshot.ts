@@ -350,7 +350,7 @@ export class PairSnapshot {
         // Contract (Oyster.sol:338-340): only checks when old.size == 0
         // Does NOT check for increasing existing positions or closing
         if (position.size === ZERO) {
-            // Use entryNotional (tradeValue) which is the actual trade value, not markPrice * baseSize
+            // Use entryNotional (tradeValue) which is the actual trade value, not markPrice * baseQuantity
             const tradeValue = quotationWithSize.tradeValue;
             if (tradeValue < instrumentSetting.minTradeValue) {
                 throw Errors.validation('Trade value below minimum trade value', ErrorCode.INVALID_PARAM, {

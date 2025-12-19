@@ -1,4 +1,4 @@
-# @derivation-tech/viem-kit
+# @synfutures/viem-kit
 
 ## 0.0.5
 

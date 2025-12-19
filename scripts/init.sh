@@ -8,7 +8,7 @@ projectName=packages
 packageName=${1:-}
 
 ROOT_PACKAGE_NAME=$(jq --raw-output '.name' package.json)
-if [ "$ROOT_PACKAGE_NAME" != "@derivation-tech/web3-context" ]; then
+if [ "$ROOT_PACKAGE_NAME" != "@synfutures/ts-sdk" ]; then
 	echo "Please use the command in the project root directory."
 	exit 1
 fi

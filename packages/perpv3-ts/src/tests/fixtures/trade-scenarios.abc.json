@@ -389,7 +389,7 @@
         "input": {
             "instrumentAddress": "0x4ca5dc03807690b400a057acbe25d439fe2e7839",
             "traderAddress": "0xA2917847890331339965af22Cc76d90E8fA23552",
-            "baseSize": "-8000000000000000",
+            "baseQuantity": "8000000000000000",
             "userSetting": {
                 "deadline": 3600,
                 "slippage": 60

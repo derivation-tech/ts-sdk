@@ -1,9 +1,9 @@
 {
-    "name": "@derivation-tech/viem-kit",
+    "name": "@synfutures/ts-sdk",
     "private": true,
     "version": "0.0.1",
-    "description": "Viem-based web3 toolkit with chain kit, contracts, and utilities",
-    "author": "derivation-tech",
+    "description": "SynFutures TypeScript SDK monorepo",
+    "author": "SynFutures",
     "license": "MIT",
     "scripts": {
         "preinstall": "npx -y only-allow pnpm",

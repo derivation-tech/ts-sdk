@@ -1,6 +1,6 @@
 import type { Address } from 'viem';
 import { createWalletClient, http } from 'viem';
-import { getAccount } from '@derivation-tech/viem-kit';
+import { getAccount } from '@synfutures/viem-kit';
 import { PERP_EXPIRY } from '../../types/contract';
 import { fetchOnchainContext } from '../../queries';
 import type { DemoContext } from './types';

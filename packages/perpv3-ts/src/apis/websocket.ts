@@ -281,7 +281,7 @@ export type PublicWsSubscribeParams =
 export interface OrderBookLevel {
     tick: number;
     price: string;
-    baseSize: string;
+    baseQuantity: string;
     quoteSize: string;
     baseSum: string;
     quoteSum: string;

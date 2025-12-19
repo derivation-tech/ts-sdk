@@ -351,7 +351,7 @@ function buildOrderBookSide(
     pageAdjustmentDelta: number,
     right: boolean
 ): OrderDataFromApi[] {
-    const page2BaseSize = new Map<number, bigint>();
+    const page2BaseQuantity = new Map<number, bigint>();
     const lastPageTick = new Map<number, number>();
     let currentLiquidity = startingLiquidity;
     let currentPX96 = currPX96;
@@ -363,66 +363,66 @@ function buildOrderBookSide(
         }
 
         if (tick === currTick) {
-            let currBaseSize = page2BaseSize.get(page) ?? 0n;
+            let currBaseQuantity = page2BaseQuantity.get(page) ?? 0n;
             const pearl = tick2Pearl.get(tick);
             if (pearl) {
                 if ((right && pearl.left < 0n) || (!right && pearl.left > 0n)) {
-                    currBaseSize += abs(pearl.left);
+                    currBaseQuantity += abs(pearl.left);
                 }
             }
 
             const boundaryTick = right ? tick + 1 : tick;
             const targetPX96 = tickToSqrtX96(boundaryTick);
             const deltaBase = calcDeltaBase(currentPX96, targetPX96, currentLiquidity, !right);
-            currBaseSize += abs(deltaBase);
+            currBaseQuantity += abs(deltaBase);
             currentPX96 = targetPX96;
-            page2BaseSize.set(page, currBaseSize);
+            page2BaseQuantity.set(page, currBaseQuantity);
             lastPageTick.set(page, right ? boundaryTick : tick - 1);
 
             tick = right ? tick + 1 : tick - 1;
             continue;
         }
 
-        let currBaseSize = page2BaseSize.get(page) ?? 0n;
+        let currBaseQuantity = page2BaseQuantity.get(page) ?? 0n;
         lastPageTick.set(page, tick);
 
         const pearl = tick2Pearl.get(tick);
         if (pearl) {
             if ((right && pearl.left < 0n) || (!right && pearl.left > 0n)) {
-                currBaseSize += abs(pearl.left);
+                currBaseQuantity += abs(pearl.left);
             }
             const targetPX96 = tickToSqrtX96(tick);
-            currBaseSize += calcDeltaBase(currentPX96, targetPX96, currentLiquidity, false);
+            currBaseQuantity += calcDeltaBase(currentPX96, targetPX96, currentLiquidity, false);
             currentPX96 = targetPX96;
             if (pearl.liquidityNet !== 0n) {
                 currentLiquidity = right
                     ? currentLiquidity + pearl.liquidityNet
                     : currentLiquidity - pearl.liquidityNet;
             }
-            page2BaseSize.set(page, currBaseSize);
+            page2BaseQuantity.set(page, currBaseQuantity);
         } else if (tick % size === 0) {
             const targetPX96 = tickToSqrtX96(tick);
             const deltaBase = calcDeltaBase(currentPX96, targetPX96, currentLiquidity, !right);
-            currBaseSize += abs(deltaBase);
+            currBaseQuantity += abs(deltaBase);
             currentPX96 = targetPX96;
-            page2BaseSize.set(page, currBaseSize);
+            page2BaseQuantity.set(page, currBaseQuantity);
         }
 
         tick = right ? tick + 1 : tick - 1;
     }
 
     const items: OrderDataFromApi[] = [];
-    for (const [page, baseSize] of page2BaseSize.entries()) {
+    for (const [page, baseQuantity] of page2BaseQuantity.entries()) {
         const tickValue = lastPageTick.get(page);
         if (tickValue === undefined) {
             continue;
         }
         const price = tickToWad(tickValue);
-        const quoteSize = (price * baseSize) / WAD;
+        const quoteSize = (price * baseQuantity) / WAD;
         items.push({
             tick: tickValue,
             price,
-            baseSize,
+            baseQuantity,
             quoteSize,
             baseSum: 0n,
             quoteSum: 0n,
@@ -434,7 +434,7 @@ function buildOrderBookSide(
     let baseSum = 0n;
     let quoteSum = 0n;
     return items.map((item) => {
-        baseSum += item.baseSize;
+        baseSum += item.baseQuantity;
         quoteSum += item.quoteSize;
         return {
             ...item,

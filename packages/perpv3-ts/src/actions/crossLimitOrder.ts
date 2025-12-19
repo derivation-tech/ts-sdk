@@ -19,7 +19,7 @@ import { PlaceInput, type PlaceInputSimulation } from './order';
  * 2. A limit order leg (placed at target tick after market execution)
  *
  * The order splits the total baseQuantity into two parts:
- * - Market leg: Uses quotationWithSize.baseSize (determined by targetTick)
+ * - Market leg: Uses quotationWithSize.baseQuantity (determined by targetTick)
  * - Limit leg: Remaining baseQuantity after market execution
  *
  * This is useful for strategies that want to:
@@ -121,12 +121,12 @@ export class CrossLimitOrderInput {
         }
 
         // Simulate market leg: execute trade immediately at current price
-        // The market leg size is determined by quotationWithSize.baseSize
+        // The market leg size is determined by quotationWithSize.baseQuantity
         const marketTradeInput = new TradeInput(
             this.instrumentAddress,
             this.expiry,
             this.traderAddress,
-            quotationWithSize.baseSize,
+            quotationWithSize.baseQuantity,
             this.side,
             this.userSetting
         );
@@ -147,11 +147,11 @@ export class CrossLimitOrderInput {
 
         // Calculate remaining base quantity for limit leg
         // Limit leg gets whatever is left after market execution
-        const remainingBase = this.baseQuantity - quotationWithSize.baseSize;
+        const remainingBase = this.baseQuantity - quotationWithSize.baseQuantity;
         if (remainingBase <= ZERO) {
             throw Errors.validation('No remaining size for limit order after market trade', ErrorCode.INVALID_SIZE, {
                 totalBase: this.baseQuantity.toString(),
-                marketBase: quotationWithSize.baseSize.toString(),
+                marketBase: quotationWithSize.baseQuantity.toString(),
                 remainingBase: remainingBase.toString(),
             });
         }
@@ -195,7 +195,8 @@ export class CrossLimitOrderInput {
             this.expiry,
             this.traderAddress,
             limitOrderTick,
-            isLong ? remainingBase : -remainingBase,
+            remainingBase,
+            this.side,
             this.userSetting
         );
 

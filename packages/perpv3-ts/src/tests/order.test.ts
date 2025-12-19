@@ -174,7 +174,7 @@ const errorTestCases = [
             amount: baseMargin,
             deadline: DEFAULT_DEADLINE,
         },
-        expectedError: 'Order size cannot be zero',
+        expectedError: 'Order baseQuantity must be positive',
     },
     {
         name: 'Unaligned tick',
@@ -259,12 +259,15 @@ function placeParamToInput(
     placeParam: PlaceParam,
     userSetting: UserSetting = new UserSetting(DEFAULT_DEADLINE, DEFAULT_USER_SLIPPAGE, 3n * WAD)
 ): PlaceInput {
+    const baseQuantity = abs(placeParam.size);
+    const side = placeParam.size >= 0n ? Side.LONG : Side.SHORT;
     return new PlaceInput(
         fixtureInstrumentAddress,
         placeParam.expiry,
         fixtureTraderAddress,
         placeParam.tick,
-        placeParam.size,
+        baseQuantity,
+        side,
         userSetting
     );
 }
@@ -594,6 +597,7 @@ describe('CrossLimitOrderInput.simulate', () => {
             fixtureTraderAddress,
             targetTick,
             3n * BASE,
+            Side.LONG,
             userSetting
         );
         expect(() => tickOnlyPlaceInput.simulate(snapshotTickOnly)).toThrow();

@@ -94,7 +94,8 @@ export class ScaledLimitOrderInput {
                     this.expiry,
                     this.traderAddress,
                     tick,
-                    this.side === Side.LONG ? basePortion : -basePortion,
+                    basePortion,
+                    this.side,
                     this.userSetting
                 );
 

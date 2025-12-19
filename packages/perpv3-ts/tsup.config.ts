@@ -43,7 +43,7 @@ export default defineConfig({
     clean: true,
 
     // Don't bundle external dependencies
-    external: ['viem', /^@derivation-tech/, 'axios', 'ws', 'date-fns', 'date-fns-tz'],
+    external: ['viem', /^@synfutures/, 'axios', 'ws', 'date-fns', 'date-fns-tz'],
 
     // Output file extensions
     outDir: 'dist',

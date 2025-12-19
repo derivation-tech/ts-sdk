@@ -171,8 +171,8 @@ export class Position {
         // Calculate trade loss based on worst-case slippage
         const sign = tradeSize >= ZERO ? 1n : -1n;
         const limitPrice = tickToWad(tradeParam.limitTick);
-        const worstNotional = wmul(limitPrice, quotationWithSize.baseSize);
-        const markNotional = wmul(markPrice, quotationWithSize.baseSize);
+        const worstNotional = wmul(limitPrice, quotationWithSize.baseQuantity);
+        const markNotional = wmul(markPrice, quotationWithSize.baseQuantity);
         const tradeLoss = sign > ZERO ? worstNotional - markNotional : markNotional - worstNotional;
 
         // Full close: ensure worst-case (limit price) equity is non-negative.

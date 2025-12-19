@@ -391,10 +391,10 @@ describe('math.ts', () => {
 
         test('calcOrderLeverageByMargin with specific values', () => {
             const tick = 250;
-            const baseSize = 4n * WAD;
+            const baseQuantity = 4n * WAD;
             const margin = 6n * WAD;
 
-            const result = calcOrderLeverageByMargin(tick, baseSize, margin);
+            const result = calcOrderLeverageByMargin(tick, baseQuantity, margin);
             expect(result).toBe(683542559311177083n);
         });
 

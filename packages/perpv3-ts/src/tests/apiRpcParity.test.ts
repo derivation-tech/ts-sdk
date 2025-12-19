@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, jest, test } from '@jest/globals';
 import type { Address, Chain, PublicClient } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { base as baseChain } from 'viem/chains';
-import { abctest } from '@derivation-tech/viem-kit';
+import { abctest } from '@synfutures/viem-kit';
 import { SimulationError } from '../types/error';
 import { InstrumentSetting } from '../types/setting';
 import { type Amm, type BlockInfo, type Portfolio, type Quotation, type Setting, Side } from '../types/contract';
@@ -107,7 +107,7 @@ interface MarketByLeverageScenario extends BaseScenario {
 interface MarketCloseScenario extends BaseScenario {
     type: 'marketClose';
     input: {
-        baseSize: string;
+        baseQuantity: string;
     };
 }
 
@@ -592,12 +592,12 @@ async function runMarketCloseScenario(
         blockInfo: BlockInfo;
     }
 ): Promise<void> {
-    const baseSize = BigInt(scenario.input.baseSize);
+    const baseQuantity = BigInt(scenario.input.baseQuantity);
     // To close a position, trade the opposite side
     // signedSize is the trade size (opposite of position size to close)
-    const signedSize = -baseSize;
+    const signedSize = -baseQuantity;
 
-    if (baseSize === 0n) {
+    if (baseQuantity === 0n) {
         throw new SimulationError('Close size cannot be zero');
     }
 
@@ -819,9 +819,9 @@ async function runLimitOrderScenario(
     const { instrumentSetting } = context;
     const portfolio = context.portfolio ?? createEmptyPortfolio();
 
-    // Convert side to signed size: positive for LONG, negative for SHORT
-    const size = scenario.input.side === 'LONG' ? baseQuantity : baseQuantity * BigInt(-1);
-    const isLong = size > 0n;
+    // Extract baseQuantity and side from scenario input
+    const side = scenario.input.side === 'LONG' ? Side.LONG : Side.SHORT;
+    const isLong = side === Side.LONG;
     let targetTick = tick;
     if (isLong && targetTick >= context.amm.tick) {
         targetTick = instrumentSetting.alignOrderTick(context.amm.tick - instrumentSetting.orderSpacing);
@@ -844,7 +844,8 @@ async function runLimitOrderScenario(
         scenario.expiry,
         scenario.traderAddress,
         targetTick,
-        size,
+        baseQuantity,
+        side,
         userSettingWithBuffer
     );
 

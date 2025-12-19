@@ -198,7 +198,8 @@ const placeOrder = new PlaceInput(
     PERP_EXPIRY,
     traderAddress,
     200000, // tick
-    parseUnits('-0.01', 18), // size (negative for SHORT)
+    parseUnits('0.01', 18), // baseQuantity (unsigned)
+    Side.SHORT,
     userSetting
 );
 const [placeParam, simulation] = placeOrder.simulate(onchainContext);
@@ -230,7 +231,7 @@ const simulation = scaledOrder.simulate(onchainContext);
 ```
 
 Notes:
-- `PlaceInput` validates `size` in the constructor (size cannot be zero), so invalid inputs may throw before calling `simulate()`.
+- `PlaceInput` validates `baseQuantity` in the constructor (must be positive), so invalid inputs may throw before calling `simulate()`.
 - `ScaledLimitOrderSimulation` is flattened: use `totalBase`, `totalQuote`, `totalMargin`, `minBase`, and `orders[].minOrderSize` (instead of nested `totals`/`constraints`).
 
 #### Range Liquidity

@@ -462,8 +462,8 @@ export function addIn256(x: bigint, y: bigint): bigint {
 }
 
 // === FROM helpers.ts ===
-import { fromWad } from '@derivation-tech/context';
 import { wmul, tickToWad } from '../../math';
+import { WAD } from '../../constants';
 
 export interface UserMarginState {
     reserve: bigint;
@@ -496,7 +496,8 @@ export function estimateAPY(
     const assumed24HrFee = (poolFee24h * assumeAddLiquidity) / amm.liquidity;
     const apyWad = wdiv(assumed24HrFee * 365n, assumeAddMargin);
 
-    return fromWad(apyWad);
+    // Convert from WAD (18 decimals) to number
+    return Number(apyWad) / Number(WAD);
 }
 
 /**
@@ -535,13 +536,13 @@ export function checkUserMargin(
     return { allowanceGap, marginGap };
 }
 
-export function calcOrderLeverageByMargin(targetTick: number, baseSize: bigint, margin: bigint): bigint {
-    return wdiv(wmul(tickToWad(targetTick), abs(baseSize)), margin);
+export function calcOrderLeverageByMargin(targetTick: number, baseQuantity: bigint, margin: bigint): bigint {
+    return wdiv(wmul(tickToWad(targetTick), abs(baseQuantity)), margin);
 }
 
 // === FROM types/tx.ts ===
 import type { Address, PublicClient, WalletClient, TransactionReceipt, TransactionRequest, Hash } from 'viem';
-import type { ChainKit, TxRequest } from '@derivation-tech/viem-kit';
+import type { ChainKit, TxRequest } from '@synfutures/viem-kit';
 
 // Extend viem's TransactionRequest with custom context field
 export interface BaseTxOptions extends Omit<TransactionRequest, 'to' | 'from'> {

@@ -83,7 +83,7 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Post-trade margin delta: ${formatWad(simulation.marginDelta)}`);
     console.log(`ℹ️ Post-trade leverage: ${formatWad(simulation.postPosition.leverage(snapshot.amm, markPrice))}`);
 
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
@@ -164,7 +164,7 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Post-trade margin delta: ${formatWad(simulation.marginDelta)}`);
     console.log(`ℹ️ Post-trade leverage: ${formatWad(simulation.postPosition.leverage(snapshot.amm, markPrice))}`);
 
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
@@ -188,10 +188,10 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
     }
 
     const position = snapshot.portfolio.position;
-    const baseSize = position.size; // Already signed
+    const signedSize = position.size; // Signed: positive for LONG, negative for SHORT
 
-    console.log(`ℹ️ Current position size: ${formatWad(abs(baseSize))}`);
-    console.log(`ℹ️ Position side: ${baseSize >= ZERO ? 'LONG' : 'SHORT'}`);
+    console.log(`ℹ️ Current position size: ${formatWad(abs(signedSize))}`);
+    console.log(`ℹ️ Position side: ${signedSize >= ZERO ? 'LONG' : 'SHORT'}`);
 
     // Fetch quotation for closing
     const onchainContextWithQuotation = await fetchOnchainContext(
@@ -199,7 +199,7 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
         PERP_EXPIRY,
         rpcConfig,
         walletAddress,
-        -baseSize // Opposite sign to close
+        -signedSize // Opposite sign to close
     );
     const quotation = onchainContextWithQuotation.quotation;
 
@@ -207,11 +207,11 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
         throw new Error('Failed to fetch quotation');
     }
 
-    const quotationWithSize = new QuotationWithSize(-baseSize, quotation);
+    const quotationWithSize = new QuotationWithSize(-signedSize, quotation);
 
     // Use TradeInput without `options.margin` to close the position.
     // This uses leverage-based margin simulation, so partial closes can release margin proportionally.
-    const closeSignedSize = -baseSize;
+    const closeSignedSize = -signedSize;
     const closeSide = closeSignedSize >= ZERO ? Side.LONG : Side.SHORT;
     const closeInput = new TradeInput(
         instrumentAddress,
@@ -227,7 +227,7 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
     console.log(`📈 Closing position (limit tick: ${formatTick(tradeParam.limitTick)})...`);
     console.log(`ℹ️ Realized PnL: ${formatWad(simulation.realized)}`);
 
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
@@ -286,7 +286,7 @@ export async function demoAdjustMargin(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Liquidation price: ${formatWad(newLiquidationPrice)}`);
 
     // Adjust margin uses trade function with size=0
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
@@ -363,7 +363,7 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Liquidation price: ${formatWad(newLiquidationPrice)}`);
 
     // Adjust leverage uses trade function with size=0
-    const { sendTxWithLog } = await import('@derivation-tech/viem-kit');
+    const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
         address: instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,

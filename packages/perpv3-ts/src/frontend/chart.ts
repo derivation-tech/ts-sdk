@@ -108,7 +108,7 @@ export function buildDepthChartData(
 ): DepthChartData[] {
     // pageAdjustmentDelta is used to adjust every page's tick to aligned with ORDER_SPACING
     const ret: DepthChartData[] = [];
-    const page2BaseSize: Map<number, bigint> = new Map();
+    const page2BaseQuantity: Map<number, bigint> = new Map();
     const lastPageTick: Map<number, number> = new Map();
 
     for (
@@ -121,34 +121,34 @@ export function buildDepthChartData(
         lastPageTick.set(page, tick);
 
         const pearl = tick2Pearl.get(tick);
-        let currBaseSize = page2BaseSize.get(page) ?? ZERO;
+        let currBaseQuantity = page2BaseQuantity.get(page) ?? ZERO;
         if (pearl) {
             if ((right && pearl.left < 0n) || (!right && pearl.left > 0n)) {
-                currBaseSize = (pearl.left < 0n ? -pearl.left : pearl.left) + currBaseSize;
+                currBaseQuantity = (pearl.left < 0n ? -pearl.left : pearl.left) + currBaseQuantity;
             }
             const targetPX96 = tickToSqrtX96(tick);
             // Create a temporary Range instance to use instance methods
             const tempRange = new Range(0n, 0n, 0n, currPX96, 0, 0);
-            currBaseSize = currBaseSize + tempRange.getDeltaBase(currPX96, targetPX96, currLiquidity, false);
+            currBaseQuantity = currBaseQuantity + tempRange.getDeltaBase(currPX96, targetPX96, currLiquidity, false);
             currPX96 = targetPX96;
             if (pearl.liquidityNet !== 0n) {
                 currLiquidity = currLiquidity + pearl.liquidityNet * (right ? 1n : -1n);
             }
-            page2BaseSize.set(page, currBaseSize);
+            page2BaseQuantity.set(page, currBaseQuantity);
         } else if (tick % size === 0) {
             const targetPX96 = tickToSqrtX96(tick);
             // Create a temporary Range instance to use instance methods
             const tempRange = new Range(0n, 0n, 0n, currPX96, 0, 0);
             const deltaBase = tempRange.getDeltaBase(currPX96, targetPX96, currLiquidity, !right);
-            currBaseSize = currBaseSize + (deltaBase < 0n ? -deltaBase : deltaBase);
+            currBaseQuantity = currBaseQuantity + (deltaBase < 0n ? -deltaBase : deltaBase);
             currPX96 = targetPX96;
-            page2BaseSize.set(page, currBaseSize);
+            page2BaseQuantity.set(page, currBaseQuantity);
         }
     }
-    for (const [page, baseSize] of page2BaseSize) {
+    for (const [page, baseQuantity] of page2BaseQuantity) {
         const tick = lastPageTick.get(page)!;
         const price = Number(formatUnits(tickToWad(tick), DEFAULT_DECIMALS));
-        const base = Number(formatUnits(baseSize, DEFAULT_DECIMALS));
+        const base = Number(formatUnits(baseQuantity, DEFAULT_DECIMALS));
         ret.push({ tick, price, base });
     }
     return ret;

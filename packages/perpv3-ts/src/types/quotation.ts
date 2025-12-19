@@ -21,9 +21,9 @@ export class QuotationWithSize {
     }
 
     /**
-     * Absolute base size (always positive).
+     * Absolute base quantity (always positive).
      */
-    get baseSize(): bigint {
+    get baseQuantity(): bigint {
         return abs(this.size);
     }
 
@@ -35,10 +35,10 @@ export class QuotationWithSize {
     }
 
     /**
-     * Trade price = entryNotional / baseSize
+     * Trade price = entryNotional / baseQuantity
      */
     get tradePrice(): bigint {
-        return wdiv(this.quotation.entryNotional, this.baseSize);
+        return wdiv(this.quotation.entryNotional, this.baseQuantity);
     }
 
     /**

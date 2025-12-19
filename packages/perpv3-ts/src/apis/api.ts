@@ -327,10 +327,12 @@ export const fetchFuturesPairOrderBook = async (
         const newData = Object.entries(res.data.data).reduce((acc, [key, depth]: [string, any]) => {
             // Transform bids and asks to left and right arrays
             const bids: OrderDataFromApi[] = (depth.bids || [])
+                // TODO: Normalize legacy `baseSize` responses to `baseQuantity` once API payloads are updated.
                 .map((b: OrderDataFromApi) => bigInitObjectCheckByKeys(b, ORDER_DATA_BIGINT_KEYS))
                 .sort((a: OrderDataFromApi, b: OrderDataFromApi) => b.tick - a.tick);
 
             const asks: OrderDataFromApi[] = (depth.asks || [])
+                // TODO: Normalize legacy `baseSize` responses to `baseQuantity` once API payloads are updated.
                 .map((a: OrderDataFromApi) => bigInitObjectCheckByKeys(a, ORDER_DATA_BIGINT_KEYS))
                 .sort((a: OrderDataFromApi, b: OrderDataFromApi) => a.tick - b.tick);
 
@@ -356,10 +358,12 @@ export const fetchMmOrderBook = async (
     if (res?.data?.data) {
         const newData = Object.entries(res.data.data).reduce((acc, [key, depthData]: [string, any]) => {
             const bids: OrderDataFromApi[] = (depthData.bids || [])
+                // TODO: Normalize legacy `baseSize` responses to `baseQuantity` once API payloads are updated.
                 .map((b: OrderDataFromApi) => bigInitObjectCheckByKeys(b, ORDER_DATA_BIGINT_KEYS))
                 .sort((a: OrderDataFromApi, b: OrderDataFromApi) => b.tick - a.tick);
 
             const asks: OrderDataFromApi[] = (depthData.asks || [])
+                // TODO: Normalize legacy `baseSize` responses to `baseQuantity` once API payloads are updated.
                 .map((a: OrderDataFromApi) => bigInitObjectCheckByKeys(a, ORDER_DATA_BIGINT_KEYS))
                 .sort((a: OrderDataFromApi, b: OrderDataFromApi) => a.tick - b.tick);
 

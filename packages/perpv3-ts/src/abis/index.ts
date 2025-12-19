@@ -1,4 +1,4 @@
-import { CHAIN_ID } from '@derivation-tech/context';
+import { base, blast } from 'viem/chains';
 
 import { CURRENT_GATE_ABI } from './latest/gate';
 import { LEGACY_GATE_ABI } from './legacy/gate';
@@ -13,7 +13,7 @@ import { LEGACY_CEX_MARKET_ABI } from './legacy/cexMarket';
 import { DEX_V2_MARKET_ABI } from './latest/dexV2Market';
 import { LEGACY_DEX_V2_MARKET_ABI } from './legacy/dexV2Market';
 
-const LEGACY_NETWORKS = [CHAIN_ID.BASE, CHAIN_ID.BLAST];
+const LEGACY_NETWORKS = [base.id, blast.id];
 
 export const isLegacyChain = (chainId: number): boolean => LEGACY_NETWORKS.includes(chainId);
 

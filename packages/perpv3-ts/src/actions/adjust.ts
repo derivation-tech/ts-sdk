@@ -74,20 +74,11 @@ export class AdjustInput {
                     amount: this.amount.toString(),
                 });
             }
-            marginDelta = this.transferIn! ? this.amount : -this.amount;
+            // transferIn is guaranteed to be defined when amount is provided (validated in constructor)
+            marginDelta = this.transferIn ? this.amount : -this.amount;
 
             if (!this.transferIn) {
-                snapshot.validateNegativeAdjustFairDeviation();
-                if (position.size !== ZERO) {
-                    const maxWithdrawable = position.maxWithdrawable(amm, imr, markPrice);
-                    const absMargin = abs(marginDelta);
-                    if (absMargin > maxWithdrawable) {
-                        throw Errors.simulation(
-                            'Withdrawal amount exceeds maximum withdrawable margin',
-                            ErrorCode.SIMULATION_FAILED
-                        );
-                    }
-                }
+                this.validateWithdrawal(snapshot, position, amm, imr, markPrice, marginDelta);
             }
         } else {
             // Mode 2: Leverage adjustment
@@ -95,15 +86,7 @@ export class AdjustInput {
             marginDelta = position.transferAmountFromTargetLeverage(amm, this.userSetting.leverage, markPrice);
 
             if (marginDelta < ZERO && position.size !== ZERO) {
-                snapshot.validateNegativeAdjustFairDeviation();
-                const maxWithdrawable = position.maxWithdrawable(amm, imr, markPrice);
-                const absMargin = abs(marginDelta);
-                if (absMargin > maxWithdrawable) {
-                    throw Errors.simulation(
-                        'Withdrawal for leverage adjustment exceeds maximum withdrawable margin',
-                        ErrorCode.SIMULATION_FAILED
-                    );
-                }
+                this.validateWithdrawal(snapshot, position, amm, imr, markPrice, marginDelta, 'leverage adjustment');
             }
         }
 
@@ -120,6 +103,32 @@ export class AdjustInput {
         };
 
         return [adjustParam, simulation];
+    }
+
+    /**
+     * Validate withdrawal amount against maximum withdrawable margin.
+     * Throws if withdrawal exceeds limits.
+     */
+    private validateWithdrawal(
+        snapshot: PairSnapshot,
+        position: Position,
+        amm: typeof snapshot.amm,
+        imr: number,
+        markPrice: bigint,
+        marginDelta: bigint,
+        context: string = 'margin adjustment'
+    ): void {
+        snapshot.validateNegativeAdjustFairDeviation();
+        if (position.size !== ZERO) {
+            const maxWithdrawable = position.maxWithdrawable(amm, imr, markPrice);
+            const absMargin = abs(marginDelta);
+            if (absMargin > maxWithdrawable) {
+                throw Errors.simulation(
+                    `Withdrawal for ${context} exceeds maximum withdrawable margin`,
+                    ErrorCode.SIMULATION_FAILED
+                );
+            }
+        }
     }
 }
 
