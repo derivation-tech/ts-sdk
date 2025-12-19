@@ -1,10 +1,10 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export interface APIHeaders {
-    'SF-ACCESS-KEY': string;
-    'SF-ACCESS-SIGN': string;
-    'SF-ACCESS-TIMESTAMP': string;
-    'SF-ACCESS-PASSPHRASE': string;
+    'X-ACCESS-KEY': string;
+    'X-ACCESS-SIGN': string;
+    'X-ACCESS-TIMESTAMP': string;
+    'X-ACCESS-PASSPHRASE': string;
     'Content-Type'?: string;
 }
 
@@ -108,7 +108,7 @@ export function sortJsonKeys(jsonStr: string): string {
     try {
         const data = JSON.parse(jsonStr);
         return JSON.stringify(data, Object.keys(data).sort());
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     } catch (error) {
         return jsonStr;
     }
@@ -167,10 +167,10 @@ export async function getHeaders({
     const signature = await hmacSha256Base64(secretKey, message);
 
     const headers: APIHeaders = {
-        'SF-ACCESS-KEY': apiKey,
-        'SF-ACCESS-SIGN': signature,
-        'SF-ACCESS-TIMESTAMP': timestamp,
-        'SF-ACCESS-PASSPHRASE': passphrase,
+        'X-ACCESS-KEY': apiKey,
+        'X-ACCESS-SIGN': signature,
+        'X-ACCESS-TIMESTAMP': timestamp,
+        'X-ACCESS-PASSPHRASE': passphrase,
     };
 
     if (contentType) {

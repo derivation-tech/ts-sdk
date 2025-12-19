@@ -25,6 +25,7 @@ export const API_URLS = {
         MM_ORDER_BOOK: '/v4/public/mm/orderBook',
         MM_WALLET_BALANCE: '/v4/public/mm/account/wallet-balance',
         MM_POSITION_LIST: '/v4/public/mm/position/list',
+        MM_SERVER_TIME: '/v4/public/mm/serverTime',
     },
     // v4 endpoints
     INSTRUMENT: '/v4/public/market/instrument',

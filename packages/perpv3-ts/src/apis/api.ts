@@ -108,10 +108,21 @@ import { axiosGet, bigInitObjectCheckByKeys } from '../utils';
 import { getDepthRangeDataByLiquidityDetails } from '../frontend/chart';
 import { getStartEndTimeByRangeType } from '../frontend/history';
 
+export const fetchMmServerTime = async (
+    authInfo: AuthInfo
+): Promise<number> => {
+    const res = await axiosGet({
+        url: API_URLS.MARKET.MM_SERVER_TIME,
+        config: {},
+        authInfo,
+    });
+    return res.data.data;
+};
+
 // Main function: fetchFuturesInstrument
 export const fetchFuturesInstrument = async (
     { chainId, address }: FetchFuturesInstrumentInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesInstrumentResponse> => {
     const res = await axiosGet({
         url: API_URLS.INSTRUMENT,
@@ -127,7 +138,7 @@ export const fetchFuturesInstrument = async (
 
 export const fetchMarketOnChainContext = async (
     { chainId, instrument, expiry, userAddress, signedSize }: FetchOnChainContextInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchOnChainContextResponse | null> => {
     const res = await axiosGet({
         url: API_URLS.ONCHAIN_CONTEXT,
@@ -155,13 +166,13 @@ export const fetchMarketOnChainContext = async (
 
     const normalizedQuotation = inquireRes
         ? (() => {
-              const inquireData = bigInitObjectCheckByKeys(inquireRes, INQUIRE_BIGINT_KEYS);
-              return {
-                  ...inquireData,
-                  tick: Number(inquireData.tick),
-                  postTick: Number(inquireData.postTick),
-              };
-          })()
+            const inquireData = bigInitObjectCheckByKeys(inquireRes, INQUIRE_BIGINT_KEYS);
+            return {
+                ...inquireData,
+                tick: Number(inquireData.tick),
+                postTick: Number(inquireData.postTick),
+            };
+        })()
         : null;
 
     const normalizedPortfolio = portfolioRes
@@ -183,7 +194,7 @@ export const fetchMarketOnChainContext = async (
 
 export const fetchMarketOnChainContextQuery = async (
     { chainId, instrument, expiry, userAddress, signedSize }: FetchOnChainContextQueryInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchOnChainContextQueryResponse> => {
     const res = await axiosGet({
         url: API_URLS.ONCHAIN_CONTEXT_QUERY,
@@ -215,7 +226,7 @@ export const fetchMarketOnChainContextQuery = async (
 // Function: fetchFuturesInstrumentInquire
 export const fetchFuturesInstrumentInquire = async (
     { chainId, instrument, expiry, size }: FetchFuturesInstrumentInquireInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesInstrumentInquireResponse> => {
     const res = await axiosGet({
         url: API_URLS.INQUIRE,
@@ -236,7 +247,7 @@ export const fetchFuturesInstrumentInquire = async (
 
 export const fetchFuturesInstrumentInquireByTick = async (
     { chainId, instrument, expiry, tick }: FetchFuturesInstrumentInquireByTickInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesInstrumentInquireByTickResponse> => {
     const res = await axiosGet({
         url: API_URLS.INQUIRE_BY_TICK,
@@ -265,7 +276,7 @@ export const fetchFuturesInstrumentInquireByTick = async (
 
 export const fetchFuturesInstrumentInquireByNotional = async (
     { chainId, instrument, expiry, notional, long }: FetchFuturesInstrumentInquireByNotionalInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesInstrumentInquireByNotionalResponse> => {
     const res = await axiosGet({
         url: API_URLS.INQUIRE_BY_NOTIONAL,
@@ -313,9 +324,10 @@ export const fetchPortfolioListFromApi = async (
     }
     return null;
 };
+
 export const fetchFuturesPairOrderBook = async (
     { chainId, address, expiry }: FetchFuturesPairOrderBookInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesPairOrderBookResponse> => {
     const res = await axiosGet({
         url: API_URLS.ORDER_BOOK,
@@ -378,7 +390,7 @@ export const fetchMmOrderBook = async (
 
 export const fetchMmWalletBalance = async (
     { chainId, address }: FetchMmWalletBalanceInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchMmWalletBalanceResponse | null> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.MM_WALLET_BALANCE,
@@ -404,7 +416,7 @@ export const fetchMmWalletBalance = async (
 
 export const fetchMmPositionList = async (
     { chainId, address }: FetchMmPositionListInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchMmPositionListResponse | null> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.MM_POSITION_LIST,
@@ -424,7 +436,7 @@ export const fetchMmPositionList = async (
 
 export const fetchUserGateBalanceFromApi = async (
     { chainId, userAddress }: FetchGateBalanceInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchGateBalanceResponse> => {
     const res = await axiosGet({
         url: API_URLS.GATE_BALANCE,
@@ -440,7 +452,7 @@ export const fetchUserGateBalanceFromApi = async (
 
 export const fetchUserTotalValue = async (
     param: TotalValueRequest,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<TotalValueResponse> => {
     const result = await axiosGet({
         url: API_URLS.USER_VOLUME,
@@ -454,7 +466,7 @@ export const fetchUserTotalValue = async (
 
 export const fetchTokenPriceMapFromApi = async (
     { chainId }: FetchTokenPriceMapInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchTokenPriceMapResponse> => {
     const response = await axiosGet({
         url: API_URLS.TOKEN_ALL_PRICE,
@@ -470,7 +482,7 @@ export const fetchTokenPriceMapFromApi = async (
 
 export const fetchFuturesPairKlineChart = async (
     { chainId, instrument, expiry, interval, endTime, limit = 1000 }: FetchFuturesPairKlineChartInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesPairKlineChartResponse> => {
     const res = await axiosGet({
         url: API_URLS.KLINE_CHARTS,
@@ -495,7 +507,7 @@ export const fetchFuturesPairKlineChart = async (
 
 export const fetchFuturesPairDepthChart = async (
     param: FetchFuturesPairDepthChartInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchFuturesPairDepthChartResponse> => {
     const res = await axiosGet({
         url: API_URLS.DEPTH_CHARTS,
@@ -578,7 +590,7 @@ function toBigIntOrZero(value: unknown): bigint {
 
 export const fetchTradeHistory = async (
     params: GetTradeHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetTradeHistoryResponse> => {
     const {
         chainId,
@@ -604,13 +616,13 @@ export const fetchTradeHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -627,7 +639,7 @@ export const fetchTradeHistory = async (
 
 export const fetchOrdersHistory = async (
     params: GetOrdersHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetOrdersHistoryResponse> => {
     const {
         chainId,
@@ -653,13 +665,13 @@ export const fetchOrdersHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -678,7 +690,7 @@ export const fetchOrdersHistory = async (
 
 export const fetchFundingHistory = async (
     params: GetFundingHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetFundingHistoryResponse> => {
     const {
         chainId,
@@ -703,13 +715,13 @@ export const fetchFundingHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -721,7 +733,7 @@ export const fetchFundingHistory = async (
 
 export const fetchTransferHistory = async (
     params: GetTransferHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetTransferHistoryResponse> => {
     const {
         chainId,
@@ -746,13 +758,13 @@ export const fetchTransferHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -769,7 +781,7 @@ export const fetchTransferHistory = async (
 
 export const fetchLiquidityHistory = async (
     params: GetLiquidityHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetLiquidityHistoryResponse> => {
     const {
         chainId,
@@ -794,13 +806,13 @@ export const fetchLiquidityHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(pageSize !== undefined && { size: pageSize }),
-                          ...(instrumentAddress !== undefined && { instrumentAddress }),
-                          ...(expiry !== undefined && { expiry }),
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                      }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                        ...(instrumentAddress !== undefined && { instrumentAddress }),
+                        ...(expiry !== undefined && { expiry }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                    }),
             },
         },
         authInfo,
@@ -812,7 +824,7 @@ export const fetchLiquidityHistory = async (
 
 export const fetchAccountBalanceHistory = async (
     params: GetAccountBalanceHistoryParams,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<GetAccountBalanceHistoryResponse> => {
     const {
         chainId,
@@ -836,11 +848,11 @@ export const fetchAccountBalanceHistory = async (
                 ...(download
                     ? { download: true }
                     : {
-                          ...(startTime !== undefined && { startTime }),
-                          ...(endTime !== undefined && { endTime }),
-                          ...(page !== undefined && { page }),
-                          ...(pageSize !== undefined && { size: pageSize }),
-                      }),
+                        ...(startTime !== undefined && { startTime }),
+                        ...(endTime !== undefined && { endTime }),
+                        ...(page !== undefined && { page }),
+                        ...(pageSize !== undefined && { size: pageSize }),
+                    }),
             },
         },
         authInfo,
@@ -854,7 +866,7 @@ export const fetchAccountBalanceHistory = async (
 
 export const fetchMarketPairInfo = async (
     { chainId, address, expiry }: FetchMarketPairInfoInput,
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchMarketPairInfoResponse> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.PAIR_INFO,
@@ -872,7 +884,7 @@ export const fetchMarketPairInfo = async (
 };
 export const fetchMarketPairList = async (
     { chainId }: { chainId: number },
-    authInfo?: AuthInfo
+    authInfo: AuthInfo
 ): Promise<FetchMarketPairListResponse> => {
     const res = await axiosGet({ url: API_URLS.MARKET.PAIR_LIST, config: { params: { chainId } }, authInfo });
     if (res?.data?.data) {
@@ -976,24 +988,24 @@ function normalizePortfolioFromQuery(raw?: OnChainQueryPortfolioFromApi | null):
     const oids = Array.isArray(raw.Oids) ? raw.Oids.map((oid) => Number(oid ?? 0)) : [];
     const orders = Array.isArray(raw.Orders)
         ? raw.Orders.map((order, index) => {
-              const oid = oids[index];
-              if (oid === undefined) {
-                  throw new Error('Order oid is missing');
-              }
-              const { tick, nonce } = Order.unpackKey(oid);
-              return normalizeOrderFromQuery(order, tick, nonce);
-          })
+            const oid = oids[index];
+            if (oid === undefined) {
+                throw new Error('Order oid is missing');
+            }
+            const { tick, nonce } = Order.unpackKey(oid);
+            return normalizeOrderFromQuery(order, tick, nonce);
+        })
         : [];
     const rids = Array.isArray(raw.Rids) ? raw.Rids.map((rid) => Number(rid ?? 0)) : [];
     const ranges = Array.isArray(raw.Ranges)
         ? raw.Ranges.map((range, index) => {
-              const rid = rids[index];
-              if (rid === undefined) {
-                  throw new Error('Range rid is missing');
-              }
-              const { tickLower, tickUpper } = Range.unpackKey(rid);
-              return normalizeRangeFromQuery(range, tickLower, tickUpper);
-          })
+            const rid = rids[index];
+            if (rid === undefined) {
+                throw new Error('Range rid is missing');
+            }
+            const { tickLower, tickUpper } = Range.unpackKey(rid);
+            return normalizeRangeFromQuery(range, tickLower, tickUpper);
+        })
         : [];
     const ordersTaken = Array.isArray(raw.OrdersTaken) ? raw.OrdersTaken.map((value) => toBigIntValue(value)) : [];
 
