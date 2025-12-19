@@ -68,9 +68,8 @@ export class PlaceInput {
         );
 
         // Convert to PlaceParam
-        const expiry = snapshot.amm.expiry;
         const placeParam: PlaceParam = {
-            expiry,
+            expiry: snapshot.expiry,
             tick: this.tick,
             size: signedSize,
             amount: requiredMargin,

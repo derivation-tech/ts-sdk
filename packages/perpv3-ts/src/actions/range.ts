@@ -130,9 +130,8 @@ export class AddInput {
             upperPosition,
         };
 
-        const expiry = snapshot.amm.expiry;
         const addParam: AddParam = {
-            expiry,
+            expiry: snapshot.expiry,
             tickDeltaLower,
             tickDeltaUpper,
             amount: this.marginAmount,
@@ -243,9 +242,8 @@ export class RemoveInput {
             ),
         };
 
-        const expiry = snapshot.amm.expiry;
         const removeParam: RemoveParam = {
-            expiry,
+            expiry: snapshot.expiry,
             target: this.traderAddress,
             tickLower: this.tickLower,
             tickUpper: this.tickUpper,

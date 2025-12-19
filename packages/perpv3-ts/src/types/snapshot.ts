@@ -27,6 +27,7 @@ import type { Address } from 'viem';
  * - Trader-specific data (portfolio, quoteState) - always present
  * - Optional quotation (only present when signedSize is provided)
  * - Computed instrument settings (instrumentSetting) - contains setting, condition, and spacing
+ * - Pair identification (instrumentAddress, expiry) - defines the trading pair
  * - Validation methods for place, trade, and add operations
  *
  * Note: `setting`, `condition`, and `spacing` are not exposed directly as they are redundant
@@ -35,6 +36,8 @@ import type { Address } from 'viem';
  * This class wraps the raw `OnchainContext` contract struct with computed properties and methods.
  */
 export class PairSnapshot {
+    public readonly instrumentAddress: Address;
+    public readonly expiry: number;
     public readonly blockInfo: BlockInfo;
     public readonly instrumentSetting: InstrumentSetting;
     public readonly amm: Amm;
@@ -49,6 +52,9 @@ export class PairSnapshot {
         this.priceData = options.priceData;
         this.portfolio = options.portfolio;
         this.quoteState = options.quoteState;
+        // Extract pair identification from priceData and amm
+        this.instrumentAddress = options.priceData.instrument;
+        this.expiry = options.amm.expiry;
         // Create InstrumentSetting from setting, condition, and spacing
         this.instrumentSetting = new InstrumentSetting(
             options.setting,

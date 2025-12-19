@@ -398,7 +398,7 @@ describe('simulateRemove', () => {
         it('should convert input to param correctly', () => {
             const [removeParam] = fixtureRemoveInput.simulate(fixtureOnchainContext, fixtureUserSetting);
 
-            expect(removeParam.expiry).toBe(fixtureOnchainContext.amm.expiry);
+            expect(removeParam.expiry).toBe(fixtureOnchainContext.expiry);
             expect(removeParam.target).toBe(fixtureRemoveInput.traderAddress);
             expect(removeParam.tickLower).toBe(fixtureRemoveInput.tickLower);
             expect(removeParam.tickUpper).toBe(fixtureRemoveInput.tickUpper);

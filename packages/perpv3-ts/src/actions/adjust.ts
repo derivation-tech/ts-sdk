@@ -93,9 +93,8 @@ export class AdjustInput {
 
         const postPosition = position.withBalanceDelta(marginDelta);
 
-        const expiry = snapshot.amm.expiry;
         const adjustParam: AdjustParam = {
-            expiry,
+            expiry: snapshot.expiry,
             net: marginDelta,
             deadline: userSetting.getDeadline(),
         };

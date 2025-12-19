@@ -75,8 +75,7 @@ export class TradeInput {
         const updatedAmm = snapshot.updateAmmFundingIndex();
 
         // Step 3: Build trade parameters
-        const expiry = snapshot.amm.expiry;
-        const tradeParam = this.toTradeParam(quotationWithSize, expiry, userSetting);
+        const tradeParam = this.toTradeParam(quotationWithSize, snapshot.expiry, userSetting);
         const isLong = tradeParam.size >= ZERO;
         const tradeSign = isLong ? 1n : -1n;
 
