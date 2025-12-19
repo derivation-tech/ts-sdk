@@ -162,7 +162,7 @@ export class PairSnapshot {
      * @throws {ValidationError} If validation fails (tick, price deviation, margin, order slot)
      */
     validatePlaceParam(placeParam: PlaceParam): void {
-        const { instrumentSetting, amm, portfolio } = this;
+        const { instrumentSetting, amm } = this;
         const markPrice = this.priceData.markPrice;
 
         // Check order placement tradability
