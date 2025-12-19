@@ -6,12 +6,11 @@
  * - Amount formatting with decimals
  * - Event parsing with proper formatting
  */
-
-import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
+import 'dotenv/config';
+import { createPublicClient, createWalletClient, http, parseAbi, erc20Abi } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
-import { ChainKitRegistry, sendTxWithLog, type Address } from '../index.js';
-import { ERC20_ABI } from '../abis/index.js';
+import { ChainKitRegistry, sendTxWithLog, type Address } from '../src/index';
 
 async function erc20TransferExample() {
     // ==========================================
@@ -66,7 +65,7 @@ async function erc20TransferExample() {
 
     const receipt = await sendTxWithLog(publicClient, walletClient, kit, {
         address: usdc.address,
-        abi: ERC20_ABI,
+        abi: erc20Abi,
         functionName: 'transfer',
         args: [recipient, kit.parseErc20Amount('100', usdc.address)], // Handles 6 decimals!
     });

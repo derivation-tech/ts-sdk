@@ -4,8 +4,7 @@
  */
 
 import { createPublicClient, http } from 'viem';
-import { ChainKitRegistry } from '../index';
-import { monad } from '../chains/monad';
+import { ChainKitRegistry, monad } from '../src/index';
 
 async function monadExample() {
     console.log('\n🧪 Monad Mainnet Beta Example\n');
