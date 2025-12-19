@@ -123,7 +123,9 @@ export class TradeInput {
         let exceedMaxLeverage = false;
 
         if (postPosition.size !== ZERO && marginDelta < ZERO) {
-            const maxWithdrawable = snapshot.getMaxWithdrawableMargin();
+            // Create updated snapshot with updated AMM and postPosition for max withdrawable calculation
+            const updatedSnapshot = snapshot.with({ amm: updatedAmm, portfolio: { ...snapshot.portfolio, position: postPosition } });
+            const maxWithdrawable = updatedSnapshot.getMaxWithdrawableMargin();
 
             if (abs(marginDelta) > maxWithdrawable) {
                 if (this.userSetting.strictMode) {
