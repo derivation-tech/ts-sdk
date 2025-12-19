@@ -1,6 +1,6 @@
 import type { Address } from 'viem';
-import { wmul, wmulDown, wdiv, abs, ratioToWad, wadToTick, tickToWad, sqrtX96ToTick } from '../math';
-import { RATIO_BASE, WAD, Q96, ONE_RATIO, DEFAULT_DEADLINE_SECONDS, DEFAULT_FUNDING_HOUR } from '../constants';
+import { wmul, wmulDown, wdiv, abs, ratioToWad, wadToTick, tickToWad, sqrtX96ToTick, wdivUp } from '../math';
+import { RATIO_BASE, WAD, Q96, ONE_RATIO, DEFAULT_DEADLINE_SECONDS, DEFAULT_FUNDING_HOUR, MIN_TICK, MAX_TICK } from '../constants';
 import { type Setting, type QuoteParam, Side, sideSign, Condition } from './contract';
 import { type PairSnapshot } from './snapshot';
 import { Errors, ErrorCode } from './error';
@@ -343,6 +343,148 @@ export class InstrumentSetting {
 
     get maxLeverage(): bigint {
         return (WAD * BigInt(RATIO_BASE)) / BigInt(this.initialMarginRatio);
+    }
+
+    /**
+     * Check if a leverage value is within the instrument's maximum allowed leverage.
+     */
+    isLeverageValid(leverage: bigint): boolean {
+        return leverage <= this.maxLeverage;
+    }
+
+    /**
+     * Calculate the minimum base quantity required for a LimitOrder at a specific tick.
+     */
+    minOrderSizeAtTick(tick: number): bigint {
+        return wdivUp(this.minOrderValue, tickToWad(tick));
+    }
+
+    /**
+     * Get the feasible tick range for placing LimitOrders of a given side.
+     */
+    getFeasibleLimitOrderTickRange(side: Side, ammTick: number, markPrice: bigint): { minTick: number; maxTick: number } | null {
+        const imr = ratioToWad(this.imr);
+        const maxDeviation = imr * 2n;
+        
+        if (side === Side.LONG) {
+            // LONG orders: ticks < ammTick
+            const maxTick = ammTick - 1;
+            const minDeviationPrice = markPrice - wmul(markPrice, maxDeviation);
+            const minDeviationTick = wadToTick(minDeviationPrice);
+            const effectiveMaxTick = Math.min(maxTick, minDeviationTick);
+            
+            const alignedMinTick = this.alignOrderTick(MIN_TICK);
+            const alignedMaxTick = this.alignTickStrictlyBelow(effectiveMaxTick + 1);
+            
+            if (alignedMinTick >= alignedMaxTick) {
+                return null;
+            }
+            
+            return { minTick: alignedMinTick, maxTick: alignedMaxTick };
+        } else {
+            // SHORT orders: ticks > ammTick
+            const minTick = ammTick + 1;
+            const maxDeviationPrice = markPrice + wmul(markPrice, maxDeviation);
+            const maxDeviationTick = wadToTick(maxDeviationPrice);
+            const effectiveMinTick = Math.max(minTick, maxDeviationTick);
+            
+            const alignedMinTick = this.alignTickStrictlyAbove(effectiveMinTick - 1);
+            const alignedMaxTick = this.alignOrderTick(MAX_TICK);
+            
+            if (alignedMinTick > alignedMaxTick) {
+                return null;
+            }
+            
+            return { minTick: alignedMinTick, maxTick: alignedMaxTick };
+        }
+    }
+
+    /**
+     * Check if a specific tick is valid for placing a LimitOrder of the given side.
+     */
+    isTickValidForLimitOrder(tick: number, side: Side, ammTick: number, markPrice: bigint): { valid: boolean; reason?: string } {
+        // Check tick alignment
+        if (Math.abs(tick) % this.orderSpacing !== 0) {
+            return {
+                valid: false,
+                reason: `Tick must be multiple of order spacing ${this.orderSpacing}`,
+            };
+        }
+
+        // Check side constraint
+        if (side === Side.LONG && tick >= ammTick) {
+            return {
+                valid: false,
+                reason: `LONG orders must be placed at ticks < current AMM tick (${ammTick})`,
+            };
+        }
+        if (side === Side.SHORT && tick <= ammTick) {
+            return {
+                valid: false,
+                reason: `SHORT orders must be placed at ticks > current AMM tick (${ammTick})`,
+            };
+        }
+
+        // Check price deviation (within 2 * IMR)
+        const imr = ratioToWad(this.imr);
+        const targetPrice = tickToWad(tick);
+        const priceDeviation = wdiv(abs(targetPrice - markPrice), markPrice);
+        if (priceDeviation > imr * 2n) {
+            return {
+                valid: false,
+                reason: `Order too far from mark price (deviation: ${priceDeviation.toString()}, max: ${(imr * 2n).toString()})`,
+            };
+        }
+
+        return { valid: true };
+    }
+
+    /**
+     * Get the feasible tick range for creating liquidity ranges.
+     */
+    getFeasibleRangeTickRange(): { minTick: number; maxTick: number } {
+        const alignedMinTick = this.alignOrderTick(MIN_TICK);
+        const alignedMaxTick = this.alignOrderTick(MAX_TICK);
+        return { minTick: alignedMinTick, maxTick: alignedMaxTick };
+    }
+
+    /**
+     * Validate a tick pair for a liquidity range.
+     */
+    isRangeTickPairValid(tickLower: number, tickUpper: number, ammTick: number): boolean {
+        // Check tickLower < tickUpper
+        if (tickLower >= tickUpper) {
+            return false;
+        }
+
+        // Check both ticks are multiples of rangeSpacing
+        if (tickLower % this.rangeSpacing !== 0 || tickUpper % this.rangeSpacing !== 0) {
+            return false;
+        }
+
+        // Check bounds
+        if (tickLower < MIN_TICK || tickUpper > MAX_TICK) {
+            return false;
+        }
+
+        // Check tickLower and tickUpper are on different sides of ammTick
+        if (tickLower >= ammTick || tickUpper <= ammTick) {
+            return false;
+        }
+
+        // Check IMR restriction: tickDeltaLower = ammTick - tickLower >= minTickDelta
+        const tickDeltaLower = ammTick - tickLower;
+        if (tickDeltaLower < this.minTickDelta) {
+            return false;
+        }
+
+        // Check IMR restriction: tickDeltaUpper = tickUpper - ammTick >= minTickDelta
+        const tickDeltaUpper = tickUpper - ammTick;
+        if (tickDeltaUpper < this.minTickDelta) {
+            return false;
+        }
+
+        return true;
     }
 
 }
