@@ -388,8 +388,12 @@ export class InstrumentSetting {
             const effectiveMinTick = Math.max(MIN_TICK, minDeviationTick);
             const effectiveMaxTick = maxTick;
 
-            const alignedMinTick = this.alignOrderTick(effectiveMinTick);
+            const alignedMinTick = this.alignTickStrictlyAbove(effectiveMinTick - 1);
             const alignedMaxTick = this.alignTickStrictlyBelow(effectiveMaxTick + 1);
+
+            if (alignedMinTick < MIN_TICK || alignedMaxTick > MAX_TICK) {
+                return null;
+            }
 
             if (alignedMinTick >= alignedMaxTick) {
                 return null;
@@ -407,7 +411,11 @@ export class InstrumentSetting {
             const effectiveMaxTick = Math.min(MAX_TICK, maxDeviationTick);
 
             const alignedMinTick = this.alignTickStrictlyAbove(effectiveMinTick - 1);
-            const alignedMaxTick = this.alignOrderTick(effectiveMaxTick);
+            const alignedMaxTick = this.alignTickStrictlyBelow(effectiveMaxTick + 1);
+
+            if (alignedMinTick < MIN_TICK || alignedMaxTick > MAX_TICK) {
+                return null;
+            }
 
             if (alignedMinTick > alignedMaxTick) {
                 return null;

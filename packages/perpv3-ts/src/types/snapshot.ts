@@ -1,4 +1,4 @@
-import { abs, wdiv, wmul, sqrtX96ToWad, ratioToWad, mulDivNearest, wadToTick } from '../math';
+import { abs, wdiv, wmul, sqrtX96ToWad, ratioToWad, mulDivNearest, wadToTick, wadToSqrtX96 } from '../math';
 import { ZERO, MIN_TICK, MAX_TICK } from '../constants';
 import { Errors, ErrorCode } from './error';
 import { Order } from './order';
@@ -238,12 +238,19 @@ export class PairSnapshot {
      * @throws {ValidationError} If fair price deviation exceeds initial margin ratio
      */
     validateNegativeAdjustFairDeviation(): void {
-        const withdrawalCheck = this.isWithdrawalAllowed();
-        if (!withdrawalCheck.allowed) {
-            throw Errors.validation(
-                withdrawalCheck.reason || 'Fair price deviation too large',
-                ErrorCode.INVALID_PARAM
-            );
+        const { instrumentSetting } = this;
+        const markPrice = this.priceData.markPrice;
+        const fair = sqrtX96ToWad(this.amm.sqrtPX96);
+        const imrWad = ratioToWad(instrumentSetting.imr);
+        const deviation = wdiv(abs(fair - markPrice), markPrice);
+
+        if (deviation > imrWad) {
+            throw Errors.validation('Fair price deviation too large', ErrorCode.INVALID_PARAM, {
+                fair: fair.toString(),
+                markPrice: markPrice.toString(),
+                deviation: deviation.toString(),
+                maxDeviation: imrWad.toString(),
+            });
         }
     }
 
@@ -449,6 +456,22 @@ export class PairSnapshot {
     }
 
     /**
+     * Check if adding liquidity is allowed.
+     * Allows DORMANT for the initial add, but blocks non-NORMAL condition and SETTLED status.
+     */
+    isAddLiquidityAllowed(): { allowed: boolean; reason?: string } {
+        if (this.instrumentSetting.condition !== Condition.NORMAL) {
+            return { allowed: false, reason: 'Instrument not tradable (condition)' };
+        }
+
+        if (this.amm.status === Status.SETTLED) {
+            return { allowed: false, reason: 'Instrument not tradable in current status' };
+        }
+
+        return { allowed: true };
+    }
+
+    /**
      * Check if LimitOrder placement is tradable (includes placePaused check).
      */
     isOrderPlacementTradable(): { tradable: boolean; reason?: string } {
@@ -462,6 +485,31 @@ export class PairSnapshot {
         }
 
         return { tradable: true };
+    }
+
+    /**
+     * Get effective AMM state for add-liquidity simulation.
+     * For DORMANT, derive tick/sqrtPX96 from the expected initial mark price.
+     */
+    getAmmForAddLiquidity(): Amm {
+        if (this.amm.status !== Status.DORMANT) {
+            return this.amm;
+        }
+
+        const markPrice = this.getExpectedInitMarkPrice();
+        if (markPrice <= 0n) {
+            throw Errors.simulation('Cannot derive mark price for dormant AMM', ErrorCode.SIMULATION_FAILED);
+        }
+
+        const tick = wadToTick(markPrice);
+        const sqrtPX96 = wadToSqrtX96(markPrice);
+
+        return {
+            ...this.amm,
+            tick,
+            sqrtPX96,
+            status: Status.TRADING,
+        };
     }
 
     /**
@@ -639,7 +687,10 @@ export class PairSnapshot {
             const effectiveMaxTick = Math.min(MAX_TICK, maxDeviationTick);
 
             const alignedMinTick = instrumentSetting.alignTickStrictlyAbove(effectiveMinTick - 1);
-            const alignedMaxTick = instrumentSetting.alignOrderTick(effectiveMaxTick);
+            const alignedMaxTick = instrumentSetting.alignTickStrictlyBelow(effectiveMaxTick + 1);
+            if (alignedMinTick > alignedMaxTick || alignedMinTick < MIN_TICK || alignedMaxTick > MAX_TICK) {
+                return null;
+            }
             return { minTick: alignedMinTick, maxTick: alignedMaxTick };
         } else {
             // SHORT: targetTick < ammTick, price deviation within [markPrice - 2*IMR*markPrice, markPrice]
@@ -651,10 +702,25 @@ export class PairSnapshot {
             const effectiveMinTick = Math.max(MIN_TICK, minDeviationTick);
             const effectiveMaxTick = maxTick;
 
-            const alignedMinTick = instrumentSetting.alignOrderTick(effectiveMinTick);
+            const alignedMinTick = instrumentSetting.alignTickStrictlyAbove(effectiveMinTick - 1);
             const alignedMaxTick = instrumentSetting.alignTickStrictlyBelow(effectiveMaxTick + 1);
+            if (alignedMinTick > alignedMaxTick || alignedMinTick < MIN_TICK || alignedMaxTick > MAX_TICK) {
+                return null;
+            }
             return { minTick: alignedMinTick, maxTick: alignedMaxTick };
         }
+    }
+
+    private getExpectedInitMarkPrice(): bigint {
+        if (this.priceData.markPrice > 0n) {
+            return this.priceData.markPrice;
+        }
+
+        if (this.amm.expiry === PERP_EXPIRY) {
+            return this.priceData.spotPrice;
+        }
+
+        return this.priceData.benchmarkPrice;
     }
 
     /**

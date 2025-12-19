@@ -277,7 +277,7 @@ beforeAll(async () => {
 
 if (!parityFixtureEnv || scenarios.length === 0) {
     describe('simulate api/rpc parity', () => {
-        test.skip('SIMULATE_PARITY_FIXTURE not provided, skipping parity tests', () => {});
+        test.skip('SIMULATE_PARITY_FIXTURE not provided, skipping parity tests', () => { });
     });
 } else {
     describe('simulate api/rpc parity', () => {
@@ -683,7 +683,6 @@ async function runAdjustMarginScenario(
     }
 
     const instrumentSetting = portfolioContext?.instrumentSetting ?? onchainContext.instrumentSetting;
-    const position = portfolioContext?.portfolio.position ?? createEmptyPortfolio().position;
 
     const userSetting = new UserSetting(0, 0, 3n * WAD);
     const adjustInput = new AdjustInput(
@@ -698,7 +697,7 @@ async function runAdjustMarginScenario(
     const apiOnchainContext = onchainContext.with({
         portfolio: portfolioContext?.portfolio ?? createEmptyPortfolio(),
     });
-    const [apiParam, apiResult] = adjustInput.simulate(apiOnchainContext);
+    const [, apiResult] = adjustInput.simulate(apiOnchainContext);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -706,7 +705,7 @@ async function runAdjustMarginScenario(
         cloneRpcConfigWithBlock(rpcConfig, onchainContext.blockInfo?.height),
         traderAddress
     );
-    const [rpcParam, rpcResult] = adjustInput.simulate(rpcOnchainContext);
+    const [, rpcResult] = adjustInput.simulate(rpcOnchainContext);
 
     // TypeScript narrows the types after checking
     // apiResult and rpcResult are AdjustSimulation
@@ -753,7 +752,6 @@ async function runAdjustMarginByLeverageScenario(
     }
 
     const instrumentSetting = portfolioContext?.instrumentSetting ?? onchainContext.instrumentSetting;
-    const position = portfolioContext?.portfolio.position ?? createEmptyPortfolio().position;
 
     const userSetting = new UserSetting(0, 0, targetLeverage);
     const adjustInput = new AdjustInput(instrumentAddress, expiry, traderAddress, userSetting);

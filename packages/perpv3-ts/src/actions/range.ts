@@ -48,13 +48,14 @@ export class AddInput {
      */
     simulate(snapshot: PairSnapshot): [AddParam, AddSimulation] {
         const { instrumentSetting } = snapshot;
-        const { amm } = snapshot;
 
-        // Check if instrument is tradable
-        const tradability = snapshot.isTradable();
-        if (!tradability.tradable) {
-            throw Errors.simulation(tradability.reason || 'Instrument not tradable', ErrorCode.SIMULATION_FAILED);
+        // Check if adding liquidity is allowed
+        const allowAdd = snapshot.isAddLiquidityAllowed();
+        if (!allowAdd.allowed) {
+            throw Errors.simulation(allowAdd.reason || 'Instrument not tradable', ErrorCode.SIMULATION_FAILED);
         }
+
+        const ammForAdd = snapshot.getAmmForAddLiquidity();
 
         // Validate margin amount
         if (this.marginAmount <= 0n) {
@@ -64,11 +65,11 @@ export class AddInput {
         }
 
         // Validate range tick pair (includes bounds, spacing, side constraints, and IMR restrictions)
-        if (!instrumentSetting.isRangeTickPairValid(this.tickLower, this.tickUpper, amm.tick)) {
+        if (!instrumentSetting.isRangeTickPairValid(this.tickLower, this.tickUpper, ammForAdd.tick)) {
             throw Errors.validation('Invalid range tick pair', ErrorCode.INVALID_TICK, {
                 tickLower: this.tickLower,
                 tickUpper: this.tickUpper,
-                ammTick: amm.tick,
+                ammTick: ammForAdd.tick,
             });
         }
 
@@ -80,22 +81,22 @@ export class AddInput {
         const lowerTick = instrumentSetting.alignRangeTickLower(this.tickLower);
 
         // Create a temporary Range instance to use its methods
-        const tempRange = new Range(0n, 0n, 0n, amm.sqrtPX96, lowerTick, upperTick);
-        const { liquidity } = tempRange.calcEntryDelta(amm.sqrtPX96, this.marginAmount, imr);
+        const tempRange = new Range(0n, 0n, 0n, ammForAdd.sqrtPX96, lowerTick, upperTick);
+        const { liquidity } = tempRange.calcEntryDelta(ammForAdd.sqrtPX96, this.marginAmount, imr);
 
         const rangeWithTicks = new Range(
             liquidity,
-            amm.feeIndex,
+            ammForAdd.feeIndex,
             this.marginAmount,
-            amm.sqrtPX96,
+            ammForAdd.sqrtPX96,
             lowerTick,
             upperTick
         );
-        const lowerPosition = rangeWithTicks.lowerPositionIfRemove(amm);
-        const upperPosition = rangeWithTicks.upperPositionIfRemove(amm);
+        const lowerPosition = rangeWithTicks.lowerPositionIfRemove(ammForAdd);
+        const upperPosition = rangeWithTicks.upperPositionIfRemove(ammForAdd);
 
-        const minLiquidity = instrumentSetting.minLiquidity(amm.sqrtPX96);
-        const minMargin = Range.minMargin(lowerTick, upperTick, amm.sqrtPX96, minLiquidity, imr);
+        const minLiquidity = instrumentSetting.minLiquidity(ammForAdd.sqrtPX96);
+        const minMargin = Range.minMargin(lowerTick, upperTick, ammForAdd.sqrtPX96, minLiquidity, imr);
 
         const lowerPrice = tickToWad(lowerTick);
         const upperPrice = tickToWad(upperTick);
@@ -109,14 +110,14 @@ export class AddInput {
                 ? 0n
                 : wdiv(wmul(upperPrice, abs(upperPosition.size)), abs(upperPosition.balance));
 
-        const tickDeltaLower = Math.abs(lowerTick - amm.tick);
-        const tickDeltaUpper = Math.abs(upperTick - amm.tick);
+        const tickDeltaLower = Math.abs(lowerTick - ammForAdd.tick);
+        const tickDeltaUpper = Math.abs(upperTick - ammForAdd.tick);
 
         const alphaLowerNumber = tickDeltaToAlphaNumber(tickDeltaLower);
         const alphaUpperNumber = tickDeltaToAlphaNumber(tickDeltaUpper);
 
-        const lowerLiquidationPrice = lowerPosition.liquidationPrice(amm, mmr);
-        const upperLiquidationPrice = upperPosition.liquidationPrice(amm, mmr);
+        const lowerLiquidationPrice = lowerPosition.liquidationPrice(ammForAdd, mmr);
+        const upperLiquidationPrice = upperPosition.liquidationPrice(ammForAdd, mmr);
 
         const capitalEfficiencyBoost =
             alphaLowerNumber === alphaUpperNumber
@@ -148,7 +149,7 @@ export class AddInput {
             tickDeltaLower,
             tickDeltaUpper,
             amount: this.marginAmount,
-            limitTicks: Number(this.userSetting.getEncodedLiquidityLimitTicks(amm.sqrtPX96)),
+            limitTicks: Number(this.userSetting.getEncodedLiquidityLimitTicks(ammForAdd.sqrtPX96)),
             deadline: this.userSetting.getDeadline(),
         };
 
