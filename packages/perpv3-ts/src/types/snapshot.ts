@@ -1,4 +1,4 @@
-import { abs, wdiv, wmul, sqrtX96ToWad, ratioToWad, mulDivNearest, tickToWad, wadToTick } from '../math';
+import { abs, wdiv, wmul, sqrtX96ToWad, ratioToWad, mulDivNearest, wadToTick } from '../math';
 import { ZERO, MIN_TICK, MAX_TICK } from '../constants';
 import { Errors, ErrorCode } from './error';
 import { Order } from './order';

@@ -2,7 +2,6 @@ import type { Address } from 'viem';
 import { wmul, wmulDown, wdiv, abs, ratioToWad, wadToTick, tickToWad, sqrtX96ToTick, wdivUp } from '../math';
 import { RATIO_BASE, WAD, Q96, ONE_RATIO, DEFAULT_DEADLINE_SECONDS, DEFAULT_FUNDING_HOUR, MIN_TICK, MAX_TICK } from '../constants';
 import { type Setting, type QuoteParam, Side, sideSign, Condition } from './contract';
-import { type PairSnapshot } from './snapshot';
 import { Errors, ErrorCode } from './error';
 
 export class UserSetting {
