@@ -459,7 +459,7 @@ async function runMarketByMarginScenario(
         portfolioContext
     );
 
-    const tradeInput = new TradeInput(traderAddress, bigAbs(signedSize), side, userSetting, { margin: marginAmount });
+    const tradeInput = new TradeInput(traderAddress, bigAbs(signedSize), side, { margin: marginAmount });
 
     // Use the original onchainContext for API side (it was passed to loadMarketArtifacts)
     const apiOnchainContextWithQuotation = onchainContext.with({
@@ -537,7 +537,7 @@ async function runMarketByLeverageScenario(
         userSetting.markPriceBufferInBps,
         userSetting.strictMode
     );
-    const tradeInput = new TradeInput(traderAddress, bigAbs(signedSize), side, leverageUserSetting);
+    const tradeInput = new TradeInput(traderAddress, bigAbs(signedSize), side);
 
     // Use the original onchainContext for API side (it was passed to loadMarketArtifacts)
     const apiOnchainContextWithQuotation = onchainContext.with({
@@ -597,8 +597,7 @@ async function runMarketCloseScenario(
     const closeInput = new TradeInput(
         traderAddress,
         abs(signedSize), // positive quantity
-        closeSide, // side determined from signed size
-        userSetting
+        closeSide // side determined from signed size
     );
 
     const artifacts = await loadMarketArtifacts(
@@ -675,7 +674,7 @@ async function runAdjustMarginScenario(
     const instrumentSetting = portfolioContext?.instrumentSetting ?? onchainContext.instrumentSetting;
 
     const userSetting = new UserSetting(0, 0, 3n * WAD);
-    const adjustInput = new AdjustInput(traderAddress, userSetting, amount, scenario.input.transferIn);
+    const adjustInput = new AdjustInput(traderAddress, amount, scenario.input.transferIn);
 
     const apiOnchainContext = onchainContext.with({
         portfolio: portfolioContext?.portfolio ?? createEmptyPortfolio(),
@@ -737,7 +736,7 @@ async function runAdjustMarginByLeverageScenario(
     const instrumentSetting = portfolioContext?.instrumentSetting ?? onchainContext.instrumentSetting;
 
     const userSetting = new UserSetting(0, 0, targetLeverage);
-    const adjustInput = new AdjustInput(traderAddress, userSetting);
+    const adjustInput = new AdjustInput(traderAddress);
 
     const apiOnchainContext = onchainContext.with({
         portfolio: portfolioContext?.portfolio ?? createEmptyPortfolio(),
@@ -820,7 +819,7 @@ async function runLimitOrderScenario(
         userSetting.strictMode
     );
 
-    const placeInput = new PlaceInput(scenario.traderAddress, targetTick, baseQuantity, side, userSettingWithBuffer);
+    const placeInput = new PlaceInput(scenario.traderAddress, targetTick, baseQuantity, side);
 
     // Simulate with API context
     const apiContextWithPortfolio = context.with({

@@ -21,7 +21,6 @@ import {
     type ReadOptions,
     type RpcConfig,
 } from './queries';
-import type { RpcConfig as RpcConfigType } from './queries/config';
 import {
     QuotationWithSize,
     Side,
@@ -309,7 +308,7 @@ export class PerpClient {
         const subscription = this.wsManager.subscribeOrderBook(
             this.wsUrl,
             {
-                chainId: (this._config as RpcConfigType).chainId,
+                chainId: this._config.chainId,
                 instrument: this._instrumentAddress,
                 expiry: this._expiry,
                 type: 'orderBook',
@@ -330,7 +329,7 @@ export class PerpClient {
         const subscription = this.wsManager.subscribePortfolio(
             this.wsUrl,
             {
-                chainId: (this._config as RpcConfigType).chainId,
+                chainId: this._config.chainId,
                 userAddress,
                 type: 'portfolio',
             },
@@ -349,7 +348,7 @@ export class PerpClient {
         const subscription = this.wsManager.subscribeInstrument(
             this.wsUrl,
             {
-                chainId: (this._config as RpcConfigType).chainId,
+                chainId: this._config.chainId,
                 instrument: this._instrumentAddress,
                 expiry: this._expiry,
                 type: 'instrument',

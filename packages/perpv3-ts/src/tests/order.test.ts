@@ -191,7 +191,7 @@ const errorTestCases = [
             amount: baseMargin,
             deadline: DEFAULT_DEADLINE,
         },
-        expectedError: 'Tick must be multiple of order spacing',
+        expectedError: 'Tick must be multiple of order spacing 5',
         customizeContext: (context: OnchainContext) => {
             context.spacing.order = 5;
         },
