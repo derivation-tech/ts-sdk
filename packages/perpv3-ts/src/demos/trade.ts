@@ -67,17 +67,9 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
     const quotationWithSize = new QuotationWithSize(signedSize, quotation);
 
     // Create TradeInput (by margin) and simulate
-    const tradeInput = new TradeInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        baseQuantity,
-        side,
-        DefaultUserSetting,
-        { margin: marginAmountInWad }
-    );
+    const tradeInput = new TradeInput(walletAddress, baseQuantity, side, { margin: marginAmountInWad });
 
-    const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize);
+    const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize, DefaultUserSetting);
 
     console.log(`📈 Executing trade by margin (limit tick: ${formatTick(tradeParam.limitTick)})...`);
     console.log(`ℹ️ Post-trade margin delta: ${formatWad(simulation.marginDelta)}`);
@@ -142,16 +134,9 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
     const quotationWithSize = new QuotationWithSize(signedSize, quotation);
 
     // Create TradeInput (by leverage) and simulate
-    const tradeInput = new TradeInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        baseQuantity,
-        side,
-        DefaultUserSetting
-    );
+    const tradeInput = new TradeInput(walletAddress, baseQuantity, side);
 
-    const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize);
+    const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize, DefaultUserSetting);
 
     if (simulation.marginDelta > ZERO) {
         const marginNeeded = wmul(simulation.marginDelta, 10n ** BigInt(instrumentSetting.quoteDecimals));
@@ -214,15 +199,12 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
     const closeSignedSize = -signedSize;
     const closeSide = closeSignedSize >= ZERO ? Side.LONG : Side.SHORT;
     const closeInput = new TradeInput(
-        instrumentAddress,
-        PERP_EXPIRY,
         walletAddress,
         abs(closeSignedSize), // positive quantity
-        closeSide, // side determined from signed size
-        DefaultUserSetting
+        closeSide // side determined from signed size
     );
 
-    const [tradeParam, simulation] = closeInput.simulate(snapshot, quotationWithSize);
+    const [tradeParam, simulation] = closeInput.simulate(snapshot, quotationWithSize, DefaultUserSetting);
 
     console.log(`📈 Closing position (limit tick: ${formatTick(tradeParam.limitTick)})...`);
     console.log(`ℹ️ Realized PnL: ${formatWad(simulation.realized)}`);
@@ -266,15 +248,12 @@ export async function demoAdjustMargin(context: DemoContext): Promise<void> {
 
     // Create AdjustInput and simulate
     const adjustInput = new AdjustInput(
-        instrumentAddress,
-        PERP_EXPIRY,
         walletAddress,
-        DefaultUserSetting,
         marginAmountInWad,
         true // transferIn
     );
 
-    const [adjustParam, simulation] = adjustInput.simulate(snapshot);
+    const [adjustParam, simulation] = adjustInput.simulate(snapshot, DefaultUserSetting);
 
     const postPosition = simulation.postPosition;
     const newLeverage = postPosition.leverage(snapshot.amm, markPrice);
@@ -326,9 +305,9 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
         DefaultUserSetting.markPriceBufferInBps,
         DefaultUserSetting.strictMode
     );
-    const adjustInput = new AdjustInput(instrumentAddress, PERP_EXPIRY, walletAddress, targetLeverageUserSetting);
+    const adjustInput = new AdjustInput(walletAddress);
 
-    const [adjustParam, simulation] = adjustInput.simulate(snapshot);
+    const [adjustParam, simulation] = adjustInput.simulate(snapshot, targetLeverageUserSetting);
 
     const marginDelta = adjustParam.net;
     const marginNeeded = abs(marginDelta);
@@ -348,7 +327,6 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
     }
 
     const postPosition = simulation.postPosition;
-    const newLeverage = postPosition.leverage(snapshot.amm, markPrice);
     const newLiquidationPrice = postPosition.liquidationPrice(snapshot.amm, instrumentSetting.maintenanceMarginRatio);
 
     console.log(`📈 Adjusting leverage to ${formatWad(targetLeverage)}x...`);

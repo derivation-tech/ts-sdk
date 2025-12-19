@@ -409,15 +409,8 @@ export async function removeAllRanges(
         // Fetch updated context to get latest AMM state
         const currentContext = await fetchOnchainContext(instrumentAddress, PERP_EXPIRY, rpcConfig, walletAddress);
 
-        const removeInput = new RemoveInput(
-            instrumentAddress,
-            PERP_EXPIRY,
-            walletAddress,
-            tickLower,
-            tickUpper,
-            userSetting
-        );
-        const [removeParam] = removeInput.simulate(currentContext);
+        const removeInput = new RemoveInput(walletAddress, tickLower, tickUpper);
+        const [removeParam] = removeInput.simulate(currentContext, userSetting);
 
         await sendTxWithLog(publicClient, walletClient, kit, {
             address: instrumentAddress,
@@ -442,15 +435,13 @@ export async function ensureValidPlaceParam(
     placeInput: PlaceInput,
     originalPlaceParam: PlaceParam,
     rpcConfig: RpcConfig,
-    walletAddress: Address
+    walletAddress: Address,
+    instrumentAddress: Address,
+    expiry: number,
+    userSetting: UserSetting
 ): Promise<PlaceParam> {
     // Re-fetch fresh onchain context
-    const freshContext = await fetchOnchainContext(
-        placeInput.instrumentAddress,
-        placeInput.expiry,
-        rpcConfig,
-        walletAddress
-    );
+    const freshContext = await fetchOnchainContext(instrumentAddress, expiry, rpcConfig, walletAddress);
 
     // Quick check: is the order still on the correct side?
     const { amm } = freshContext;
@@ -465,7 +456,7 @@ export async function ensureValidPlaceParam(
 
     // AMM tick has moved, need to re-simulate
     console.log(`⚠️ AMM tick moved from simulation (current: ${amm.tick}). Re-simulating order...`);
-    const [newPlaceParam] = placeInput.simulate(freshContext);
+    const [newPlaceParam] = placeInput.simulate(freshContext, userSetting);
     return newPlaceParam;
 }
 

@@ -37,9 +37,9 @@ import { DEFAULT_PUBLIC_WS_URL } from './apis/constants';
  */
 export class PerpClient {
     private readonly config: ApiConfig | RpcConfig;
-    private readonly userSetting: UserSetting;
-    private readonly instrumentAddress: Address;
-    private readonly expiry: number;
+    private readonly _userSetting: UserSetting;
+    private readonly _instrumentAddress: Address;
+    private readonly _expiry: number;
     private readonly wsManager: WebSocketManager;
     private readonly wsUrl: string;
     private readonly wsOptions?: PublicWebsocketClientOptions;
@@ -64,9 +64,9 @@ export class PerpClient {
         }
     ) {
         this.config = config;
-        this.userSetting = userSetting;
-        this.instrumentAddress = instrumentAddress;
-        this.expiry = expiry;
+        this._userSetting = userSetting;
+        this._instrumentAddress = instrumentAddress;
+        this._expiry = expiry;
         this.wsManager = options?.wsManager ?? WebSocketManager.getInstance();
         this.wsUrl = options?.wsUrl ?? DEFAULT_PUBLIC_WS_URL;
         this.wsOptions = options?.wsOptions;
@@ -75,29 +75,29 @@ export class PerpClient {
     /**
      * Get the instrument address this client is scoped to.
      */
-    getInstrumentAddress(): Address {
-        return this.instrumentAddress;
+    get instrumentAddress(): Address {
+        return this._instrumentAddress;
     }
 
     /**
      * Get the expiry this client is scoped to.
      */
-    getExpiry(): number {
-        return this.expiry;
+    get expiry(): number {
+        return this._expiry;
     }
 
     /**
      * Get the user setting configured for this client.
      */
-    getUserSetting(): UserSetting {
-        return this.userSetting;
+    get userSetting(): UserSetting {
+        return this._userSetting;
     }
 
     /**
      * Check if this client is scoped to a specific pair.
      */
     isForPair(instrumentAddress: Address, expiry: number): boolean {
-        return this.instrumentAddress === instrumentAddress && this.expiry === expiry;
+        return this._instrumentAddress === instrumentAddress && this._expiry === expiry;
     }
 
     // ============================================================================
@@ -113,8 +113,8 @@ export class PerpClient {
      */
     async getSnapshot(traderAddress?: Address, signedSize?: bigint, options?: ReadOptions): Promise<PairSnapshot> {
         return fetchOnchainContext(
-            this.instrumentAddress,
-            this.expiry,
+            this._instrumentAddress,
+            this._expiry,
             this.config,
             traderAddress,
             signedSize,
@@ -129,7 +129,7 @@ export class PerpClient {
      * @returns Object with size and quotation
      */
     async getQuotation(tick: number, options?: ReadOptions): Promise<{ size: bigint; quotation: Quotation }> {
-        return inquireByTick(this.instrumentAddress, this.expiry, tick, this.config, options);
+        return inquireByTick(this._instrumentAddress, this._expiry, tick, this.config, options);
     }
 
     /**
@@ -139,7 +139,7 @@ export class PerpClient {
      * @returns Order book data with bids/asks
      */
     async getOrderBook(length?: number, options?: ReadOptions) {
-        return fetchOrderBook(this.instrumentAddress, this.expiry, this.config, length, options);
+        return fetchOrderBook(this._instrumentAddress, this._expiry, this.config, length, options);
     }
 
     // ============================================================================
@@ -244,7 +244,7 @@ export class PerpClient {
 
         // Create input and simulate
         const tradeInput = this.createTradeInput(traderAddress, baseQuantity, side, options);
-        return tradeInput.simulate(snapshot, quotationWithSize, this.userSetting);
+        return tradeInput.simulate(snapshot, quotationWithSize, this._userSetting);
     }
 
     /**
@@ -264,7 +264,7 @@ export class PerpClient {
     ): Promise<[PlaceParam, PlaceInputSimulation]> {
         const snapshot = await this.getSnapshot(traderAddress);
         const placeInput = this.createPlaceInput(traderAddress, tick, baseQuantity, side);
-        return placeInput.simulate(snapshot, this.userSetting);
+        return placeInput.simulate(snapshot, this._userSetting);
     }
 
     /**
@@ -282,7 +282,7 @@ export class PerpClient {
     ): Promise<[AdjustParam, AdjustSimulation]> {
         const snapshot = await this.getSnapshot(traderAddress);
         const adjustInput = this.createAdjustInput(traderAddress, amount, transferIn);
-        return adjustInput.simulate(snapshot, this.userSetting);
+        return adjustInput.simulate(snapshot, this._userSetting);
     }
 
     // ============================================================================
@@ -299,8 +299,8 @@ export class PerpClient {
             this.wsUrl,
             {
                 chainId: this.config.chainId,
-                instrument: this.instrumentAddress,
-                expiry: this.expiry,
+                instrument: this._instrumentAddress,
+                expiry: this._expiry,
                 type: 'orderBook',
             },
             handler,
@@ -339,8 +339,8 @@ export class PerpClient {
             this.wsUrl,
             {
                 chainId: this.config.chainId,
-                instrument: this.instrumentAddress,
-                expiry: this.expiry,
+                instrument: this._instrumentAddress,
+                expiry: this._expiry,
                 type: 'instrument',
             },
             handler,

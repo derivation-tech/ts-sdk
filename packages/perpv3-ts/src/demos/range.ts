@@ -5,7 +5,6 @@ import { AddInput, RemoveInput } from '../actions/range';
 import { encodeAddParam, encodeRemoveParam } from '../utils/encode';
 import { DefaultUserSetting, ensureMarginAndAllowance } from './utils';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { PERP_EXPIRY } from '../types/contract';
 import { formatTick, formatWad, formatTokenAmount } from '../utils/format';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
@@ -35,16 +34,8 @@ export async function demoAddLiquidity(context: DemoContext): Promise<void> {
     // Formula: value * 10^(18 - decimals)
     const amountInWad = amountInDecimals * 10n ** BigInt(18 - instrumentSetting.quoteDecimals);
 
-    const addInput = new AddInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        amountInWad,
-        tickLower,
-        tickUpper,
-        DefaultUserSetting
-    );
-    const [addParam] = addInput.simulate(snapshot);
+    const addInput = new AddInput(walletAddress, amountInWad, tickLower, tickUpper);
+    const [addParam] = addInput.simulate(snapshot, DefaultUserSetting);
 
     // Convert WAD to token decimals: multiply by 10^decimals
     const marginNeededInDecimals = wmul(addInput.marginAmount, 10n ** BigInt(instrumentSetting.quoteDecimals));
@@ -94,15 +85,8 @@ export async function demoRemoveLiquidity(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Range liquidity: ${formatWad(rangeToRemove.liquidity)}`);
 
     // Create RemoveInput and simulate
-    const removeInput = new RemoveInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        tickLower,
-        tickUpper,
-        DefaultUserSetting
-    );
-    const [removeParam, simulation] = removeInput.simulate(snapshot);
+    const removeInput = new RemoveInput(walletAddress, tickLower, tickUpper);
+    const [removeParam, simulation] = removeInput.simulate(snapshot, DefaultUserSetting);
 
     console.log(`📝 Removing liquidity...`);
     console.log(`ℹ️ Removed position size: ${formatWad(simulation.removedPosition.size)}`);

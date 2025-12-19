@@ -46,17 +46,14 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Target tick for SHORT order: ${formatTick(targetTick)}`);
 
     const placeInput = new PlaceInput(
-        instrumentAddress,
-        PERP_EXPIRY,
         walletAddress,
         targetTick,
         parseUnits('0.01', WAD_DECIMALS), // baseQuantity (unsigned)
-        Side.SHORT,
-        DefaultUserSetting
+        Side.SHORT
     );
 
     // Simulate the order (handles validation and parameter conversion)
-    const [placeParam] = placeInput.simulate(snapshot);
+    const [placeParam] = placeInput.simulate(snapshot, DefaultUserSetting);
 
     // Create Order instance to use its methods for display
     const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
@@ -72,7 +69,15 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     await ensureMarginAndAllowance(snapshot, publicClient, walletClient, kit, marginNeededInDecimals);
 
     // Re-validate and re-simulate if AMM tick has moved
-    const validPlaceParam = await ensureValidPlaceParam(placeInput, placeParam, rpcConfig, walletAddress);
+    const validPlaceParam = await ensureValidPlaceParam(
+        placeInput,
+        placeParam,
+        rpcConfig,
+        walletAddress,
+        instrumentAddress,
+        PERP_EXPIRY,
+        DefaultUserSetting
+    );
 
     // Execute place order transaction
     console.log(`📝 Placing SHORT limit order at ${formatTick(targetTick)}...`);
@@ -165,18 +170,10 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         `✅ Calculated quantities: market=${formatWad(actualMarketQuantity)}, limit=${formatWad(limitQuantity)}, total=${formatWad(baseQuantity)}`
     );
 
-    const crossLimitInput = new CrossLimitOrderInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        side,
-        baseQuantity,
-        targetTickForPush,
-        DefaultUserSetting
-    );
+    const crossLimitInput = new CrossLimitOrderInput(walletAddress, side, baseQuantity, targetTickForPush);
 
     console.log(`🔄 Simulating cross limit order...`);
-    const crossResult = crossLimitInput.simulate(snapshot, crossMarketSwapQuote);
+    const crossResult = crossLimitInput.simulate(snapshot, crossMarketSwapQuote, DefaultUserSetting);
 
     if (!crossResult.placeSimulation.canPlaceOrder) {
         throw new Error(
@@ -283,18 +280,10 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         const signedSize = crossResult.placeParam.size;
         const baseQuantity = abs(signedSize);
         const limitSide = signedSize >= 0n ? Side.LONG : Side.SHORT;
-        const limitPlaceInput = new PlaceInput(
-            instrumentAddress,
-            PERP_EXPIRY,
-            walletAddress,
-            validLimitTick,
-            baseQuantity,
-            limitSide,
-            DefaultUserSetting
-        );
+        const limitPlaceInput = new PlaceInput(walletAddress, validLimitTick, baseQuantity, limitSide);
 
         // Re-simulate with fresh context to get valid parameters
-        const [validLimitPlaceParam] = limitPlaceInput.simulate(updatedContext);
+        const [validLimitPlaceParam] = limitPlaceInput.simulate(updatedContext, DefaultUserSetting);
 
         // Final validation: ensure the place param tick is valid (simulation might adjust it)
         const finalTick = validLimitPlaceParam.tick;
@@ -367,18 +356,15 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
     console.log(`ℹ️ Price levels: ${priceLevels.map((tick) => formatTick(tick)).join(', ')}`);
 
     const scaledOrderInput = new ScaledLimitOrderInput(
-        instrumentAddress,
-        PERP_EXPIRY,
         walletAddress,
         Side.LONG,
         baseQuantity,
         priceLevels,
-        BatchOrderSizeDistribution.FLAT,
-        DefaultUserSetting
+        BatchOrderSizeDistribution.FLAT
     );
 
     console.log(`🔄 Simulating scaled limit order with ${priceLevels.length} price levels...`);
-    const scaledResult = scaledOrderInput.simulate(snapshot);
+    const scaledResult = scaledOrderInput.simulate(snapshot, DefaultUserSetting);
 
     const validOrders = scaledResult.orders.filter((order) => order !== null);
     if (validOrders.length === 0) {
