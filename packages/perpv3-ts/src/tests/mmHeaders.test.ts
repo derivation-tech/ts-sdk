@@ -21,10 +21,10 @@ describe('getHeaders', () => {
             timestamp,
         });
 
-        expect(headers['SF-ACCESS-SIGN']).toBe(expectedSignature);
-        expect(headers['SF-ACCESS-TIMESTAMP']).toBe(timestamp);
-        expect(headers['SF-ACCESS-KEY']).toBe(apiKey);
-        expect(headers['SF-ACCESS-PASSPHRASE']).toBe(passphrase);
+        expect(headers['X-ACCESS-SIGN']).toBe(expectedSignature);
+        expect(headers['X-ACCESS-TIMESTAMP']).toBe(timestamp);
+        expect(headers['X-ACCESS-KEY']).toBe(apiKey);
+        expect(headers['X-ACCESS-PASSPHRASE']).toBe(passphrase);
     });
 
     it('signs JSON bodies with sorted keys for POST', async () => {
@@ -50,8 +50,8 @@ describe('getHeaders', () => {
             timestamp,
         });
 
-        expect(headers['SF-ACCESS-SIGN']).toBe(expectedSignature);
-        expect(headers['SF-ACCESS-TIMESTAMP']).toBe(timestamp);
+        expect(headers['X-ACCESS-SIGN']).toBe(expectedSignature);
+        expect(headers['X-ACCESS-TIMESTAMP']).toBe(timestamp);
         expect(headers['Content-Type']).toBe(contentType);
     });
 });
