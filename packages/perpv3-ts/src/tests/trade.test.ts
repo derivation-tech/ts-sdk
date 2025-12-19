@@ -285,7 +285,7 @@ describe('trade simulations (ABC fixture data)', () => {
     describe('simulateAdjustMargin', () => {
         adjustMarginScenarios.forEach(({ data, expectedSimulation }) => {
             test(data.name, () => {
-                const context = structuredClone(data.context);
+                const context = data.context; // PairSnapshot is immutable, no need to clone
                 const input = new AdjustInput(
                     data.instrumentAddress,
                     context.amm.expiry,

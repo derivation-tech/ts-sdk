@@ -2,7 +2,6 @@ import type { Address } from 'viem';
 import { wmulDown, wmul, abs, wdiv, sqrt, ratioToWad, sqrtX96ToWad, sqrtX96ToTick, tickToWad } from '../math';
 import { ZERO, MAX_INT_24, MIN_INT_24 } from '../constants';
 import { Errors, ErrorCode } from '../types/error';
-import { MAX_TICK, MIN_TICK } from '../constants';
 import { Position } from '../types/position';
 import { Range } from '../types/range';
 import { UserSetting } from '../types';
@@ -51,33 +50,10 @@ export class AddInput {
         const { instrumentSetting } = snapshot;
         const { amm } = snapshot;
 
-        // Validate ticks BEFORE converting to deltas (since deltas lose direction information)
-        // Validate tick bounds
-        if (this.tickLower > this.tickUpper) {
-            throw Errors.validation('tickLower must be less than or equal to tickUpper', ErrorCode.INVALID_TICK, {
-                tickLower: this.tickLower,
-                tickUpper: this.tickUpper,
-            });
-        }
-        if (this.tickUpper > MAX_TICK) {
-            throw Errors.validation(
-                `tickUpper must be less than or equal to MAX_TICK (${MAX_TICK})`,
-                ErrorCode.INVALID_TICK,
-                {
-                    tickUpper: this.tickUpper,
-                    maxTick: MAX_TICK,
-                }
-            );
-        }
-        if (this.tickLower < MIN_TICK) {
-            throw Errors.validation(
-                `tickLower must be greater than or equal to MIN_TICK (${MIN_TICK})`,
-                ErrorCode.INVALID_TICK,
-                {
-                    tickLower: this.tickLower,
-                    minTick: MIN_TICK,
-                }
-            );
+        // Check if instrument is tradable
+        const tradability = snapshot.isTradable();
+        if (!tradability.tradable) {
+            throw Errors.simulation(tradability.reason || 'Instrument not tradable', ErrorCode.SIMULATION_FAILED);
         }
 
         // Validate margin amount
@@ -87,20 +63,13 @@ export class AddInput {
             });
         }
 
-        // Validate range spacing alignment
-        if (
-            this.tickLower % instrumentSetting.rangeSpacing !== 0 ||
-            this.tickUpper % instrumentSetting.rangeSpacing !== 0
-        ) {
-            throw Errors.validation(
-                `Ticks must be multiples of range spacing ${instrumentSetting.rangeSpacing}`,
-                ErrorCode.INVALID_TICK,
-                {
-                    tickLower: this.tickLower,
-                    tickUpper: this.tickUpper,
-                    rangeSpacing: instrumentSetting.rangeSpacing,
-                }
-            );
+        // Validate range tick pair (includes bounds, spacing, side constraints, and IMR restrictions)
+        if (!instrumentSetting.isRangeTickPairValid(this.tickLower, this.tickUpper, amm.tick)) {
+            throw Errors.validation('Invalid range tick pair', ErrorCode.INVALID_TICK, {
+                tickLower: this.tickLower,
+                tickUpper: this.tickUpper,
+                ammTick: amm.tick,
+            });
         }
 
         const imr = instrumentSetting.imr;
@@ -126,8 +95,7 @@ export class AddInput {
         const upperPosition = rangeWithTicks.upperPositionIfRemove(amm);
 
         const minLiquidity = instrumentSetting.minLiquidity(amm.sqrtPX96);
-        const tempRangeForMinMargin = new Range(0n, 0n, 0n, amm.sqrtPX96, lowerTick, upperTick);
-        const minMargin = tempRangeForMinMargin.calcMarginFromLiquidity(amm.sqrtPX96, minLiquidity, imr);
+        const minMargin = Range.minMargin(lowerTick, upperTick, amm.sqrtPX96, minLiquidity, imr);
 
         const lowerPrice = tickToWad(lowerTick);
         const upperPrice = tickToWad(upperTick);
@@ -225,7 +193,7 @@ export class RemoveInput {
     simulate(snapshot: PairSnapshot): [RemoveParam, RemoveSimulation] {
         const { instrumentSetting, amm, portfolio } = snapshot;
 
-        // Validate basic constraints
+        // Validate basic constraints first
         if (this.tickLower >= this.tickUpper) {
             throw Errors.validation('tickLower must be less than tickUpper', ErrorCode.INVALID_TICK, {
                 tickLower: this.tickLower,
@@ -247,6 +215,16 @@ export class RemoveInput {
             );
         }
 
+        // Check if removing liquidity is feasible (checks tradability and range existence)
+        const feasibility = snapshot.isRemoveLiquidityFeasible(this.tickLower, this.tickUpper);
+        if (!feasibility.feasible) {
+            throw Errors.simulation(
+                feasibility.reason || `Range not found for tickLower: ${this.tickLower}, tickUpper: ${this.tickUpper}`,
+                ErrorCode.SIMULATION_FAILED,
+                { tickLower: this.tickLower, tickUpper: this.tickUpper }
+            );
+        }
+
         // Find range by matching tickLower and tickUpper
         let foundRange: Range | undefined;
         for (let i = 0; i < portfolio.ranges.length; i++) {
@@ -259,6 +237,7 @@ export class RemoveInput {
             }
         }
 
+        // This should never happen if isRemoveLiquidityFeasible passed, but keep as safety check
         if (!foundRange) {
             throw Errors.simulation(
                 `Range not found for tickLower: ${this.tickLower}, tickUpper: ${this.tickUpper}`,
