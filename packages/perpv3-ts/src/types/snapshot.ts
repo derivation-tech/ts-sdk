@@ -640,7 +640,7 @@ export class PairSnapshot {
         const fair = sqrtX96ToWad(this.amm.sqrtPX96);
         const imrWad = ratioToWad(instrumentSetting.imr);
         const deviation = wdiv(abs(fair - markPrice), markPrice);
-        
+
         if (deviation > imrWad) {
             return {
                 allowed: false,

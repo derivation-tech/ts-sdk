@@ -55,4 +55,3 @@ describe('getHeaders', () => {
         expect(headers['Content-Type']).toBe(contentType);
     });
 });
-

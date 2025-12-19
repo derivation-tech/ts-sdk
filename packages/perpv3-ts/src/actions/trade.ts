@@ -124,12 +124,18 @@ export class TradeInput {
 
         if (postPosition.size !== ZERO && marginDelta < ZERO) {
             // Create updated snapshot with updated AMM and postPosition for max withdrawable calculation
-            const updatedSnapshot = snapshot.with({ amm: updatedAmm, portfolio: { ...snapshot.portfolio, position: postPosition } });
+            const updatedSnapshot = snapshot.with({
+                amm: updatedAmm,
+                portfolio: { ...snapshot.portfolio, position: postPosition },
+            });
             const maxWithdrawable = updatedSnapshot.getMaxWithdrawableMargin();
 
             if (abs(marginDelta) > maxWithdrawable) {
                 if (this.userSetting.strictMode) {
-                    throw Errors.simulation('Withdrawal amount exceeds maximum withdrawable margin', ErrorCode.SIMULATION_FAILED);
+                    throw Errors.simulation(
+                        'Withdrawal amount exceeds maximum withdrawable margin',
+                        ErrorCode.SIMULATION_FAILED
+                    );
                 }
                 marginDelta = -maxWithdrawable;
                 exceedMaxLeverage = true;
@@ -162,8 +168,8 @@ export class TradeInput {
                     instrumentSetting.imr,
                     true,
                     this.userSetting.slippage,
-            markPrice
-        );
+                    markPrice
+                );
                 postPosition = postPosition.withBalanceDelta(additionalMargin);
                 marginDelta += additionalMargin;
                 exceedMaxLeverage = true;

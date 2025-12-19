@@ -1,16 +1,4 @@
-import {
-    abs,
-    wdiv,
-    wdivDown,
-    wdivUp,
-    wmul,
-    wmulDown,
-    wmulUp,
-    wmulInt,
-    frac,
-    ratioToWad,
-    tickToWad,
-} from '../math';
+import { abs, wdiv, wdivDown, wdivUp, wmul, wmulDown, wmulUp, wmulInt, frac, ratioToWad, tickToWad } from '../math';
 import { ZERO, ONE_RATIO } from '../constants';
 import { PERP_EXPIRY, type Amm, type TradeParam } from './contract';
 import type { QuotationWithSize } from './quotation';
@@ -319,13 +307,13 @@ export class Position {
         }
 
         const marginDelta = this.transferAmountFromTargetLeverage(amm, targetLeverage, markPrice);
-        
+
         // If withdrawal, check if it exceeds maxWithdrawable
         if (marginDelta < ZERO) {
             const maxWithdrawable = this.maxWithdrawable(amm, initialMarginRatio, markPrice);
             return abs(marginDelta) <= maxWithdrawable;
         }
-        
+
         // Deposit is always allowed
         return true;
     }

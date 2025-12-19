@@ -91,12 +91,12 @@ export class AdjustInput {
             if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
                 this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
             }
-            
+
             // Check if leverage adjustment is feasible
             if (!position.canAdjustToLeverage(this.userSetting.leverage, amm, markPrice, imr)) {
                 throw Errors.simulation('Cannot adjust to target leverage', ErrorCode.SIMULATION_FAILED);
             }
-            
+
             marginDelta = position.transferAmountFromTargetLeverage(amm, this.userSetting.leverage, markPrice);
 
             if (marginDelta < ZERO && position.size !== ZERO) {
@@ -132,12 +132,9 @@ export class AdjustInput {
         // Check if withdrawal is allowed (fair price deviation check)
         const withdrawalCheck = snapshot.isWithdrawalAllowed();
         if (!withdrawalCheck.allowed) {
-            throw Errors.validation(
-                withdrawalCheck.reason || 'Withdrawal not allowed',
-                ErrorCode.INVALID_PARAM
-            );
+            throw Errors.validation(withdrawalCheck.reason || 'Withdrawal not allowed', ErrorCode.INVALID_PARAM);
         }
-        
+
         if (position.size !== ZERO) {
             const maxWithdrawable = snapshot.getMaxWithdrawableMargin();
             const absMargin = abs(marginDelta);

@@ -87,12 +87,7 @@ The SDK provides class-based input classes for various operations. Each input cl
 
 ```typescript
 import { parseUnits } from 'viem';
-import {
-    TradeInput,
-    AdjustMarginInput,
-    AdjustLeverageInput,
-    QuotationWithSize,
-} from '@synfutures/perpv3-ts/actions';
+import { TradeInput, AdjustMarginInput, AdjustLeverageInput, QuotationWithSize } from '@synfutures/perpv3-ts/actions';
 import { PERP_EXPIRY, Side, UserSetting } from '@synfutures/perpv3-ts/types';
 import { WAD } from '@synfutures/perpv3-ts/constants';
 
@@ -231,6 +226,7 @@ const simulation = scaledOrder.simulate(onchainContext);
 ```
 
 Notes:
+
 - `PlaceInput` validates `baseQuantity` in the constructor (must be positive), so invalid inputs may throw before calling `simulate()`.
 - `ScaledLimitOrderSimulation` is flattened: use `totalBase`, `totalQuote`, `totalMargin`, `minBase`, and `orders[].minOrderSize` (instead of nested `totals`/`constraints`).
 

@@ -712,7 +712,7 @@ async function runAdjustMarginScenario(
     // apiResult and rpcResult are AdjustSimulation
     const apiMarkPrice = apiOnchainContext.priceData.markPrice;
     const rpcMarkPrice = rpcOnchainContext.priceData.markPrice;
-    
+
     expect(rpcResult.postPosition.leverage(rpcOnchainContext.amm, rpcMarkPrice).toString()).toBe(
         apiResult.postPosition.leverage(apiOnchainContext.amm, apiMarkPrice).toString()
     );

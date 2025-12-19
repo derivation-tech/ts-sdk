@@ -269,13 +269,7 @@ export class Range {
      *
      * @param liquidity - The liquidity amount to calculate margin requirement for
      */
-    static minMargin(
-        tickLower: number,
-        tickUpper: number,
-        sqrtPX96: bigint,
-        liquidity: bigint,
-        imr: number
-    ): bigint {
+    static minMargin(tickLower: number, tickUpper: number, sqrtPX96: bigint, liquidity: bigint, imr: number): bigint {
         const tempRange = new Range(0n, 0n, 0n, sqrtPX96, tickLower, tickUpper);
         return tempRange.calcMarginFromLiquidity(sqrtPX96, liquidity, imr);
     }

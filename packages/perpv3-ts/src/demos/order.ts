@@ -438,7 +438,8 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
 
     // Recalculate total quantity based on valid orders
     const validTotalRatio = validRatios.reduce((sum, ratio) => sum + ratio, 0);
-    const adjustedTotalQuantity = validTotalRatio > 0 ? (totalQuantity * BigInt(validTotalRatio)) / BigInt(10000) : totalQuantity;
+    const adjustedTotalQuantity =
+        validTotalRatio > 0 ? (totalQuantity * BigInt(validTotalRatio)) / BigInt(10000) : totalQuantity;
 
     // Apply sign based on side: LONG = positive, SHORT = negative
     const signedSize = side === Side.LONG ? adjustedTotalQuantity : -adjustedTotalQuantity;

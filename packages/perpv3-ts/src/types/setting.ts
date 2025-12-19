@@ -1,6 +1,15 @@
 import type { Address } from 'viem';
 import { wmul, wmulDown, wdiv, abs, ratioToWad, wadToTick, tickToWad, sqrtX96ToTick, wdivUp } from '../math';
-import { RATIO_BASE, WAD, Q96, ONE_RATIO, DEFAULT_DEADLINE_SECONDS, DEFAULT_FUNDING_HOUR, MIN_TICK, MAX_TICK } from '../constants';
+import {
+    RATIO_BASE,
+    WAD,
+    Q96,
+    ONE_RATIO,
+    DEFAULT_DEADLINE_SECONDS,
+    DEFAULT_FUNDING_HOUR,
+    MIN_TICK,
+    MAX_TICK,
+} from '../constants';
 import { type Setting, type QuoteParam, Side, sideSign, Condition } from './contract';
 import { Errors, ErrorCode } from './error';
 
@@ -361,7 +370,11 @@ export class InstrumentSetting {
     /**
      * Get the feasible tick range for placing LimitOrders of a given side.
      */
-    getFeasibleLimitOrderTickRange(side: Side, ammTick: number, markPrice: bigint): { minTick: number; maxTick: number } | null {
+    getFeasibleLimitOrderTickRange(
+        side: Side,
+        ammTick: number,
+        markPrice: bigint
+    ): { minTick: number; maxTick: number } | null {
         const imr = ratioToWad(this.imr);
         const maxDeviation = imr * 2n;
 
@@ -407,7 +420,12 @@ export class InstrumentSetting {
     /**
      * Check if a specific tick is valid for placing a LimitOrder of the given side.
      */
-    isTickValidForLimitOrder(tick: number, side: Side, ammTick: number, markPrice: bigint): { valid: boolean; reason?: string } {
+    isTickValidForLimitOrder(
+        tick: number,
+        side: Side,
+        ammTick: number,
+        markPrice: bigint
+    ): { valid: boolean; reason?: string } {
         if (tick < MIN_TICK || tick > MAX_TICK) {
             return {
                 valid: false,
@@ -498,5 +516,4 @@ export class InstrumentSetting {
 
         return true;
     }
-
 }

@@ -326,12 +326,7 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
         DefaultUserSetting.markPriceBufferInBps,
         DefaultUserSetting.strictMode
     );
-    const adjustInput = new AdjustInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        targetLeverageUserSetting
-    );
+    const adjustInput = new AdjustInput(instrumentAddress, PERP_EXPIRY, walletAddress, targetLeverageUserSetting);
 
     const [adjustParam, simulation] = adjustInput.simulate(snapshot);
 
