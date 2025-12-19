@@ -1,5 +1,6 @@
 import type { Address } from 'viem';
-import { fetchMmOrderBook, fetchMmWalletBalance, fetchMmPositionList, PublicWebsocketClient } from '../apis';
+import { fetchMmOrderBook, fetchMmWalletBalance, fetchMmPositionList, PublicWebsocketClient, AuthInfo, fetchMmServerTime } from '../apis';
+import 'dotenv/config';
 import { PERP_EXPIRY } from '../types/contract';
 
 const CHAIN_ID = 143;
@@ -11,12 +12,22 @@ const DEPTH = 20;
 
 async function main(): Promise<void> {
     console.log('=== API snapshots ===');
+    // you need to set the API_KEY/API_PASSPHRASE/API_SECRET in the environment variables
+    const authInfo: AuthInfo = {
+        apiKey: process.env.SYNF_PARITY_API_KEY!,
+        passphrase: process.env.SYNF_PARITY_PASSPHRASE!,
+        secretKey: process.env.SYNF_PARITY_SECRET_KEY!,
+    };
     try {
+        const serverTime = await fetchMmServerTime(authInfo);
+        console.log('serverTime : ', serverTime);
+
         const orderBook = await fetchMmOrderBook({
             chainId: CHAIN_ID,
             symbol: SYMBOL,
             ...(Number.isFinite(DEPTH) ? { depth: DEPTH } : {}),
-        });
+
+        }, authInfo);
         if (orderBook) {
             const ratios = Object.keys(orderBook);
             const first = ratios[0];
@@ -40,7 +51,7 @@ async function main(): Promise<void> {
     }
 
     try {
-        const wallet = await fetchMmWalletBalance({ chainId: CHAIN_ID, address: USER_ADDRESS });
+        const wallet = await fetchMmWalletBalance({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
         if (wallet?.portfolios?.length) {
             console.log(
                 'wallet balance snapshot:',
@@ -59,7 +70,7 @@ async function main(): Promise<void> {
     }
 
     try {
-        const positions = await fetchMmPositionList({ chainId: CHAIN_ID, address: USER_ADDRESS });
+        const positions = await fetchMmPositionList({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
         if (positions?.length) {
             console.log(
                 'position list snapshot:',
@@ -117,10 +128,10 @@ async function main(): Promise<void> {
 
     const portfolioSub = USER_ADDRESS
         ? ws.subscribePortfolio({ chainId: CHAIN_ID, userAddress: USER_ADDRESS, type: 'portfolio' }, (payload) => {
-              console.log(
-                  `[portfolio] type=${payload.type} instrument=${payload.instrument ?? '-'} expiry=${payload.expiry ?? '-'}`
-              );
-          })
+            console.log(
+                `[portfolio] type=${payload.type} instrument=${payload.instrument ?? '-'} expiry=${payload.expiry ?? '-'}`
+            );
+        })
         : null;
 
     console.log(`listening for ${DURATION_MS}ms...`);
