@@ -19,9 +19,101 @@ TypeScript SDK for simulating and interacting with SynFutures V3 Perpetual Contr
 npm install @synfutures/perpv3-ts
 ```
 
+## Architecture
+
+### Directory Structure
+
+```text
+src/
+├── abis/           # Contract ABIs (latest and legacy)
+├── actions/        # Simulation action classes
+│   ├── trade.ts    # Trade simulation (TradeInput, etc.)
+│   ├── order.ts    # Order simulation (PlaceInput, CrossMarketOrderInput, etc.)
+│   ├── range.ts    # Range liquidity simulation (AddInput, RemoveInput)
+│   └── validation.ts # Common validation utilities
+├── apis/           # API-specific implementations
+├── constants.ts    # Shared constants
+├── demos/          # Demo framework and examples
+│   ├── framework/  # Demo framework (runner, registry, context)
+│   ├── trade.ts    # Trade demos
+│   ├── order.ts    # Order demos
+│   └── range.ts    # Range demos
+├── frontend/       # Frontend utilities (calldata encoding, parsers)
+├── info.ts         # Chain configuration (PerpInfo)
+├── math.ts         # Math utilities
+├── parsers/        # Contract event/log parsers
+├── queries/        # Unified data fetching (API/RPC)
+│   ├── api.ts      # API implementation
+│   ├── rpc.ts      # RPC implementation
+│   └── index.ts    # Unified entry point
+├── tests/          # Test files and fixtures
+├── types/          # Type definitions
+│   ├── contract.ts  # Core domain types (1:1 Solidity mirror)
+│   ├── position.ts # Position class
+│   ├── order.ts    # Order class
+│   ├── range.ts    # Range class
+│   ├── quotation.ts # QuotationWithSize class
+│   └── setting.ts  # UserSetting and InstrumentSetting classes
+└── utils/          # Utility functions
+```
+
+### Type Organization
+
+**Core Domain Types** (`types/contract.ts`):
+
+- Types that are 1:1 mirrors of Solidity structs/enums
+- Used across multiple modules
+- Fundamental business entities (Amm, Portfolio, Setting, etc.)
+
+**Class-Based Types** (`types/*.ts`):
+
+- `Position` - Position class with encapsulated behavior
+- `Order` - Order class with static factory methods
+- `Range` - Range class with static key packing/unpacking
+- `QuotationWithSize` - Quotation with size calculations
+- `UserSetting` - User settings with helper methods
+- `InstrumentSetting` - Instrument settings factory
+
+**Action Classes** (`actions/*.ts`):
+
+- Input classes for simulations (TradeInput, PlaceInput, etc.)
+- Each class has a `simulate()` method that returns simulation results
+- Validation and encoding utilities
+
 ## Usage
 
-### Basic Setup
+### Basic Setup with PerpClient (Recommended)
+
+```typescript
+import { parseUnits } from 'viem';
+import { PerpClient } from '@synfutures/perpv3-ts';
+import { TradeInput, QuotationWithSize } from '@synfutures/perpv3-ts/actions';
+import { Side, UserSetting, PERP_EXPIRY } from '@synfutures/perpv3-ts/types';
+import { WAD } from '@synfutures/perpv3-ts/constants';
+
+// Create PerpClient - centralizes configuration
+const client = new PerpClient(
+    rpcConfig,
+    new UserSetting(10, 10, 3n * WAD, 1),
+    instrumentAddress,
+    PERP_EXPIRY
+);
+
+// Fetch snapshot and quotation
+const snapshot = await client.getSnapshot(traderAddress);
+const side = Side.LONG;
+const baseQuantity = parseUnits('1', 18);
+const signedSize = side === Side.LONG ? baseQuantity : -baseQuantity;
+const snapshotWithQuotation = await client.getSnapshot(traderAddress, signedSize);
+const quotation = snapshotWithQuotation.quotation!;
+const quotationWithSize = new QuotationWithSize(signedSize, quotation);
+
+// Create input and simulate
+const tradeInput = new TradeInput(traderAddress, baseQuantity, side);
+const [param, sim] = tradeInput.simulate(snapshot, quotationWithSize, client.userSetting);
+```
+
+### Basic Setup (Legacy API)
 
 ```typescript
 import { createPublicClient, http, parseUnits } from 'viem';
@@ -194,7 +286,7 @@ const scaledOrder = new ScaledLimitOrderInput(
 const simulation = scaledOrder.simulate(onchainContext, userSetting);
 ```
 
-Notes:
+**Notes:**
 
 - `PlaceInput` validates `baseQuantity` in the constructor (must be positive), so invalid inputs may throw before calling `simulate()`.
 - `ScaledLimitOrderSimulation` is flattened: use `totalBase`, `totalQuote`, `totalMargin`, `minBase`, and `orders[].minOrderSize` (instead of nested `totals`/`constraints`).
@@ -459,154 +551,6 @@ npm run demo -- --chain abctest --signer neo --instrument ETH-USDM-EMG
 # Skip cleanup after demos
 npm run demo -- --skip-cleanup
 ```
-
-## Architecture
-
-### Directory Structure
-
-```
-src/
-├── abis/           # Contract ABIs (latest and legacy)
-├── actions/        # Simulation action classes
-│   ├── trade.ts    # Trade simulation (TradeInput, etc.)
-│   ├── order.ts    # Order simulation (PlaceInput, CrossMarketOrderInput, etc.)
-│   ├── range.ts    # Range liquidity simulation (AddInput, RemoveInput)
-│   └── validation.ts # Common validation utilities
-├── apis/           # API-specific implementations
-├── constants.ts    # Shared constants
-├── demos/          # Demo framework and examples
-│   ├── framework/  # Demo framework (runner, registry, context)
-│   ├── trade.ts    # Trade demos
-│   ├── order.ts    # Order demos
-│   └── range.ts    # Range demos
-├── frontend/       # Frontend utilities (calldata encoding, parsers)
-├── info.ts         # Chain configuration (PerpInfo)
-├── math.ts         # Math utilities
-├── parsers/        # Contract event/log parsers
-├── queries/        # Unified data fetching (API/RPC)
-│   ├── api.ts      # API implementation
-│   ├── rpc.ts      # RPC implementation
-│   └── index.ts    # Unified entry point
-├── tests/          # Test files and fixtures
-├── types/          # Type definitions
-│   ├── contract.ts  # Core domain types (1:1 Solidity mirror)
-│   ├── position.ts # Position class
-│   ├── order.ts    # Order class
-│   ├── range.ts    # Range class
-│   ├── quotation.ts # QuotationWithSize class
-│   └── setting.ts  # UserSetting and InstrumentSetting classes
-└── utils/          # Utility functions
-```
-
-### Type Organization
-
-**Core Domain Types** (`types/contract.ts`):
-
-- Types that are 1:1 mirrors of Solidity structs/enums
-- Used across multiple modules
-- Fundamental business entities (Amm, Portfolio, Setting, etc.)
-
-**Class-Based Types** (`types/*.ts`):
-
-- `Position` - Position class with encapsulated behavior
-- `Order` - Order class with static factory methods
-- `Range` - Range class with static key packing/unpacking
-- `QuotationWithSize` - Quotation with size calculations
-- `UserSetting` - User settings with helper methods
-- `InstrumentSetting` - Instrument settings factory
-
-**Action Classes** (`actions/*.ts`):
-
-- Input classes for simulations (TradeInput, PlaceInput, etc.)
-- Each class has a `simulate()` method that returns simulation results
-- Validation and encoding utilities
-
-## Development
-
-### Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Lint
-npm run lint
-
-# Format
-npm run format
-```
-
-### Testing
-
-```bash
-# Run all tests
-npm test
-
-# Run specific test
-npm test -- trade.test
-
-# Watch mode
-npm run test:watch
-
-# Coverage
-npm run test:coverage
-```
-
-### Simulation API/RPC Parity Test (ABC)
-
-Use `src/tests/apiRpcParity.test.ts` on the SynFutures ABC testnet to verify that the simulation module yields matching results in API mode and RPC mode. Prepare the following environment settings before running:
-
-1. Provision an ABC network RPC endpoint and export it as the `ABC_RPC` environment variable.
-2. If you need to access protected endpoints, store the API key in `SYNF_PARITY_API_KEY` (optional).
-3. Point `SIMULATE_PARITY_FIXTURE` to the scenario file. The repository bundles `src/tests/fixtures/simulate-parity.abc.json`, which covers sample limit orders, margin/leverage opens, closes, and margin adjustments.
-
-Example:
-
-```bash
-SIMULATE_PARITY_FIXTURE=src/tests/fixtures/simulate-parity.abc.json \
-ABC_RPC=https://rpc.synfutures-abc-testnet.raas.gelato.cloud/your-key \
-npm test -- apiRpcParity
-```
-
-For debugging, enable verbose logging:
-
-```bash
-DEBUG_PARITY_TEST=1 \
-SIMULATE_PARITY_FIXTURE=src/tests/fixtures/simulate-parity.abc.json \
-ABC_RPC=https://rpc.synfutures-abc-testnet.raas.gelato.cloud/your-key \
-npm test -- apiRpcParity
-```
-
-> ⚠️ Note: The parity test does not invoke helpers such as `simulateMarketTrade*FromApi`. Those wrappers fetch a fresh snapshot on each call, which prevents pinning the block height and hides `blockInfo.height`. The test instead pulls the instrument, portfolio, and quotation payloads required by the API, records the associated `blockInfo`, computes the "API result" with the core `simulate*` functions, and then reruns the RPC wrapper at the same height for comparison. Any divergence between the two implementations surfaces as an assertion failure.
-
-### ABC Fixture Capture
-
-Tests such as `range.test.ts` now rely on real ABC on-chain snapshots stored in `src/tests/fixtures/onchain-context.abc.json`. Regenerate the fixture whenever you need updated market data:
-
-```bash
-ABC_RPC=https://rpc.synfutures-abc-testnet.raas.gelato.cloud/your-key \
-npm run fixtures:capture:abc
-```
-
-The script attempts to pull the snapshot via the observer contract first and falls back to the public API if the RPC response is too large. Optional overrides:
-
-- `ABC_FIXTURE_INSTRUMENT`, `ABC_FIXTURE_TRADER`, `ABC_FIXTURE_EXPIRY` – point to a different market or user.
-- `ABC_FIXTURE_SIGNED_SIZE` – request a quotation in addition to the context.
-- `ABC_FIXTURE_BLOCK` – pin an explicit block height.
-
-A freshly generated file keeps BigInt fields as decimal strings and can be parsed into `OnchainContext` in tests.
-
-For trade-specific simulations (`trade.test.ts`), use the dedicated command to refresh `src/tests/fixtures/trade-scenarios.abc.json`:
-
-```bash
-ABC_RPC=https://rpc.synfutures-abc-testnet.raas.gelato.cloud/your-key \
-npm run fixtures:capture:trade
-```
-
-The trade fixture combines the observer snapshot, synthesized user portfolios, and pre-computed simulation outputs so the unit tests can run deterministically without live RPC access.
 
 ## License
 
