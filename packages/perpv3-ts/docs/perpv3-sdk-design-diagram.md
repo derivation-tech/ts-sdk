@@ -1,4 +1,4 @@
-# xxInput Design Diagram
+# PerpV3 SDK Design Diagram
 
 ## Current Design (Before PerpClient)
 
@@ -323,3 +323,4 @@ const client = new PerpClient(rpcConfig, new UserSetting(10, 10, 3n * WAD, 1), i
 
 const [param, sim] = await client.simulateTrade(traderAddress, baseQuantity, Side.LONG);
 ```
+
