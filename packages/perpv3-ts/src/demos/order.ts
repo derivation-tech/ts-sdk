@@ -4,6 +4,7 @@ import { WAD_DECIMALS } from '../constants';
 import { BatchOrderSizeDistribution } from '../actions/scaledLimitOrder';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
 import { Order, Side, buildInquireByTickResult } from '../types';
+import { isRpcConfig } from '../queries/config';
 import { encodeBatchPlaceParam, encodeCancelParam, encodePlaceParam, encodeTradeParam } from '../utils/encode';
 import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
 import type { DemoContext } from './framework/types';
@@ -58,10 +59,13 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     await ensureMarginAndAllowance(snapshot, publicClient, walletClient, kit, marginNeededInDecimals);
 
     // Re-validate and re-simulate if AMM tick has moved
+    if (!isRpcConfig(perpClient.config)) {
+        throw new Error('ensureValidPlaceParam requires RPC config');
+    }
     const validPlaceParam = await ensureValidPlaceParam(
         placeInput,
         placeParam,
-        perpClient.config as any, // rpcConfig
+        perpClient.config,
         walletAddress,
         perpClient.instrumentAddress,
         perpClient.expiry,
@@ -129,7 +133,7 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         perpClient.expiry,
         side,
         targetTickForPush,
-        perpClient.config as any
+        perpClient.config
     );
 
     const actualMarketQuantity = abs(crossMarketSwapQuote.size);
@@ -290,12 +294,15 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         console.log(`✅ Cross market order executed successfully!`);
 
         // Cancel the limit order if it still exists
+        if (!isRpcConfig(perpClient.config)) {
+            throw new Error('cancelOrdersAtTicks requires RPC config');
+        }
         await cancelOrdersAtTicks(
             publicClient,
             walletClient,
             kit,
             perpClient.instrumentAddress,
-            perpClient.config as any,
+            perpClient.config,
             walletAddress,
             [finalTick]
         );
@@ -306,7 +313,7 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
             walletClient,
             kit,
             perpClient.instrumentAddress,
-            perpClient.config as any,
+            perpClient.config,
             walletAddress,
             perpClient.userSetting
         );
@@ -384,12 +391,15 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
     const side = scaledOrderInput.side; // Get the side from the input
 
     // Re-validate ticks before batch placing
+    if (!isRpcConfig(perpClient.config)) {
+        throw new Error('ensureValidBatchPlaceTicks requires RPC config');
+    }
     const validTicks = await ensureValidBatchPlaceTicks(
         perpClient.instrumentAddress,
         perpClient.expiry,
         alignedTicks,
         side,
-        perpClient.config as any,
+        perpClient.config,
         walletAddress
     );
 
@@ -444,7 +454,7 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
         walletClient,
         kit,
         perpClient.instrumentAddress,
-        perpClient.config as any,
+        perpClient.config,
         walletAddress,
         validTicks.length > 0 ? validTicks : alignedTicks
     );
@@ -455,7 +465,7 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
         walletClient,
         kit,
         perpClient.instrumentAddress,
-        perpClient.config as any,
+        perpClient.config,
         walletAddress,
         perpClient.userSetting
     );

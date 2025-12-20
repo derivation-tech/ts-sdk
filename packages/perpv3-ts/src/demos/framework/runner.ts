@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv';
 import { createDemoContext, refreshDemoContext } from './context';
 import { getDemo, listDemos, getDemoNames } from './registry';
 import { closePositionIfExists, removeAllRanges } from '../utils';
+import { isRpcConfig } from '../../queries/config';
 
 dotenv.config();
 
@@ -98,12 +99,15 @@ export async function runDemos(options: RunOptions = {}): Promise<void> {
         console.log('🧹 Cleaning up...');
         try {
             context = await refreshDemoContext(context);
+            if (!isRpcConfig(context.perpClient.config)) {
+                throw new Error('Cleanup requires RPC config, but API config was provided');
+            }
             await removeAllRanges(
                 context.publicClient,
                 context.walletClient,
                 context.kit,
                 context.perpClient.instrumentAddress,
-                context.perpClient.config as any,
+                context.perpClient.config,
                 context.walletAddress,
                 context.perpClient.userSetting
             );
@@ -112,7 +116,7 @@ export async function runDemos(options: RunOptions = {}): Promise<void> {
                 context.walletClient,
                 context.kit,
                 context.perpClient.instrumentAddress,
-                context.perpClient.config as any,
+                context.perpClient.config,
                 context.walletAddress,
                 context.perpClient.userSetting
             );
