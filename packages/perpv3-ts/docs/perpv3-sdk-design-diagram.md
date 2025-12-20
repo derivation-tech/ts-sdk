@@ -129,9 +129,6 @@ classDiagram
         +getSnapshot(trader?, signedSize?)
         +getQuotation(tick)
         +getOrderBook(length?)
-        +simulateTrade(trader, baseQty, side, options?)
-        +simulatePlaceOrder(trader, tick, baseQty, side)
-        +simulateAdjust(trader, amount?, transferIn?)
         +subscribeOrderBook(handler)
         +subscribePortfolio(user, handler)
         +subscribeInstrument(handler)
@@ -219,7 +216,7 @@ classDiagram
     AddInput --> PairSnapshot : requires for simulate()
     RemoveInput --> PairSnapshot : requires for simulate()
 
-    note for PerpClient "Centralizes configuration:\n- instrumentAddress\n- expiry\n- userSetting\n- config\n\nHigh-level simulate* methods handle\ninput creation internally"
+    note for PerpClient "Centralizes configuration:\n- instrumentAddress\n- expiry\n- userSetting\n- config\n\nProvides query methods (getSnapshot, etc.)\nUsers create input classes directly"
     note for TradeInput "Simplified: no instrument/expiry/userSetting\nin constructor. Instantiate directly with new"
     note for PairSnapshot "Contains instrumentAddress and expiry\nas direct properties"
 ```
@@ -253,30 +250,23 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[User Code] --> B[Create PerpClient<br/>config, userSetting, instrument, expiry]
-    B --> C[client.simulateTrade<br/>trader, baseQty, side]
-
-    C --> D[getSnapshot trader<br/>internal]
-    C --> E[getSnapshot trader, signedSize<br/>internal]
-    C --> F[new TradeInput<br/>internal - direct instantiation]
-    C --> G[tradeInput.simulate<br/>snapshot, quotationWithSize, userSetting<br/>internal]
-
-    D --> H[PairSnapshot]
-    E --> I[PairSnapshot with Quotation]
-    I --> J[QuotationWithSize]
-    F --> K[TradeInput]
-    H --> G
-    J --> G
-    K --> G
-    G --> L[Returns tradeParam, simulation]
-
+    B --> C[client.getSnapshot trader]
+    B --> D[client.getSnapshot trader, signedSize]
+    
+    C --> E[PairSnapshot]
+    D --> F[PairSnapshot with Quotation]
+    F --> G[Create QuotationWithSize]
+    
+    A --> H[new TradeInput<br/>trader, baseQty, side, options?]
+    E --> I[tradeInput.simulate<br/>snapshot, quotationWithSize, userSetting]
+    G --> I
+    H --> I
+    I --> J[Returns tradeParam, simulation]
+    
     style A fill:#e1f5ff
     style B fill:#fff4e6
-    style C fill:#e8f5e9
-    style L fill:#f3e5f5
-    style D fill:#f0f0f0
-    style E fill:#f0f0f0
-    style F fill:#f0f0f0
-    style G fill:#f0f0f0
+    style I fill:#e8f5e9
+    style J fill:#f3e5f5
 ```
 
 ## Key Benefits
@@ -314,5 +304,16 @@ const [param, sim] = tradeInput.simulate(snapshot, quotationWithSize);
 ```typescript
 const client = new PerpClient(rpcConfig, new UserSetting(10, 10, 3n * WAD, 1), instrumentAddress, PERP_EXPIRY);
 
-const [param, sim] = await client.simulateTrade(traderAddress, baseQuantity, Side.LONG);
+// Fetch snapshot and quotation
+const snapshot = await client.getSnapshot(traderAddress);
+const side = Side.LONG;
+const baseQuantity = parseUnits('1', 18);
+const signedSize = side === Side.LONG ? baseQuantity : -baseQuantity;
+const snapshotWithQuotation = await client.getSnapshot(traderAddress, signedSize);
+const quotation = snapshotWithQuotation.quotation!;
+const quotationWithSize = new QuotationWithSize(signedSize, quotation);
+
+// Create input and simulate
+const tradeInput = new TradeInput(traderAddress, baseQuantity, side);
+const [param, sim] = tradeInput.simulate(snapshot, quotationWithSize, client.userSetting);
 ```

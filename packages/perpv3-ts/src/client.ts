@@ -1,7 +1,4 @@
 import type { Address } from 'viem';
-import { AdjustInput, type AdjustSimulation } from './actions/adjust';
-import { PlaceInput, type PlaceInputSimulation } from './actions/order';
-import { TradeInput, type TradeInputOptions, type TradeSimulation } from './actions/trade';
 import { DEFAULT_PUBLIC_WS_URL } from './apis/constants';
 import type {
     InstrumentStreamData,
@@ -19,21 +16,19 @@ import {
     type RpcConfig,
 } from './queries';
 import {
-    QuotationWithSize,
-    Side,
     UserSetting,
-    type AdjustParam,
     type PairSnapshot,
-    type PlaceParam,
     type Quotation,
-    type TradeParam,
 } from './types';
 import { WebSocketManager } from './wss';
 
 /**
  * PerpClient is a scoped client for interacting with a specific trading pair (instrument + expiry).
  * It centralizes configuration (config, userSetting, instrumentAddress, expiry) and provides
- * a clean API for queries, simulations, and WebSocket subscriptions.
+ * a clean API for queries and WebSocket subscriptions.
+ *
+ * For simulations, use the input classes directly (TradeInput, PlaceInput, etc.) with snapshots
+ * fetched via getSnapshot().
  */
 export class PerpClient {
     private readonly _config: ApiConfig | RpcConfig;
@@ -147,80 +142,6 @@ export class PerpClient {
      */
     async getOrderBook(length?: number, options?: ReadOptions) {
         return fetchOrderBook(this._instrumentAddress, this._expiry, this._config, length, options);
-    }
-
-    // ============================================================================
-    // High-level Workflow Methods
-    // ============================================================================
-
-    /**
-     * Simulate a market trade with full validation.
-     * Fetches snapshot and quotation automatically.
-     * @param traderAddress - Trader address
-     * @param baseQuantity - Base quantity (unsigned)
-     * @param side - Trade side (LONG or SHORT)
-     * @param options - Optional trade options (margin)
-     * @returns Tuple of [TradeParam, TradeSimulation]
-     */
-    async simulateTrade(
-        traderAddress: Address,
-        baseQuantity: bigint,
-        side: Side,
-        options?: TradeInputOptions
-    ): Promise<[TradeParam, TradeSimulation]> {
-        // Fetch snapshot
-        const snapshot = await this.getSnapshot(traderAddress);
-
-        // Fetch quotation
-        const signedSize = side === Side.LONG ? baseQuantity : -baseQuantity;
-        const snapshotWithQuotation = await this.getSnapshot(traderAddress, signedSize);
-        const quotation = snapshotWithQuotation.quotation;
-        if (!quotation) {
-            throw new Error('Failed to fetch quotation');
-        }
-        const quotationWithSize = new QuotationWithSize(signedSize, quotation);
-
-        // Create input and simulate
-        const tradeInput = new TradeInput(traderAddress, baseQuantity, side, options);
-        return tradeInput.simulate(snapshot, quotationWithSize, this._userSetting);
-    }
-
-    /**
-     * Simulate placing a limit order with full validation.
-     * Fetches snapshot automatically.
-     * @param traderAddress - Trader address
-     * @param tick - Order tick
-     * @param baseQuantity - Base quantity (unsigned)
-     * @param side - Order side (LONG or SHORT)
-     * @returns Tuple of [PlaceParam, PlaceInputSimulation]
-     */
-    async simulatePlaceOrder(
-        traderAddress: Address,
-        tick: number,
-        baseQuantity: bigint,
-        side: Side
-    ): Promise<[PlaceParam, PlaceInputSimulation]> {
-        const snapshot = await this.getSnapshot(traderAddress);
-        const placeInput = new PlaceInput(traderAddress, tick, baseQuantity, side);
-        return placeInput.simulate(snapshot, this._userSetting);
-    }
-
-    /**
-     * Simulate adjusting margin or leverage with full validation.
-     * Fetches snapshot automatically.
-     * @param traderAddress - Trader address
-     * @param amount - Optional margin amount (if provided, transferIn must also be provided)
-     * @param transferIn - Optional transfer direction (true = deposit, false = withdraw)
-     * @returns Tuple of [AdjustParam, AdjustSimulation]
-     */
-    async simulateAdjust(
-        traderAddress: Address,
-        amount?: bigint,
-        transferIn?: boolean
-    ): Promise<[AdjustParam, AdjustSimulation]> {
-        const snapshot = await this.getSnapshot(traderAddress);
-        const adjustInput = new AdjustInput(traderAddress, amount, transferIn);
-        return adjustInput.simulate(snapshot, this._userSetting);
     }
 
     // ============================================================================
