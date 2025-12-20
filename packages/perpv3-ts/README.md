@@ -66,18 +66,15 @@ const onchainContextWithQuotation = await fetchOnchainContext(
 
 // Create trade input and simulate
 const tradeInput = new TradeInput(
-    instrumentAddress,
-    expiry,
     traderAddress,
     parseUnits('1', 18), // baseQuantity in WAD
     Side.LONG,
-    userSetting,
-    { margin: parseUnits('100', 18) } // margin in WAD
+    { margin: parseUnits('100', 18) } // margin in WAD (optional)
 );
 
 const quotationWithSize = new QuotationWithSize(signedSize, onchainContextWithQuotation.quotation!);
 
-const [tradeParam, simulation] = tradeInput.simulate(onchainContext, quotationWithSize);
+const [tradeParam, simulation] = tradeInput.simulate(onchainContext, quotationWithSize, userSetting);
 ```
 
 ### Simulation Actions
@@ -88,7 +85,7 @@ The SDK provides class-based input classes for various operations. Each input cl
 
 ```typescript
 import { parseUnits } from 'viem';
-import { TradeInput, AdjustMarginInput, AdjustLeverageInput, QuotationWithSize } from '@synfutures/perpv3-ts/actions';
+import { TradeInput, AdjustInput, QuotationWithSize } from '@synfutures/perpv3-ts/actions';
 import { PERP_EXPIRY, Side, UserSetting } from '@synfutures/perpv3-ts/types';
 import { WAD } from '@synfutures/perpv3-ts/constants';
 
@@ -96,77 +93,57 @@ const userSetting = new UserSetting(10, 10, 3n * WAD, 1);
 
 // Trade by margin amount
 const tradeByMargin = new TradeInput(
-    instrumentAddress,
-    PERP_EXPIRY,
     traderAddress,
     parseUnits('1', 18), // baseQuantity in WAD
     Side.LONG,
-    userSetting,
     { margin: parseUnits('100', 18) } // margin in WAD
 );
 // First fetch quotation, then simulate
 const quotationWithSize = new QuotationWithSize(signedSize, quotation);
-const [tradeParam, simulation] = tradeByMargin.simulate(onchainContext, quotationWithSize);
+const [tradeParam, simulation] = tradeByMargin.simulate(onchainContext, quotationWithSize, userSetting);
 
 // Trade by target leverage
 const leverageUserSetting = new UserSetting(10, 10, 5n * WAD, 1);
 const tradeByLeverage = new TradeInput(
-    instrumentAddress,
-    PERP_EXPIRY,
     traderAddress,
     parseUnits('1', 18), // baseQuantity
-    Side.LONG,
-    leverageUserSetting
+    Side.LONG
 );
-const [tradeParam, simulation] = tradeByLeverage.simulate(onchainContext, quotationWithSize);
+const [tradeParam, simulation] = tradeByLeverage.simulate(onchainContext, quotationWithSize, leverageUserSetting);
 
 // Close position
 const closeSignedSize = -position.size; // signed trade size (opposite of position size)
 const closeSide = closeSignedSize >= 0n ? Side.LONG : Side.SHORT;
 const closeTrade = new TradeInput(
-    instrumentAddress,
-    PERP_EXPIRY,
     traderAddress,
     closeSignedSize >= 0n ? closeSignedSize : -closeSignedSize, // positive quantity
-    closeSide,
-    userSetting
+    closeSide
 );
 const closeQuotationWithSize = new QuotationWithSize(closeSignedSize, quotation);
-const [tradeParam, simulation] = closeTrade.simulate(onchainContext, closeQuotationWithSize);
+const [tradeParam, simulation] = closeTrade.simulate(onchainContext, closeQuotationWithSize, userSetting);
 // Note: `tradeParam.amount` (and `simulation.marginDelta`) can be negative when closing/reducing,
 // which indicates a margin withdrawal. Only check balance/allowance when `simulation.marginDelta > 0`.
 
 // Adjust margin
-const adjustMargin = new AdjustMarginInput(
-    instrumentAddress,
-    PERP_EXPIRY,
+const adjustMargin = new AdjustInput(
     traderAddress,
     parseUnits('0.5', 18), // marginDelta in WAD
-    true, // transferIn
-    userSetting
+    true // transferIn
 );
-const [adjustParam, simulation] = adjustMargin.simulate(onchainContext);
+const [adjustParam, simulation] = adjustMargin.simulate(onchainContext, userSetting);
 
 // Adjust leverage
 const targetLeverageUserSetting = new UserSetting(10, 10, 3n * WAD, 1);
-const adjustLeverage = new AdjustLeverageInput(
-    instrumentAddress,
-    PERP_EXPIRY,
-    traderAddress,
-    targetLeverageUserSetting
-);
-const [adjustParam, simulation] = adjustLeverage.simulate(onchainContext);
+const adjustLeverage = new AdjustInput(traderAddress);
+const [adjustParam, simulation] = adjustLeverage.simulate(onchainContext, targetLeverageUserSetting);
 
 // Reduce position (adjusts to target leverage)
 const reducePosition = new TradeInput(
-    instrumentAddress,
-    PERP_EXPIRY,
     traderAddress,
-    parseUnits('-4', 18), // Reduce by 4 units (opposite side)
-    Side.SHORT, // Opposite side of existing LONG position
-    userSetting // targetLeverage applies to post-trade position
+    parseUnits('4', 18), // Reduce by 4 units (positive quantity)
+    Side.SHORT // Opposite side of existing LONG position
 );
-const [tradeParam, simulation] = reducePosition.simulate(onchainContext, quotationWithSize);
+const [tradeParam, simulation] = reducePosition.simulate(onchainContext, quotationWithSize, userSetting);
 // tradeParam.amount can be positive (deposit) or negative (withdraw) depending on leverage adjustment
 // Post-trade leverage will match the target leverage specified in userSetting
 ```
@@ -179,7 +156,7 @@ const [tradeParam, simulation] = reducePosition.simulate(onchainContext, quotati
 import { parseUnits } from 'viem';
 import {
     PlaceInput,
-    CrossMarketOrderInput,
+    CrossLimitOrderInput,
     ScaledLimitOrderInput,
     BatchOrderSizeDistribution,
 } from '@synfutures/perpv3-ts/actions';
@@ -190,40 +167,31 @@ const userSetting = new UserSetting(10, 10, 3n * WAD, 1);
 
 // Place a limit order
 const placeOrder = new PlaceInput(
-    instrumentAddress,
-    PERP_EXPIRY,
     traderAddress,
     200000, // tick
     parseUnits('0.01', 18), // baseQuantity (unsigned)
-    Side.SHORT,
-    userSetting
+    Side.SHORT
 );
-const [placeParam, simulation] = placeOrder.simulate(onchainContext);
+const [placeParam, simulation] = placeOrder.simulate(onchainContext, userSetting);
 
 // Cross market order
-const crossMarketOrder = new CrossMarketOrderInput(
-    instrumentAddress,
-    PERP_EXPIRY,
+const crossMarketOrder = new CrossLimitOrderInput(
     traderAddress,
     Side.LONG,
     parseUnits('1', 18), // baseQuantity
-    199000, // targetTick (must be on the correct side of the AMM tick)
-    userSetting
+    199000 // targetTick (must be on the correct side of the AMM tick)
 );
-const crossSimulation = crossMarketOrder.simulate(onchainContext, swapQuote);
+const crossSimulation = crossMarketOrder.simulate(onchainContext, swapQuote, userSetting);
 
 // Scaled limit order
 const scaledOrder = new ScaledLimitOrderInput(
-    instrumentAddress,
-    PERP_EXPIRY,
     traderAddress,
     Side.LONG,
     parseUnits('1', 18), // baseQuantity
     [200000, 199000, 198000], // priceInfo (ticks or WAD prices)
-    BatchOrderSizeDistribution.FLAT,
-    userSetting
+    BatchOrderSizeDistribution.FLAT
 );
-const simulation = scaledOrder.simulate(onchainContext);
+const simulation = scaledOrder.simulate(onchainContext, userSetting);
 ```
 
 Notes:
@@ -243,26 +211,20 @@ const userSetting = new UserSetting(10, 10, 3n * WAD, 1);
 
 // Add liquidity to a range
 const addLiquidity = new AddInput(
-    instrumentAddress,
-    PERP_EXPIRY,
     traderAddress,
     parseUnits('10', 18), // marginAmount in WAD
     190000, // tickLower
-    210000, // tickUpper
-    userSetting
+    210000 // tickUpper
 );
-const [addParam, simulation] = addLiquidity.simulate(onchainContext);
+const [addParam, simulation] = addLiquidity.simulate(onchainContext, userSetting);
 
 // Remove liquidity from a range
 const removeLiquidity = new RemoveInput(
-    instrumentAddress,
-    PERP_EXPIRY,
     traderAddress,
     190000, // tickLower
-    210000, // tickUpper
-    userSetting
+    210000 // tickUpper
 );
-const [removeParam, simulation] = removeLiquidity.simulate(onchainContext);
+const [removeParam, simulation] = removeLiquidity.simulate(onchainContext, userSetting);
 ```
 
 ### Validation Helpers

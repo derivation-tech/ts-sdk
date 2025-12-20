@@ -1,9 +1,6 @@
 import type { Address } from 'viem';
-import { AddInput, RemoveInput } from './actions/range';
 import { AdjustInput, type AdjustSimulation } from './actions/adjust';
-import { CrossLimitOrderInput } from './actions/crossLimitOrder';
 import { PlaceInput, type PlaceInputSimulation } from './actions/order';
-import { ScaledLimitOrderInput, BatchOrderSizeDistribution } from './actions/scaledLimitOrder';
 import { TradeInput, type TradeInputOptions, type TradeSimulation } from './actions/trade';
 import { DEFAULT_PUBLIC_WS_URL } from './apis/constants';
 import type {
@@ -153,75 +150,6 @@ export class PerpClient {
     }
 
     // ============================================================================
-    // Factory Methods for Input Classes
-    // ============================================================================
-
-    /**
-     * Create a TradeInput instance.
-     */
-    createTradeInput(
-        traderAddress: Address,
-        baseQuantity: bigint,
-        side: Side,
-        options?: TradeInputOptions
-    ): TradeInput {
-        return new TradeInput(traderAddress, baseQuantity, side, options);
-    }
-
-    /**
-     * Create a PlaceInput instance.
-     */
-    createPlaceInput(traderAddress: Address, tick: number, baseQuantity: bigint, side: Side): PlaceInput {
-        return new PlaceInput(traderAddress, tick, baseQuantity, side);
-    }
-
-    /**
-     * Create an AdjustInput instance.
-     */
-    createAdjustInput(traderAddress: Address, amount?: bigint, transferIn?: boolean): AdjustInput {
-        return new AdjustInput(traderAddress, amount, transferIn);
-    }
-
-    /**
-     * Create a CrossLimitOrderInput instance.
-     */
-    createCrossLimitOrderInput(
-        traderAddress: Address,
-        side: Side,
-        baseQuantity: bigint,
-        targetTick: number
-    ): CrossLimitOrderInput {
-        return new CrossLimitOrderInput(traderAddress, side, baseQuantity, targetTick);
-    }
-
-    /**
-     * Create a ScaledLimitOrderInput instance.
-     */
-    createScaledLimitOrderInput(
-        traderAddress: Address,
-        side: Side,
-        baseQuantity: bigint,
-        priceInfo: Array<number | bigint>,
-        distribution: BatchOrderSizeDistribution
-    ): ScaledLimitOrderInput {
-        return new ScaledLimitOrderInput(traderAddress, side, baseQuantity, priceInfo, distribution);
-    }
-
-    /**
-     * Create an AddInput instance.
-     */
-    createAddInput(traderAddress: Address, marginAmount: bigint, tickLower: number, tickUpper: number): AddInput {
-        return new AddInput(traderAddress, marginAmount, tickLower, tickUpper);
-    }
-
-    /**
-     * Create a RemoveInput instance.
-     */
-    createRemoveInput(traderAddress: Address, tickLower: number, tickUpper: number): RemoveInput {
-        return new RemoveInput(traderAddress, tickLower, tickUpper);
-    }
-
-    // ============================================================================
     // High-level Workflow Methods
     // ============================================================================
 
@@ -253,7 +181,7 @@ export class PerpClient {
         const quotationWithSize = new QuotationWithSize(signedSize, quotation);
 
         // Create input and simulate
-        const tradeInput = this.createTradeInput(traderAddress, baseQuantity, side, options);
+        const tradeInput = new TradeInput(traderAddress, baseQuantity, side, options);
         return tradeInput.simulate(snapshot, quotationWithSize, this._userSetting);
     }
 
@@ -273,7 +201,7 @@ export class PerpClient {
         side: Side
     ): Promise<[PlaceParam, PlaceInputSimulation]> {
         const snapshot = await this.getSnapshot(traderAddress);
-        const placeInput = this.createPlaceInput(traderAddress, tick, baseQuantity, side);
+        const placeInput = new PlaceInput(traderAddress, tick, baseQuantity, side);
         return placeInput.simulate(snapshot, this._userSetting);
     }
 
@@ -291,7 +219,7 @@ export class PerpClient {
         transferIn?: boolean
     ): Promise<[AdjustParam, AdjustSimulation]> {
         const snapshot = await this.getSnapshot(traderAddress);
-        const adjustInput = this.createAdjustInput(traderAddress, amount, transferIn);
+        const adjustInput = new AdjustInput(traderAddress, amount, transferIn);
         return adjustInput.simulate(snapshot, this._userSetting);
     }
 

@@ -2,6 +2,8 @@ import { parseUnits } from 'viem';
 import { abs, sqrtX96ToWad, wmul } from '../math';
 import { WAD_DECIMALS, ZERO } from '../constants';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
+import { AdjustInput } from '../actions/adjust';
+import { TradeInput } from '../actions/trade';
 import { QuotationWithSize, Side, UserSetting } from '../types';
 import { encodeAdjustParam, encodeTradeParam } from '../utils/encode';
 import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
@@ -51,7 +53,7 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
     const quotationWithSize = new QuotationWithSize(signedSize, quotation);
 
     // Create TradeInput (by margin) and simulate
-    const tradeInput = perpClient.createTradeInput(walletAddress, baseQuantity, side, { margin: marginAmountInWad });
+    const tradeInput = new TradeInput(walletAddress, baseQuantity, side, { margin: marginAmountInWad });
 
     const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize, perpClient.userSetting);
 
@@ -107,7 +109,7 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
     const quotationWithSize = new QuotationWithSize(signedSize, quotation);
 
     // Create TradeInput (by leverage) and simulate
-    const tradeInput = perpClient.createTradeInput(walletAddress, baseQuantity, side);
+    const tradeInput = new TradeInput(walletAddress, baseQuantity, side);
 
     const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize, perpClient.userSetting);
 
@@ -168,7 +170,7 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
     // This uses leverage-based margin simulation, so partial closes can release margin proportionally.
     const closeSignedSize = -signedSize;
     const closeSide = closeSignedSize >= ZERO ? Side.LONG : Side.SHORT;
-    const closeInput = perpClient.createTradeInput(
+    const closeInput = new TradeInput(
         walletAddress,
         abs(closeSignedSize), // positive quantity
         closeSide // side determined from signed size
@@ -221,7 +223,7 @@ export async function demoAdjustMargin(context: DemoContext): Promise<void> {
     await ensureMarginAndAllowance(snapshot, publicClient, walletClient, kit, marginNeeded);
 
     // Create AdjustInput and simulate
-    const adjustInput = perpClient.createAdjustInput(
+    const adjustInput = new AdjustInput(
         walletAddress,
         marginAmountInWad,
         true // transferIn
@@ -283,7 +285,7 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
         DefaultUserSetting.markPriceBufferInBps,
         DefaultUserSetting.strictMode
     );
-    const adjustInput = perpClient.createAdjustInput(walletAddress);
+    const adjustInput = new AdjustInput(walletAddress);
 
     const [adjustParam, simulation] = adjustInput.simulate(snapshot, targetLeverageUserSetting);
 

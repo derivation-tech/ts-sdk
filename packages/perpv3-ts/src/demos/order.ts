@@ -1,7 +1,9 @@
 import { parseUnits } from 'viem';
 import { abs, wmul } from '../math';
 import { WAD_DECIMALS } from '../constants';
-import { BatchOrderSizeDistribution } from '../actions/scaledLimitOrder';
+import { CrossLimitOrderInput } from '../actions/crossLimitOrder';
+import { PlaceInput } from '../actions/order';
+import { BatchOrderSizeDistribution, ScaledLimitOrderInput } from '../actions/scaledLimitOrder';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
 import { Order, Side, buildInquireByTickResult } from '../types';
 import { isRpcConfig } from '../queries/config';
@@ -35,7 +37,7 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Current AMM tick: ${formatTick(currentTick)}`);
     console.log(`ℹ️ Target tick for SHORT order: ${formatTick(targetTick)}`);
 
-    const placeInput = perpClient.createPlaceInput(
+    const placeInput = new PlaceInput(
         walletAddress,
         targetTick,
         parseUnits('0.01', WAD_DECIMALS), // baseQuantity (unsigned)
@@ -158,7 +160,7 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         `✅ Calculated quantities: market=${formatWad(actualMarketQuantity)}, limit=${formatWad(limitQuantity)}, total=${formatWad(baseQuantity)}`
     );
 
-    const crossLimitInput = perpClient.createCrossLimitOrderInput(walletAddress, side, baseQuantity, targetTickForPush);
+    const crossLimitInput = new CrossLimitOrderInput(walletAddress, side, baseQuantity, targetTickForPush);
 
     console.log(`🔄 Simulating cross limit order...`);
     const crossResult = crossLimitInput.simulate(snapshot, crossMarketSwapQuote, perpClient.userSetting);
@@ -268,7 +270,7 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         const signedSize = crossResult.placeParam.size;
         const baseQuantity = abs(signedSize);
         const limitSide = signedSize >= 0n ? Side.LONG : Side.SHORT;
-        const limitPlaceInput = perpClient.createPlaceInput(walletAddress, validLimitTick, baseQuantity, limitSide);
+        const limitPlaceInput = new PlaceInput(walletAddress, validLimitTick, baseQuantity, limitSide);
 
         // Re-simulate with fresh context to get valid parameters
         const [validLimitPlaceParam] = limitPlaceInput.simulate(updatedContext, perpClient.userSetting);
@@ -347,7 +349,7 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
 
     console.log(`ℹ️ Price levels: ${priceLevels.map((tick) => formatTick(tick)).join(', ')}`);
 
-    const scaledOrderInput = perpClient.createScaledLimitOrderInput(
+    const scaledOrderInput = new ScaledLimitOrderInput(
         walletAddress,
         Side.LONG,
         baseQuantity,

@@ -2,6 +2,7 @@ import { parseUnits } from 'viem';
 import { ratioToWad, sqrtX96ToWad, wadToTick, wmul } from '../math';
 import { RATIO_BASE } from '../constants';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
+import { AddInput, RemoveInput } from '../actions/range';
 import { encodeAddParam, encodeRemoveParam } from '../utils/encode';
 import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
 import type { DemoContext } from './framework/types';
@@ -37,7 +38,7 @@ export async function demoAddLiquidity(context: DemoContext): Promise<void> {
     // Formula: value * 10^(18 - decimals)
     const amountInWad = amountInDecimals * 10n ** BigInt(18 - instrumentSetting.quoteDecimals);
 
-    const addInput = perpClient.createAddInput(walletAddress, amountInWad, tickLower, tickUpper);
+    const addInput = new AddInput(walletAddress, amountInWad, tickLower, tickUpper);
     const [addParam] = addInput.simulate(snapshot, perpClient.userSetting);
 
     // Convert WAD to token decimals: multiply by 10^decimals
@@ -91,7 +92,7 @@ export async function demoRemoveLiquidity(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Range liquidity: ${formatWad(rangeToRemove.liquidity)}`);
 
     // Create RemoveInput and simulate
-    const removeInput = perpClient.createRemoveInput(walletAddress, tickLower, tickUpper);
+    const removeInput = new RemoveInput(walletAddress, tickLower, tickUpper);
     const [removeParam, simulation] = removeInput.simulate(snapshot, perpClient.userSetting);
 
     console.log(`📝 Removing liquidity...`);

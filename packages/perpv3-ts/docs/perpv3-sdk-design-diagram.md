@@ -117,7 +117,7 @@ classDiagram
 
 ## Proposed Design (With PerpClient)
 
-### Architecture Overview
+### Proposed Architecture Overview
 
 ```mermaid
 classDiagram
@@ -129,13 +129,6 @@ classDiagram
         +getSnapshot(trader?, signedSize?)
         +getQuotation(tick)
         +getOrderBook(length?)
-        +createTradeInput(trader, baseQty, side, options?)
-        +createPlaceInput(trader, tick, baseQty, side)
-        +createAdjustInput(trader, amount?, transferIn?)
-        +createCrossLimitOrderInput(...)
-        +createScaledLimitOrderInput(...)
-        +createAddInput(trader, marginAmt, tickLower, tickUpper)
-        +createRemoveInput(trader, tickLower, tickUpper)
         +simulateTrade(trader, baseQty, side, options?)
         +simulatePlaceOrder(trader, tick, baseQty, side)
         +simulateAdjust(trader, amount?, transferIn?)
@@ -226,8 +219,8 @@ classDiagram
     AddInput --> PairSnapshot : requires for simulate()
     RemoveInput --> PairSnapshot : requires for simulate()
 
-    note for PerpClient "Centralizes configuration:\n- instrumentAddress\n- expiry\n- userSetting\n- config"
-    note for TradeInput "Simplified: no instrument/expiry/userSetting\nin constructor"
+    note for PerpClient "Centralizes configuration:\n- instrumentAddress\n- expiry\n- userSetting\n- config\n\nHigh-level simulate* methods handle\ninput creation internally"
+    note for TradeInput "Simplified: no instrument/expiry/userSetting\nin constructor. Instantiate directly with new"
     note for PairSnapshot "Contains instrumentAddress and expiry\nas direct properties"
 ```
 
@@ -264,7 +257,7 @@ flowchart TD
 
     C --> D[getSnapshot trader<br/>internal]
     C --> E[getSnapshot trader, signedSize<br/>internal]
-    C --> F[createTradeInput<br/>internal - injects userSetting]
+    C --> F[new TradeInput<br/>internal - direct instantiation]
     C --> G[tradeInput.simulate<br/>snapshot, quotationWithSize, userSetting<br/>internal]
 
     D --> H[PairSnapshot]
@@ -323,4 +316,3 @@ const client = new PerpClient(rpcConfig, new UserSetting(10, 10, 3n * WAD, 1), i
 
 const [param, sim] = await client.simulateTrade(traderAddress, baseQuantity, Side.LONG);
 ```
-
