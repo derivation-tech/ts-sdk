@@ -3,6 +3,16 @@ import { getHeaders } from './mm';
 import { API_DOMAIN } from '../apis/constants';
 import type { AuthInfo } from '../apis/interfaces';
 
+/**
+ * Get the request path from the URL
+ * @param url - The Full URL to get the request path from
+ * @returns The request path from the URL
+ */
+export function getRequestPathFromUrl(url: string): string {
+    const urlObj = new URL(url);
+    return urlObj.pathname + (urlObj.search || '');
+}
+
 // ============================================================================
 // Axios Functions
 // ============================================================================
@@ -28,17 +38,19 @@ export async function axiosGet({
         url += (url.includes('?') ? '&' : '?') + params;
         config.params = undefined;
     }
+    if (!url.startsWith(API_DOMAIN)) {
+        url = API_DOMAIN + url;
+    }
+    const requestPath = getRequestPathFromUrl(url);
     let extraHeaders;
     if (authInfo) {
         extraHeaders = await getHeaders({
             method: 'GET',
-            requestPath: url,
+            requestPath,
             ...authInfo,
         });
     }
-    if (!url.startsWith(API_DOMAIN)) {
-        url = API_DOMAIN + url;
-    }
+
     return await axios.get(url, {
         ...config,
         headers: {
