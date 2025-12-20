@@ -2,234 +2,288 @@
 
 ## Current Design (Before PerpClient)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Code                                │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Creates & Configures
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    UserSetting (per operation)                   │
-│  - deadlineSeconds                                              │
-│  - slippage                                                      │
-│  - leverage                                                      │
-│  - markPriceBufferInBps                                          │
-│  - strictMode                                                    │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Passed to each Input
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      xxInput Classes                             │
-│                                                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ TradeInput   │  │ PlaceInput    │  │ AdjustInput  │          │
-│  │              │  │              │  │              │          │
-│  │ +instrument  │  │ +instrument  │  │ +instrument  │          │
-│  │ +expiry      │  │ +expiry      │  │ +expiry      │          │
-│  │ +trader      │  │ +trader      │  │ +trader      │          │
-│  │ +baseQty     │  │ +tick        │  │ +amount?     │          │
-│  │ +side        │  │ +baseQty     │  │ +transferIn? │          │
-│  │ +userSetting │  │ +side        │  │ +userSetting │          │
-│  │ +margin?     │  │ +userSetting │  │              │          │
-│  │              │  │              │  │              │          │
-│  │ simulate()   │  │ simulate()   │  │ simulate()   │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-│                                                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │CrossLimit    │  │ScaledLimit   │  │ AddInput     │          │
-│  │OrderInput    │  │OrderInput    │  │              │          │
-│  │              │  │              │  │ +instrument  │          │
-│  │ +instrument  │  │ +instrument  │  │ +expiry      │          │
-│  │ +expiry      │  │ +expiry      │  │ +trader      │          │
-│  │ +trader      │  │ +trader      │  │ +marginAmt   │          │
-│  │ +side        │  │ +side        │  │ +tickLower   │          │
-│  │ +baseQty     │  │ +baseQty     │  │ +tickUpper   │          │
-│  │ +targetTick  │  │ +priceInfo[] │  │ +userSetting │          │
-│  │ +userSetting │  │ +distribution │  │              │          │
-│  │              │  │ +userSetting │  │ simulate()   │          │
-│  │ simulate()   │  │ simulate()   │  └──────────────┘          │
-│  └──────────────┘  └──────────────┘                            │
-│                                                                   │
-│  ┌──────────────┐                                                │
-│  │ RemoveInput  │                                                │
-│  │              │                                                │
-│  │ +instrument  │                                                │
-│  │ +expiry      │                                                │
-│  │ +trader      │                                                │
-│  │ +tickLower   │                                                │
-│  │ +tickUpper   │                                                │
-│  │ +userSetting │                                                │
-│  │              │                                                │
-│  │ simulate()   │                                                │
-│  └──────────────┘                                                │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Requires
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    PairSnapshot (from queries)                   │
-│  - instrumentSetting                                             │
-│  - amm                                                           │
-│  - priceData                                                     │
-│  - portfolio                                                     │
-│  - quotation?                                                    │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Fetched via
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Query Functions                               │
-│  - fetchOnchainContext(config, ...)                              │
-│  - inquireByTick(config, ...)                                   │
-│  - fetchOrderBook(config, ...)                                  │
-└─────────────────────────────────────────────────────────────────┘
+### Architecture Overview
+
+```mermaid
+classDiagram
+    class UserSetting {
+        +deadlineSeconds: number
+        +slippage: number
+        +leverage: bigint
+        +markPriceBufferInBps: number
+        +strictMode: boolean
+    }
+    
+    class TradeInput {
+        +instrument: Address
+        +expiry: number
+        +traderAddress: Address
+        +baseQuantity: bigint
+        +side: Side
+        +userSetting: UserSetting
+        +margin?: bigint
+        +simulate(snapshot, quotationWithSize)
+    }
+    
+    class PlaceInput {
+        +instrument: Address
+        +expiry: number
+        +traderAddress: Address
+        +tick: number
+        +baseQuantity: bigint
+        +side: Side
+        +userSetting: UserSetting
+        +simulate(snapshot, userSetting)
+    }
+    
+    class AdjustInput {
+        +instrument: Address
+        +expiry: number
+        +traderAddress: Address
+        +amount?: bigint
+        +transferIn?: boolean
+        +userSetting: UserSetting
+        +simulate(snapshot, userSetting)
+    }
+    
+    class CrossLimitOrderInput {
+        +instrument: Address
+        +expiry: number
+        +traderAddress: Address
+        +side: Side
+        +baseQuantity: bigint
+        +targetTick: number
+        +userSetting: UserSetting
+        +simulate(snapshot, userSetting)
+    }
+    
+    class ScaledLimitOrderInput {
+        +instrument: Address
+        +expiry: number
+        +traderAddress: Address
+        +side: Side
+        +baseQuantity: bigint
+        +priceInfo: Array
+        +distribution: BatchOrderSizeDistribution
+        +userSetting: UserSetting
+        +simulate(snapshot, userSetting)
+    }
+    
+    class AddInput {
+        +instrument: Address
+        +expiry: number
+        +traderAddress: Address
+        +marginAmount: bigint
+        +tickLower: number
+        +tickUpper: number
+        +userSetting: UserSetting
+        +simulate(snapshot, userSetting)
+    }
+    
+    class RemoveInput {
+        +instrument: Address
+        +expiry: number
+        +traderAddress: Address
+        +tickLower: number
+        +tickUpper: number
+        +userSetting: UserSetting
+        +simulate(snapshot, userSetting)
+    }
+    
+    class PairSnapshot {
+        +instrumentSetting: InstrumentSetting
+        +amm: AMM
+        +priceData: PriceData
+        +portfolio?: Portfolio
+        +quotation?: Quotation
+    }
+    
+    UserSetting --> TradeInput : passed to constructor
+    UserSetting --> PlaceInput : passed to constructor
+    UserSetting --> AdjustInput : passed to constructor
+    UserSetting --> CrossLimitOrderInput : passed to constructor
+    UserSetting --> ScaledLimitOrderInput : passed to constructor
+    UserSetting --> AddInput : passed to constructor
+    UserSetting --> RemoveInput : passed to constructor
+    
+    TradeInput --> PairSnapshot : requires for simulate()
+    PlaceInput --> PairSnapshot : requires for simulate()
+    AdjustInput --> PairSnapshot : requires for simulate()
+    CrossLimitOrderInput --> PairSnapshot : requires for simulate()
+    ScaledLimitOrderInput --> PairSnapshot : requires for simulate()
+    AddInput --> PairSnapshot : requires for simulate()
+    RemoveInput --> PairSnapshot : requires for simulate()
 ```
 
 ## Proposed Design (With PerpClient)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Code                                │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Creates once
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      PerpClient                                  │
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Configuration (immutable)                               │   │
-│  │  - config: ApiConfig | RpcConfig                        │   │
-│  │  - userSetting: UserSetting                             │   │
-│  │  - instrumentAddress: Address                           │   │
-│  │  - expiry: number                                        │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Query Methods                                            │   │
-│  │  + getSnapshot(trader?, signedSize?)                     │   │
-│  │  + getQuotation(tick)                                    │   │
-│  │  + getOrderBook(length?)                                 │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Factory Methods (inject userSetting + instrument/expiry) │   │
-│  │  + createTradeInput(trader, baseQty, side, options?)    │   │
-│  │  + createPlaceInput(trader, tick, baseQty, side)        │   │
-│  │  + createAdjustInput(trader, amount?, transferIn?)      │   │
-│  │  + createCrossLimitOrderInput(...)                       │   │
-│  │  + createScaledLimitOrderInput(...)                      │   │
-│  │  + createAddInput(trader, marginAmt, tickLower, ...)    │   │
-│  │  + createRemoveInput(trader, tickLower, tickUpper)      │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ High-level Workflow Methods                             │   │
-│  │  + simulateTrade(trader, baseQty, side, options?)       │   │
-│  │  + simulatePlaceOrder(trader, tick, baseQty, side)      │   │
-│  │  + simulateAdjust(trader, amount?, transferIn?)         │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ WebSocket Subscriptions                                  │   │
-│  │  + subscribeOrderBook(handler)                            │   │
-│  │  + subscribePortfolio(user, handler)                     │   │
-│  │  + subscribeInstrument(handler)                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Creates (internal)
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      xxInput Classes                             │
-│                    (Simplified - no instrument/expiry/userSetting) │
-│                                                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ TradeInput   │  │ PlaceInput    │  │ AdjustInput  │          │
-│  │              │  │              │  │              │          │
-│  │ +trader      │  │ +trader      │  │ +trader      │          │
-│  │ +baseQty     │  │ +tick        │  │ +amount?     │          │
-│  │ +side        │  │ +baseQty     │  │ +transferIn? │          │
-│  │ +margin?     │  │ +side        │  │              │          │
-│  │              │  │              │  │              │          │
-│  │ simulate(    │  │ simulate(    │  │ simulate(    │          │
-│  │   snapshot,   │  │   snapshot,   │  │   snapshot,   │          │
-│  │   userSetting │  │   userSetting │  │   userSetting │          │
-│  │ )            │  │ )            │  │ )            │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-│                                                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │CrossLimit    │  │ScaledLimit   │  │ AddInput     │          │
-│  │OrderInput    │  │OrderInput    │  │              │          │
-│  │              │  │              │  │ +trader      │          │
-│  │ +trader      │  │ +trader      │  │ +marginAmt   │          │
-│  │ +side        │  │ +side        │  │ +tickLower   │          │
-│  │ +baseQty     │  │ +baseQty     │  │ +tickUpper   │          │
-│  │ +targetTick  │  │ +priceInfo[] │  │              │          │
-│  │              │  │ +distribution │  │ simulate(    │          │
-│  │ simulate(    │  │              │  │   snapshot,   │          │
-│  │   snapshot,   │  │ simulate(    │  │   userSetting │          │
-│  │   userSetting │  │   snapshot,   │  │ )            │          │
-│  │ )            │  │   userSetting │  │              │          │
-│  │              │  │ )            │  │              │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-│                                                                   │
-│  ┌──────────────┐                                                │
-│  │ RemoveInput  │                                                │
-│  │              │                                                │
-│  │ +trader      │                                                │
-│  │ +tickLower   │                                                │
-│  │ +tickUpper   │                                                │
-│  │              │                                                │
-│  │ simulate(    │                                                │
-│  │   snapshot,   │                                                │
-│  │   userSetting │                                                │
-│  │ )            │                                                │
-│  └──────────────┘                                                │
-│                                                                   │
-│  Note: instrumentAddress and expiry come from PairSnapshot,       │
-│        userSetting is passed to simulate() method                │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Uses
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    PairSnapshot                                  │
-│  (Fetched via PerpClient.getSnapshot())                          │
-└─────────────────────────────────────────────────────────────────┘
+### Architecture Overview
+
+```mermaid
+classDiagram
+    class PerpClient {
+        -config: ApiConfig | RpcConfig
+        -userSetting: UserSetting
+        -instrumentAddress: Address
+        -expiry: number
+        +getSnapshot(trader?, signedSize?)
+        +getQuotation(tick)
+        +getOrderBook(length?)
+        +createTradeInput(trader, baseQty, side, options?)
+        +createPlaceInput(trader, tick, baseQty, side)
+        +createAdjustInput(trader, amount?, transferIn?)
+        +createCrossLimitOrderInput(...)
+        +createScaledLimitOrderInput(...)
+        +createAddInput(trader, marginAmt, tickLower, tickUpper)
+        +createRemoveInput(trader, tickLower, tickUpper)
+        +simulateTrade(trader, baseQty, side, options?)
+        +simulatePlaceOrder(trader, tick, baseQty, side)
+        +simulateAdjust(trader, amount?, transferIn?)
+        +subscribeOrderBook(handler)
+        +subscribePortfolio(user, handler)
+        +subscribeInstrument(handler)
+    }
+    
+    class TradeInput {
+        +traderAddress: Address
+        +baseQuantity: bigint
+        +side: Side
+        +margin?: bigint
+        +simulate(snapshot, quotationWithSize, userSetting)
+    }
+    
+    class PlaceInput {
+        +traderAddress: Address
+        +tick: number
+        +baseQuantity: bigint
+        +side: Side
+        +simulate(snapshot, userSetting)
+    }
+    
+    class AdjustInput {
+        +traderAddress: Address
+        +amount?: bigint
+        +transferIn?: boolean
+        +simulate(snapshot, userSetting)
+    }
+    
+    class CrossLimitOrderInput {
+        +traderAddress: Address
+        +side: Side
+        +baseQuantity: bigint
+        +targetTick: number
+        +simulate(snapshot, userSetting)
+    }
+    
+    class ScaledLimitOrderInput {
+        +traderAddress: Address
+        +side: Side
+        +baseQuantity: bigint
+        +priceInfo: Array
+        +distribution: BatchOrderSizeDistribution
+        +simulate(snapshot, userSetting)
+    }
+    
+    class AddInput {
+        +traderAddress: Address
+        +marginAmount: bigint
+        +tickLower: number
+        +tickUpper: number
+        +simulate(snapshot, userSetting)
+    }
+    
+    class RemoveInput {
+        +traderAddress: Address
+        +tickLower: number
+        +tickUpper: number
+        +simulate(snapshot, userSetting)
+    }
+    
+    class PairSnapshot {
+        +instrumentAddress: Address
+        +expiry: number
+        +instrumentSetting: InstrumentSetting
+        +amm: AMM
+        +priceData: PriceData
+        +portfolio?: Portfolio
+        +quotation?: Quotation
+    }
+    
+    PerpClient --> TradeInput : creates internally
+    PerpClient --> PlaceInput : creates internally
+    PerpClient --> AdjustInput : creates internally
+    PerpClient --> CrossLimitOrderInput : creates internally
+    PerpClient --> ScaledLimitOrderInput : creates internally
+    PerpClient --> AddInput : creates internally
+    PerpClient --> RemoveInput : creates internally
+    PerpClient --> PairSnapshot : fetches via getSnapshot()
+    
+    TradeInput --> PairSnapshot : requires for simulate()
+    PlaceInput --> PairSnapshot : requires for simulate()
+    AdjustInput --> PairSnapshot : requires for simulate()
+    CrossLimitOrderInput --> PairSnapshot : requires for simulate()
+    ScaledLimitOrderInput --> PairSnapshot : requires for simulate()
+    AddInput --> PairSnapshot : requires for simulate()
+    RemoveInput --> PairSnapshot : requires for simulate()
+    
+    note for PerpClient "Centralizes configuration:\n- instrumentAddress\n- expiry\n- userSetting\n- config"
+    note for TradeInput "Simplified: no instrument/expiry/userSetting\nin constructor"
+    note for PairSnapshot "Contains instrumentAddress and expiry\nas direct properties"
 ```
 
 ## Data Flow Comparison
 
 ### Current Flow (Verbose)
 
-```
-User Code
-  │
-  ├─> Create UserSetting
-  ├─> Create TradeInput(instrument, expiry, trader, qty, side, userSetting)
-  ├─> fetchOnchainContext(config, instrument, expiry, trader)
-  ├─> fetchOnchainContext(config, instrument, expiry, trader, signedSize)
-  ├─> tradeInput.simulate(snapshot, quotationWithSize)
-  └─> encodeTradeParam(tradeParam)
+```mermaid
+flowchart TD
+    A[User Code] --> B[Create UserSetting]
+    A --> C[Create TradeInput<br/>instrument, expiry, trader, qty, side, userSetting]
+    A --> D[fetchOnchainContext<br/>config, instrument, expiry, trader]
+    A --> E[fetchOnchainContext<br/>config, instrument, expiry, trader, signedSize]
+    D --> F[PairSnapshot]
+    E --> G[PairSnapshot with Quotation]
+    G --> H[Create QuotationWithSize]
+    C --> I[tradeInput.simulate<br/>snapshot, quotationWithSize]
+    F --> I
+    H --> I
+    I --> J[encodeTradeParam]
+    
+    style A fill:#e1f5ff
+    style C fill:#fff4e6
+    style I fill:#e8f5e9
+    style J fill:#f3e5f5
 ```
 
 ### Proposed Flow (Clean)
 
-```
-User Code
-  │
-  ├─> Create PerpClient(config, userSetting, instrument, expiry)
-  │
-  └─> client.simulateTrade(trader, baseQty, side)
-        │
-        ├─> getSnapshot(trader) [internal]
-        ├─> getSnapshot(trader, signedSize) [internal]
-        ├─> createTradeInput(...) [internal - injects userSetting]
-        ├─> tradeInput.simulate(snapshot, quotationWithSize) [internal]
-        └─> Returns [tradeParam, simulation]
+```mermaid
+flowchart TD
+    A[User Code] --> B[Create PerpClient<br/>config, userSetting, instrument, expiry]
+    B --> C[client.simulateTrade<br/>trader, baseQty, side]
+    
+    C --> D[getSnapshot trader<br/>internal]
+    C --> E[getSnapshot trader, signedSize<br/>internal]
+    C --> F[createTradeInput<br/>internal - injects userSetting]
+    C --> G[tradeInput.simulate<br/>snapshot, quotationWithSize, userSetting<br/>internal]
+    
+    D --> H[PairSnapshot]
+    E --> I[PairSnapshot with Quotation]
+    I --> J[QuotationWithSize]
+    F --> K[TradeInput]
+    H --> G
+    J --> G
+    K --> G
+    G --> L[Returns tradeParam, simulation]
+    
+    style A fill:#e1f5ff
+    style B fill:#fff4e6
+    style C fill:#e8f5e9
+    style L fill:#f3e5f5
+    style D fill:#f0f0f0
+    style E fill:#f0f0f0
+    style F fill:#f0f0f0
+    style G fill:#f0f0f0
 ```
 
 ## Key Benefits
