@@ -199,13 +199,6 @@ classDiagram
         +quotation?: Quotation
     }
 
-    PerpClient --> TradeInput : creates internally
-    PerpClient --> PlaceInput : creates internally
-    PerpClient --> AdjustInput : creates internally
-    PerpClient --> CrossLimitOrderInput : creates internally
-    PerpClient --> ScaledLimitOrderInput : creates internally
-    PerpClient --> AddInput : creates internally
-    PerpClient --> RemoveInput : creates internally
     PerpClient --> PairSnapshot : fetches via getSnapshot()
 
     TradeInput --> PairSnapshot : requires for simulate()
