@@ -144,52 +144,53 @@
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      xxInput Classes                             │
-│                    (Simplified - no userSetting in constructor) │
+│                    (Simplified - no instrument/expiry/userSetting) │
 │                                                                   │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
 │  │ TradeInput   │  │ PlaceInput    │  │ AdjustInput  │          │
 │  │              │  │              │  │              │          │
-│  │ +instrument  │  │ +instrument  │  │ +instrument  │          │
-│  │ +expiry      │  │ +expiry      │  │ +expiry      │          │
 │  │ +trader      │  │ +trader      │  │ +trader      │          │
 │  │ +baseQty     │  │ +tick        │  │ +amount?     │          │
 │  │ +side        │  │ +baseQty     │  │ +transferIn? │          │
-│  │ +userSetting │  │ +side        │  │ +userSetting │          │
-│  │ +margin?     │  │ +userSetting │  │              │          │
+│  │ +margin?     │  │ +side        │  │              │          │
 │  │              │  │              │  │              │          │
-│  │ simulate()   │  │ simulate()   │  │ simulate()   │          │
+│  │ simulate(    │  │ simulate(    │  │ simulate(    │          │
+│  │   snapshot,   │  │   snapshot,   │  │   snapshot,   │          │
+│  │   userSetting │  │   userSetting │  │   userSetting │          │
+│  │ )            │  │ )            │  │ )            │          │
 │  └──────────────┘  └──────────────┘  └──────────────┘          │
 │                                                                   │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
 │  │CrossLimit    │  │ScaledLimit   │  │ AddInput     │          │
 │  │OrderInput    │  │OrderInput    │  │              │          │
-│  │              │  │              │  │ +instrument  │          │
-│  │ +instrument  │  │ +instrument  │  │ +expiry      │          │
-│  │ +expiry      │  │ +expiry      │  │ +trader      │          │
+│  │              │  │              │  │ +trader      │          │
 │  │ +trader      │  │ +trader      │  │ +marginAmt   │          │
 │  │ +side        │  │ +side        │  │ +tickLower   │          │
 │  │ +baseQty     │  │ +baseQty     │  │ +tickUpper   │          │
-│  │ +targetTick  │  │ +priceInfo[] │  │ +userSetting │          │
-│  │ +userSetting │  │ +distribution │  │              │          │
-│  │              │  │ +userSetting │  │ simulate()   │          │
-│  │ simulate()   │  │ simulate()   │  └──────────────┘          │
-│  └──────────────┘  └──────────────┘                            │
+│  │ +targetTick  │  │ +priceInfo[] │  │              │          │
+│  │              │  │ +distribution │  │ simulate(    │          │
+│  │ simulate(    │  │              │  │   snapshot,   │          │
+│  │   snapshot,   │  │ simulate(    │  │   userSetting │          │
+│  │   userSetting │  │   snapshot,   │  │ )            │          │
+│  │ )            │  │   userSetting │  │              │          │
+│  │              │  │ )            │  │              │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
 │                                                                   │
 │  ┌──────────────┐                                                │
 │  │ RemoveInput  │                                                │
 │  │              │                                                │
-│  │ +instrument  │                                                │
-│  │ +expiry      │                                                │
 │  │ +trader      │                                                │
 │  │ +tickLower   │                                                │
 │  │ +tickUpper   │                                                │
-│  │ +userSetting │                                                │
 │  │              │                                                │
-│  │ simulate()   │                                                │
+│  │ simulate(    │                                                │
+│  │   snapshot,   │                                                │
+│  │   userSetting │                                                │
+│  │ )            │                                                │
 │  └──────────────┘                                                │
 │                                                                   │
-│  Note: userSetting still needed internally, but injected by      │
-│        PerpClient factory methods, not by user                   │
+│  Note: instrumentAddress and expiry come from PairSnapshot,       │
+│        userSetting is passed to simulate() method                │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               │ Uses
