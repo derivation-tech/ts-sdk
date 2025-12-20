@@ -13,7 +13,7 @@ classDiagram
         +markPriceBufferInBps: number
         +strictMode: boolean
     }
-    
+
     class TradeInput {
         +instrument: Address
         +expiry: number
@@ -24,7 +24,7 @@ classDiagram
         +margin?: bigint
         +simulate(snapshot, quotationWithSize)
     }
-    
+
     class PlaceInput {
         +instrument: Address
         +expiry: number
@@ -35,7 +35,7 @@ classDiagram
         +userSetting: UserSetting
         +simulate(snapshot, userSetting)
     }
-    
+
     class AdjustInput {
         +instrument: Address
         +expiry: number
@@ -45,7 +45,7 @@ classDiagram
         +userSetting: UserSetting
         +simulate(snapshot, userSetting)
     }
-    
+
     class CrossLimitOrderInput {
         +instrument: Address
         +expiry: number
@@ -56,7 +56,7 @@ classDiagram
         +userSetting: UserSetting
         +simulate(snapshot, userSetting)
     }
-    
+
     class ScaledLimitOrderInput {
         +instrument: Address
         +expiry: number
@@ -68,7 +68,7 @@ classDiagram
         +userSetting: UserSetting
         +simulate(snapshot, userSetting)
     }
-    
+
     class AddInput {
         +instrument: Address
         +expiry: number
@@ -79,7 +79,7 @@ classDiagram
         +userSetting: UserSetting
         +simulate(snapshot, userSetting)
     }
-    
+
     class RemoveInput {
         +instrument: Address
         +expiry: number
@@ -89,7 +89,7 @@ classDiagram
         +userSetting: UserSetting
         +simulate(snapshot, userSetting)
     }
-    
+
     class PairSnapshot {
         +instrumentSetting: InstrumentSetting
         +amm: AMM
@@ -97,7 +97,7 @@ classDiagram
         +portfolio?: Portfolio
         +quotation?: Quotation
     }
-    
+
     UserSetting --> TradeInput : passed to constructor
     UserSetting --> PlaceInput : passed to constructor
     UserSetting --> AdjustInput : passed to constructor
@@ -105,7 +105,7 @@ classDiagram
     UserSetting --> ScaledLimitOrderInput : passed to constructor
     UserSetting --> AddInput : passed to constructor
     UserSetting --> RemoveInput : passed to constructor
-    
+
     TradeInput --> PairSnapshot : requires for simulate()
     PlaceInput --> PairSnapshot : requires for simulate()
     AdjustInput --> PairSnapshot : requires for simulate()
@@ -143,7 +143,7 @@ classDiagram
         +subscribePortfolio(user, handler)
         +subscribeInstrument(handler)
     }
-    
+
     class TradeInput {
         +traderAddress: Address
         +baseQuantity: bigint
@@ -151,7 +151,7 @@ classDiagram
         +margin?: bigint
         +simulate(snapshot, quotationWithSize, userSetting)
     }
-    
+
     class PlaceInput {
         +traderAddress: Address
         +tick: number
@@ -159,14 +159,14 @@ classDiagram
         +side: Side
         +simulate(snapshot, userSetting)
     }
-    
+
     class AdjustInput {
         +traderAddress: Address
         +amount?: bigint
         +transferIn?: boolean
         +simulate(snapshot, userSetting)
     }
-    
+
     class CrossLimitOrderInput {
         +traderAddress: Address
         +side: Side
@@ -174,7 +174,7 @@ classDiagram
         +targetTick: number
         +simulate(snapshot, userSetting)
     }
-    
+
     class ScaledLimitOrderInput {
         +traderAddress: Address
         +side: Side
@@ -183,7 +183,7 @@ classDiagram
         +distribution: BatchOrderSizeDistribution
         +simulate(snapshot, userSetting)
     }
-    
+
     class AddInput {
         +traderAddress: Address
         +marginAmount: bigint
@@ -191,14 +191,14 @@ classDiagram
         +tickUpper: number
         +simulate(snapshot, userSetting)
     }
-    
+
     class RemoveInput {
         +traderAddress: Address
         +tickLower: number
         +tickUpper: number
         +simulate(snapshot, userSetting)
     }
-    
+
     class PairSnapshot {
         +instrumentAddress: Address
         +expiry: number
@@ -208,7 +208,7 @@ classDiagram
         +portfolio?: Portfolio
         +quotation?: Quotation
     }
-    
+
     PerpClient --> TradeInput : creates internally
     PerpClient --> PlaceInput : creates internally
     PerpClient --> AdjustInput : creates internally
@@ -217,7 +217,7 @@ classDiagram
     PerpClient --> AddInput : creates internally
     PerpClient --> RemoveInput : creates internally
     PerpClient --> PairSnapshot : fetches via getSnapshot()
-    
+
     TradeInput --> PairSnapshot : requires for simulate()
     PlaceInput --> PairSnapshot : requires for simulate()
     AdjustInput --> PairSnapshot : requires for simulate()
@@ -225,7 +225,7 @@ classDiagram
     ScaledLimitOrderInput --> PairSnapshot : requires for simulate()
     AddInput --> PairSnapshot : requires for simulate()
     RemoveInput --> PairSnapshot : requires for simulate()
-    
+
     note for PerpClient "Centralizes configuration:\n- instrumentAddress\n- expiry\n- userSetting\n- config"
     note for TradeInput "Simplified: no instrument/expiry/userSetting\nin constructor"
     note for PairSnapshot "Contains instrumentAddress and expiry\nas direct properties"
@@ -248,7 +248,7 @@ flowchart TD
     F --> I
     H --> I
     I --> J[encodeTradeParam]
-    
+
     style A fill:#e1f5ff
     style C fill:#fff4e6
     style I fill:#e8f5e9
@@ -261,12 +261,12 @@ flowchart TD
 flowchart TD
     A[User Code] --> B[Create PerpClient<br/>config, userSetting, instrument, expiry]
     B --> C[client.simulateTrade<br/>trader, baseQty, side]
-    
+
     C --> D[getSnapshot trader<br/>internal]
     C --> E[getSnapshot trader, signedSize<br/>internal]
     C --> F[createTradeInput<br/>internal - injects userSetting]
     C --> G[tradeInput.simulate<br/>snapshot, quotationWithSize, userSetting<br/>internal]
-    
+
     D --> H[PairSnapshot]
     E --> I[PairSnapshot with Quotation]
     I --> J[QuotationWithSize]
@@ -275,7 +275,7 @@ flowchart TD
     J --> G
     K --> G
     G --> L[Returns tradeParam, simulation]
-    
+
     style A fill:#e1f5ff
     style B fill:#fff4e6
     style C fill:#e8f5e9
