@@ -10,7 +10,7 @@ import type { AuthInfo } from '../apis/interfaces';
  */
 export function getRequestPathFromUrl(url: string): string {
     const urlObj = new URL(url);
-    return urlObj.pathname + (urlObj.search || '');
+    return urlObj.pathname + urlObj.search;
 }
 
 // ============================================================================
