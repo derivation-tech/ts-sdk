@@ -428,7 +428,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         const mockTradeResult: TradeSimulation = {
             realized: 0n,
             postPosition: onchainContext.portfolio!.position,
-            exceedMaxLeverage: false,
+            marginAdjusted: false,
         };
         const mockTradeParam = {
             expiry: input.expiry,
@@ -495,7 +495,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         const mockTradeResult: TradeSimulation = {
             realized: 0n,
             postPosition: onchainContext.portfolio.position,
-            exceedMaxLeverage: false,
+            marginAdjusted: false,
         };
         const mockTradeParam = {
             expiry: input.expiry,
@@ -539,7 +539,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         const mockTradeResult: TradeSimulation = {
             realized: 0n,
             postPosition: onchainContext.portfolio.position,
-            exceedMaxLeverage: false,
+            marginAdjusted: false,
         };
         const mockTradeParam = {
             expiry: input.expiry,

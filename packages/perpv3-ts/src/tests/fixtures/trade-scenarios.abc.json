@@ -133,7 +133,7 @@
                     "entrySocialLossIndex": "0",
                     "entryFundingIndex": "2920812895983985913539"
                 },
-                "exceedMaxLeverage": false
+                "marginAdjusted": false
             }
         }
     },
@@ -271,7 +271,7 @@
                     "entrySocialLossIndex": "0",
                     "entryFundingIndex": "9749087299161150366"
                 },
-                "exceedMaxLeverage": false
+                "marginAdjusted": false
             }
         }
     },
@@ -407,7 +407,7 @@
                     "entrySocialLossIndex": "0",
                     "entryFundingIndex": "9749087299161150366"
                 },
-                "exceedMaxLeverage": false
+                "marginAdjusted": false
             }
         }
     },

@@ -107,7 +107,7 @@ export class TradeInput {
 
         // Step 6: Adjust margin delta if needed (handle negative margin withdrawal case)
         let postPosition = combinedPosition;
-        let exceedMaxLeverage = false;
+        let marginAdjusted = false;
 
         if (postPosition.size !== ZERO && marginDelta < ZERO) {
             // Create updated snapshot with updated AMM and postPosition for max withdrawable calculation
@@ -125,7 +125,7 @@ export class TradeInput {
                     );
                 }
                 marginDelta = -maxWithdrawable;
-                exceedMaxLeverage = true;
+                marginAdjusted = true;
             }
 
             postPosition = postPosition.withBalanceDelta(marginDelta);
@@ -159,7 +159,7 @@ export class TradeInput {
                 );
                 postPosition = postPosition.withBalanceDelta(additionalMargin);
                 marginDelta += additionalMargin;
-                exceedMaxLeverage = true;
+                marginAdjusted = true;
             }
         }
 
@@ -173,7 +173,7 @@ export class TradeInput {
         const simulation: TradeSimulation = {
             realized,
             postPosition,
-            exceedMaxLeverage,
+            marginAdjusted,
         };
 
         return [tradeParam, simulation];
@@ -208,10 +208,14 @@ export interface TradeSimulation {
      */
     postPosition: Position;
     /**
-     * Whether the trade exceeded max leverage and required margin adjustment.
+     * Whether the margin was automatically adjusted from the requested amount.
+     * Set to true when:
+     * - Withdrawal amount exceeds maximum withdrawable margin (adjusted to max withdrawable)
+     * - Position exceeds IMR and additional margin is auto-added to meet requirements
      */
-    exceedMaxLeverage: boolean;
+    marginAdjusted: boolean;
     /**
-     * Note: marginDelta can be obtained from TradeParam.amount (they are always equal).
+     * Note: The margin delta can be obtained from `tradeParam.amount` (they are always equal).
+     * `tradeParam.amount` is the final margin adjustment after all validations and auto-adjustments.
      */
 }

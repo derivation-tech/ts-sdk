@@ -316,7 +316,7 @@ export class Range {
      */
     static calcAsymmetricBoost(alphaLower: number, alphaUpper: number, imr: number): number {
         if (alphaLower === 1 && alphaUpper === 1) {
-            throw Errors.calculation('Invalid alpha and beta', ErrorCode.CALCULATION_FAILED, {
+            throw Errors.calculation('Invalid alphaLower and alphaUpper', ErrorCode.CALCULATION_FAILED, {
                 alphaLower,
                 alphaUpper,
                 imr,

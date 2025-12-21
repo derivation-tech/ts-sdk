@@ -76,7 +76,7 @@ export class CrossLimitOrderInput {
      * @param snapshot - Pair snapshot with current on-chain state
      * @param quotationWithSize - Quotation for the market leg trade (determines market leg size)
      * @param userSetting - User settings (deadline, slippage, leverage, etc.)
-     * @returns CrossLimitOrderSimulation with both legs' parameters and aggregated totals
+     * @returns CrossLimitOrderSimulation with both legs' parameters and simulation results
      * @throws {ValidationError} If validation fails (tick, size, leverage, etc.)
      * @throws {SimulationError} If simulation fails (instrument not tradable, etc.)
      */

@@ -213,8 +213,8 @@ const closeTrade = new TradeInput(
 );
 const closeQuotationWithSize = new QuotationWithSize(closeSignedSize, quotation);
 const [tradeParam, simulation] = closeTrade.simulate(onchainContext, closeQuotationWithSize, userSetting);
-// Note: `tradeParam.amount` (and `simulation.marginDelta`) can be negative when closing/reducing,
-// which indicates a margin withdrawal. Only check balance/allowance when `simulation.marginDelta > 0`.
+// Note: `tradeParam.amount` can be negative when closing/reducing,
+// which indicates a margin withdrawal. Only check balance/allowance when `tradeParam.amount > 0`.
 
 // Adjust margin
 const adjustMargin = new AdjustInput(
@@ -240,7 +240,7 @@ const [tradeParam, simulation] = reducePosition.simulate(onchainContext, quotati
 // Post-trade leverage will match the target leverage specified in userSetting
 ```
 
-**Note on Leverage Management:** All trades (opening, increasing, or reducing positions) adjust margin to achieve the target leverage specified in `userSetting`. When reducing a position, margin adjustment depends on whether you're increasing or decreasing leverage. If the required withdrawal exceeds `maxWithdrawableMargin` (based on IMR), the withdrawal is capped and `simulation.exceedMaxLeverage` will be `true`.
+**Note on Leverage Management:** All trades (opening, increasing, or reducing positions) adjust margin to achieve the target leverage specified in `userSetting`. When reducing a position, margin adjustment depends on whether you're increasing or decreasing leverage. If the required withdrawal exceeds `maxWithdrawableMargin` (based on IMR), the withdrawal is capped and `simulation.marginAdjusted` will be `true`. `marginAdjusted` is also set to `true` when the position exceeds IMR and additional margin is automatically added to meet requirements.
 
 #### Orders
 
