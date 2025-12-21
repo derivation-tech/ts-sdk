@@ -81,7 +81,6 @@ export class ScaledLimitOrderInput {
 
                 orders.push({
                     ratio: ratios[i],
-                    minOrderSize: minOrderSizes[i],
                     param: placeParam,
                     simulation,
                 });
@@ -106,29 +105,8 @@ export class ScaledLimitOrderInput {
         // to ensure all orders meet their minimum size constraints
         const maxRatio = minSizeRatios.reduce((acc, value) => max(acc, value), ZERO);
         const minBaseQuantity = maxRatio === ZERO ? ZERO : wmulUp(this.baseQuantity, maxRatio);
-        // Calculate aggregated values from placeParams in a single pass using Order getters
-        const { aggregatedQuote, totalMargin } = orders.reduce(
-            (acc, orderDetail) => {
-                if (orderDetail) {
-                    const order = new Order(
-                        orderDetail.param.amount,
-                        orderDetail.param.size,
-                        orderDetail.param.tick,
-                        0
-                    );
-                    acc.aggregatedQuote += order.value;
-                    acc.totalMargin += orderDetail.param.amount;
-                }
-                return acc;
-            },
-            { aggregatedQuote: ZERO, totalMargin: ZERO }
-        );
-
         const result: ScaledLimitOrderSimulation = {
             orders,
-            totalBase: this.baseQuantity,
-            totalQuote: aggregatedQuote,
-            totalMargin: totalMargin,
             minBase: minBaseQuantity,
         };
 
@@ -157,16 +135,15 @@ export class ScaledLimitOrderInput {
 
 export interface ScaledOrderDetail {
     ratio: number;
-    minOrderSize: bigint;
     param: PlaceParam;
     simulation: PlaceInputSimulation;
+    /**
+     * Note: minOrderSize can be derived from `instrumentSetting.minOrderSizeAtTick(param.tick)`
+     */
 }
 
 export interface ScaledLimitOrderSimulation {
     orders: (ScaledOrderDetail | null)[];
-    totalBase: bigint;
-    totalQuote: bigint;
-    totalMargin: bigint;
     /**
      * Minimum base quantity required to ensure all orders meet their minimum size constraints.
      *
@@ -174,8 +151,10 @@ export interface ScaledLimitOrderSimulation {
      * minOrderValue setting. This field represents the minimum total baseQuantity that must be used
      * to ensure every order in the batch meets its individual minimum size requirement.
      *
-     * If totalBase < minBase, some orders may fail validation due to being below their minimum size.
-     * Use this value to validate that the input baseQuantity is sufficient before placing orders.
+     * To derive aggregated values:
+     * - `totalBase`: Use the input `baseQuantity` (it's the same value)
+     * - `totalQuote`: `orders.reduce((sum, order) => sum + (order ? order.simulation.order.value : 0n), 0n)`
+     * - `totalMargin`: `orders.reduce((sum, order) => sum + (order ? order.param.amount : 0n), 0n)`
      */
     minBase: bigint;
 }

@@ -1,4 +1,4 @@
-import { MAX_UINT_24, MAX_UINT_48, ONE, Q96, ZERO } from '../constants';
+import { MAX_UINT_24, MAX_UINT_48, ONE, Q96, RATIO_DECIMALS, ZERO } from '../constants';
 import {
     abs,
     asInt24,
@@ -13,7 +13,7 @@ import {
     wmulDown,
     wmulUp,
 } from '../math';
-import { Errors } from './error';
+import { Errors, ErrorCode } from './error';
 import { Position } from './position';
 import type { Amm } from './contract';
 
@@ -272,5 +272,59 @@ export class Range {
     static minMargin(tickLower: number, tickUpper: number, sqrtPX96: bigint, liquidity: bigint, imr: number): bigint {
         const tempRange = new Range(0n, 0n, 0n, sqrtPX96, tickLower, tickUpper);
         return tempRange.calcMarginFromLiquidity(sqrtPX96, liquidity, imr);
+    }
+
+    /**
+     * Convert tick delta to alpha number (price ratio).
+     *
+     * @param tickDelta - The tick delta value
+     * @returns The alpha number (price ratio)
+     */
+    static tickDeltaToAlphaNumber(tickDelta: number): number {
+        if (tickDelta === 0) return 0;
+
+        // Get sqrt ratio directly and convert to price number
+        const sqrtRatio = tickToSqrtX96(tickDelta);
+        // Convert sqrtRatio to price: (sqrtRatio / 2^96)^2
+        // Using Number conversion for efficiency since we want the final result as number
+        const sqrtRatioNumber = Number(sqrtRatio) / Number(Q96);
+        return sqrtRatioNumber * sqrtRatioNumber;
+    }
+
+    /**
+     * Calculate capital efficiency boost for symmetric range.
+     *
+     * @param alpha - The alpha value (price ratio)
+     * @param imr - Initial margin ratio (in basis points, e.g., 1000 = 10%)
+     * @returns The boost value
+     */
+    static calcBoost(alpha: number, imr: number): number {
+        if (alpha === 1) {
+            throw Errors.calculation('Invalid alpha', ErrorCode.CALCULATION_FAILED, { alpha });
+        }
+        const ratio = imr / 10 ** RATIO_DECIMALS;
+        return -2 / (alpha * (ratio + 1) - Math.sqrt(alpha)) / (1 / Math.sqrt(alpha) - 1);
+    }
+
+    /**
+     * Calculate capital efficiency boost for asymmetric range.
+     *
+     * @param alphaLower - The alpha value for lower tick
+     * @param alphaUpper - The alpha value for upper tick
+     * @param imr - Initial margin ratio (in basis points, e.g., 1000 = 10%)
+     * @returns The boost value
+     */
+    static calcAsymmetricBoost(alphaLower: number, alphaUpper: number, imr: number): number {
+        if (alphaLower === 1 && alphaUpper === 1) {
+            throw Errors.calculation('Invalid alpha and beta', ErrorCode.CALCULATION_FAILED, {
+                alphaLower,
+                alphaUpper,
+                imr,
+            });
+        }
+        const ratio = imr / 10 ** RATIO_DECIMALS;
+        const boostLower = 2 / (1 / Math.sqrt(alphaLower) - 1) / ((1 / Math.sqrt(alphaLower)) * (1 - ratio) - 1);
+        const boostUpper = Range.calcBoost(alphaUpper, ratio);
+        return Math.min(boostLower, boostUpper);
     }
 }

@@ -1,5 +1,5 @@
 import type { Address } from 'viem';
-import { abs, wmulDown, ratioToWad, tickToWad } from '../math';
+import { abs } from '../math';
 import { Errors, ErrorCode, Order, PairSnapshot, Side, sideSign, UserSetting, type PlaceParam } from '../types';
 
 export class PlaceInput {
@@ -8,8 +8,6 @@ export class PlaceInput {
     public readonly tick: number;
     public readonly baseQuantity: bigint; // unsigned base quantity
     public readonly side: Side; // LONG or SHORT
-
-    public readonly targetPrice: bigint; // cached price at tick
 
     constructor(traderAddress: Address, tick: number, baseQuantity: bigint, side: Side) {
         // Validate baseQuantity is positive at construction time
@@ -23,7 +21,6 @@ export class PlaceInput {
         this.tick = tick;
         this.baseQuantity = baseQuantity;
         this.side = side;
-        this.targetPrice = tickToWad(tick);
     }
 
     /**
@@ -75,45 +72,31 @@ export class PlaceInput {
         // Validate PlaceParam with full context (includes minimum order value check)
         snapshot.validatePlaceParam(placeParam);
 
-        // Create Order instance to use its getters
+        // Create Order instance with final parameters for convenience
         const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
 
-        // Calculate expected fee income (fee rebate) for the order
-        const minFeeRebate = wmulDown(order.value, ratioToWad(instrumentSetting.orderFeeRebateRatio));
-        const minOrderSize = instrumentSetting.minOrderSizeAtTick(this.tick);
-        // Check if order size meets minimum requirement (validatePlaceParam already checks order.value >= minOrderValue,
-        // but we still calculate canPlaceOrder explicitly for clarity and to match the interface contract)
-        const canPlaceOrder = abs(placeParam.size) >= minOrderSize;
-
         const simulation: PlaceInputSimulation = {
-            // Only keep computed values that aren't trivial to derive from PlaceParam
-            minFeeRebate,
-            minOrderSize,
-            canPlaceOrder,
+            order,
         };
 
-        // todo do we need minFeeRebate, minOrderSize, also do we need PlaceInputSimulation?
         return [placeParam, simulation];
     }
 }
 
 /**
  * Simulation result for PlaceInput.
- * Only contains computed values that aren't trivial to derive from PlaceParam.
+ * Contains the expected Order object for convenience.
  *
- * To get other values:
- * - `tick`: `placeParam.tick`
- * - `limitPrice`: Create `Order` instance and use `order.targetPrice` getter
- * - `baseQuantity`: `placeInput.baseQuantity`
- * - `margin`: `placeParam.amount`
- * - `tradeValue`: Create `Order` instance and use `order.value` getter
- * - `leverage`: Available from `PlaceInput.userSetting.leverage` property
+ * To derive other values:
+ * - `minFeeRebate`: `wmulDown(simulation.order.value, ratioToWad(instrumentSetting.orderFeeRebateRatio))`
+ * - `minOrderSize`: `instrumentSetting.minOrderSizeAtTick(placeParam.tick)`
+ * - `canPlaceOrder`: `abs(placeParam.size) >= instrumentSetting.minOrderSizeAtTick(placeParam.tick)`
+ * - `tick`: `placeParam.tick` or `simulation.order.tick`
+ * - `limitPrice`: `simulation.order.targetPrice`
+ * - `baseQuantity`: `abs(placeParam.size)` or `abs(simulation.order.size)`
+ * - `margin`: `placeParam.amount` or `simulation.order.balance`
+ * - `tradeValue`: `simulation.order.value`
  */
 export interface PlaceInputSimulation {
-    /** Expected fee rebate for the order (in quote token) */
-    minFeeRebate: bigint;
-    /** Minimum order size required (in base token) */
-    minOrderSize: bigint;
-    /** Whether the order can be placed (size >= minOrderSize) */
-    canPlaceOrder: boolean;
+    order: Order;
 }

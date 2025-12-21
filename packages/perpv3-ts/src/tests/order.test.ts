@@ -279,7 +279,7 @@ describe('simulatePlace', () => {
                 const userSetting = new UserSetting(testCase.param.deadline, DEFAULT_USER_SLIPPAGE, 3n * WAD, 0);
                 const input = placeParamToInput(testCase.param, userSetting);
 
-                const [placeParam] = input.simulate(context, userSetting);
+                const [placeParam, simulation] = input.simulate(context, userSetting);
 
                 expect(placeParam.tick).toBe(testCase.expectedResult.tick);
                 expect(abs(placeParam.size)).toBe(abs(testCase.expectedResult.size));
@@ -289,9 +289,8 @@ describe('simulatePlace', () => {
                 // Verify margin satisfies IMR requirement: since leverage <= maxLeverage,
                 // marginForLeverage() already ensures IMR is satisfied, so we just verify it's positive
 
-                // Calculate expected fee income (fee rebate) using Order methods
-                const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
-                const feeRebate = wmulDown(order.value, ratioToWad(instrumentSetting.orderFeeRebateRatio));
+                // Calculate expected fee income (fee rebate) using Order from simulation
+                const feeRebate = wmulDown(simulation.order.value, ratioToWad(instrumentSetting.orderFeeRebateRatio));
                 const expectedOrder = new Order(testCase.param.amount, testCase.param.size, testCase.param.tick, 0);
                 const expectedFeeRebate = wmulDown(
                     expectedOrder.value,
@@ -351,15 +350,9 @@ describe('simulatePlace', () => {
                 const userSetting = new UserSetting(placeParam.deadline, DEFAULT_USER_SLIPPAGE, 3n * WAD, 0);
                 const input = placeParamToInput(placeParam, userSetting);
 
-                const [simulatedPlaceParam] = input.simulate(context, userSetting);
-                // Calculate expected fee income (fee rebate) using Order methods
-                const order = new Order(
-                    simulatedPlaceParam.amount,
-                    simulatedPlaceParam.size,
-                    simulatedPlaceParam.tick,
-                    0
-                );
-                const feeRebate = wmulDown(order.value, ratioToWad(instrumentSetting.orderFeeRebateRatio));
+                const [simulatedPlaceParam, simulation] = input.simulate(context, userSetting);
+                // Calculate expected fee income (fee rebate) using Order from simulation
+                const feeRebate = wmulDown(simulation.order.value, ratioToWad(instrumentSetting.orderFeeRebateRatio));
                 if (testCase.expectPositive) {
                     expect(feeRebate).toBeGreaterThan(0n);
                 } else {
@@ -394,12 +387,14 @@ describe('ScaledLimitOrderInput.simulate', () => {
 
         expect(result.orders.length).toBe(3);
         expect(result.orders.every((order) => order !== null)).toBe(true);
-        expect(result.totalBase).toBe(input.baseQuantity);
-        expect(result.totalMargin).toBeGreaterThan(0n);
-        // Verify each order has minOrderSize
+        // Verify aggregated values can be derived
+        const totalMargin = result.orders.reduce((sum, order) => sum + (order ? order.param.amount : 0n), 0n);
+        expect(totalMargin).toBeGreaterThan(0n);
+        // Verify each order has required fields
         result.orders.forEach((order) => {
             if (order) {
-                expect(order.minOrderSize).toBeGreaterThan(0n);
+                expect(order.param).toBeDefined();
+                expect(order.simulation).toBeDefined();
             }
         });
     });
@@ -430,9 +425,7 @@ describe('CrossLimitOrderInput.simulate', () => {
             sqrtPostFairPX96: 1n << 96n,
             postTick: targetTick + ORDER_TICK_OFFSET,
         });
-        const mockTradeResult = {
-            marginDelta: 1n,
-            leverage: userSetting.leverage,
+        const mockTradeResult: TradeSimulation = {
             realized: 0n,
             postPosition: onchainContext.portfolio!.position,
             exceedMaxLeverage: false,
@@ -440,16 +433,11 @@ describe('CrossLimitOrderInput.simulate', () => {
         const mockTradeParam = {
             expiry: input.expiry,
             size: 2n * BASE,
-            amount: 0n,
+            amount: 1n, // Set amount to match what would be marginDelta
             limitTick: input.targetTick,
             deadline: 0,
         };
         const mockMarketView: TradeSimulation = mockTradeResult;
-        const mockLimitSimulation: PlaceInputSimulation = {
-            minFeeRebate: 0n,
-            minOrderSize: BASE,
-            canPlaceOrder: true,
-        };
         const mockLimitMargin = 100n; // Set a margin value for the limit order
 
         const mockLimitPlaceParam: PlaceParam = {
@@ -458,6 +446,10 @@ describe('CrossLimitOrderInput.simulate', () => {
             size: 3n * BASE,
             amount: mockLimitMargin,
             deadline: 0,
+        };
+
+        const mockLimitSimulation: PlaceInputSimulation = {
+            order: new Order(mockLimitMargin, 3n * BASE, input.targetTick, 0),
         };
 
         const mockLimitSimulationResult: [PlaceParam, PlaceInputSimulation] = [
@@ -476,7 +468,7 @@ describe('CrossLimitOrderInput.simulate', () => {
         expect(result.placeParam).toBe(mockLimitPlaceParam);
         expect(result.tradeSimulation).toBe(mockMarketView);
         expect(result.tradeParam).toBe(mockTradeParam);
-        expect(result.totalMarginRequired).toBe(mockTradeResult.marginDelta + mockLimitMargin);
+        expect(result.tradeParam.amount + result.placeParam.amount).toBe(mockTradeParam.amount + mockLimitMargin);
     });
 
     it('aligns limit order tick to orderSpacing and keeps it valid', () => {
@@ -501,7 +493,6 @@ describe('CrossLimitOrderInput.simulate', () => {
         });
 
         const mockTradeResult: TradeSimulation = {
-            marginDelta: 1n,
             realized: 0n,
             postPosition: onchainContext.portfolio.position,
             exceedMaxLeverage: false,
@@ -546,7 +537,6 @@ describe('CrossLimitOrderInput.simulate', () => {
         });
 
         const mockTradeResult: TradeSimulation = {
-            marginDelta: 1n,
             realized: 0n,
             postPosition: onchainContext.portfolio.position,
             exceedMaxLeverage: false,

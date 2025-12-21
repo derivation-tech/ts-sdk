@@ -301,6 +301,6 @@ function omitLeverage(value: unknown): Record<string, unknown> {
         throw new Error('Expected object to omit leverage');
     }
     const record = value as Record<string, unknown>;
-    const { leverage: _leverage, ...withoutLeverage } = record;
+    const { leverage: _leverage, marginDelta: _marginDelta, ...withoutLeverage } = record;
     return withoutLeverage;
 }

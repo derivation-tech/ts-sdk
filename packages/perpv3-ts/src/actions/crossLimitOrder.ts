@@ -184,9 +184,8 @@ export class CrossLimitOrderInput {
 
         const [limitPlaceParam, limitSimulation] = limitOrderPlaceInput.simulate(updatedSnapshot, userSetting);
 
-        // Calculate limit leg trade value using Order getter
-        const limitOrder = new Order(limitPlaceParam.amount, limitPlaceParam.size, limitPlaceParam.tick, 0);
-        const limitTradeValue = limitOrder.value;
+        // Calculate limit leg trade value using Order from simulation
+        const limitTradeValue = limitSimulation.order.value;
 
         // Aggregate results from both legs
         const result: CrossLimitOrderSimulation = {
@@ -194,9 +193,6 @@ export class CrossLimitOrderInput {
             tradeSimulation: marketSimulation,
             placeParam: limitPlaceParam,
             placeSimulation: limitSimulation,
-            totalMarginRequired: marketSimulation.marginDelta + limitPlaceParam.amount,
-            // totalTradeValueInQuote represents the estimated total notional (market leg executed quote + limit leg target quote)
-            totalTradeValueInQuote: quotationWithSize.tradeValue + limitTradeValue,
         };
 
         return result;
@@ -210,13 +206,11 @@ export class CrossLimitOrderInput {
  * - Market leg: tradeParam and tradeSimulation
  * - Limit leg: placeParam and placeSimulation
  *
- * Also includes aggregated totals:
- * - totalMarginRequired: Sum of margin required for both legs
- * - totalTradeValueInQuote: Estimated total notional value in quote token
- *
- * Note: Some fields can be derived from others:
- * - Market base size: abs(tradeParam.size)
- * - Limit base size: abs(placeParam.size)
+ * To derive aggregated values:
+ * - `totalMarginRequired`: `tradeParam.amount + placeParam.amount`
+ * - `totalTradeValueInQuote`: `quotationWithSize.tradeValue + placeSimulation.order.value`
+ * - Market base size: `abs(tradeParam.size)`
+ * - Limit base size: `abs(placeParam.size)`
  */
 export interface CrossLimitOrderSimulation {
     /** Parameters for the market leg trade */
@@ -227,8 +221,4 @@ export interface CrossLimitOrderSimulation {
     placeParam: PlaceParam;
     /** Simulation result for the limit leg order */
     placeSimulation: PlaceInputSimulation;
-    /** Total margin required for both legs combined */
-    totalMarginRequired: bigint;
-    /** Total trade value in quote token (market leg executed value + limit leg target value) */
-    totalTradeValueInQuote: bigint;
 }

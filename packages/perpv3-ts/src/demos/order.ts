@@ -45,12 +45,11 @@ export async function demoPlaceAndCancel(context: DemoContext): Promise<void> {
     );
 
     // Simulate the order (handles validation and parameter conversion)
-    const [placeParam] = placeInput.simulate(snapshot, perpClient.userSetting);
+    const [placeParam, simulation] = placeInput.simulate(snapshot, perpClient.userSetting);
 
-    // Create Order instance to use its methods for display
-    const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
-    console.log(`ℹ️ Order target price: ${formatWad(order.targetPrice)}`);
-    console.log(`ℹ️ Order value: ${formatWad(order.value)}`);
+    // Use Order from simulation
+    console.log(`ℹ️ Order target price: ${formatWad(simulation.order.targetPrice)}`);
+    console.log(`ℹ️ Order value: ${formatWad(simulation.order.value)}`);
 
     // Ensure sufficient margin and allowance
     // Convert WAD to token decimals: multiply by 10^decimals
@@ -165,19 +164,15 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
     console.log(`🔄 Simulating cross limit order...`);
     const crossResult = crossLimitInput.simulate(snapshot, crossMarketSwapQuote, perpClient.userSetting);
 
-    if (!crossResult.placeSimulation.canPlaceOrder) {
-        throw new Error(
-            `Cannot place cross limit order: minOrderSize=${formatWad(crossResult.placeSimulation.minOrderSize)}`
-        );
+    // Derive canPlaceOrder from placeParam
+    const minOrderSize = snapshot.instrumentSetting.minOrderSizeAtTick(crossResult.placeParam.tick);
+    const canPlaceOrder = abs(crossResult.placeParam.size) >= minOrderSize;
+    if (!canPlaceOrder) {
+        throw new Error(`Cannot place cross limit order: minOrderSize=${formatWad(minOrderSize)}`);
     }
 
-    // Create Order instance for limit leg to display order information
-    const limitOrder = new Order(
-        crossResult.placeParam.amount,
-        crossResult.placeParam.size,
-        crossResult.placeParam.tick,
-        0
-    );
+    // Use Order from simulation
+    const limitOrder = crossResult.placeSimulation.order;
     console.log(
         `✅ Cross limit order simulation: market leg size=${formatWad(abs(crossResult.tradeParam.size))}, limit leg size=${formatWad(abs(crossResult.placeParam.size))}`
     );
@@ -185,17 +180,11 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         `ℹ️ Limit leg target price: ${formatWad(limitOrder.targetPrice)}, value: ${formatWad(limitOrder.value)}`
     );
 
+    // Derive total margin required from both legs
+    const totalMarginRequired = crossResult.tradeParam.amount + crossResult.placeParam.amount;
     // Convert WAD to token decimals: multiply by 10^decimals
-    const marginNeededInDecimals = wmul(
-        crossResult.totalMarginRequired,
-        10n ** BigInt(instrumentSetting.quoteDecimals)
-    );
-    const totalMarginFormatted = await formatTokenAmount(
-        crossResult.totalMarginRequired,
-        instrumentSetting.quoteAddress,
-        undefined,
-        6
-    );
+    const marginNeededInDecimals = wmul(totalMarginRequired, 10n ** BigInt(instrumentSetting.quoteDecimals));
+    const totalMarginFormatted = await formatTokenAmount(totalMarginRequired, instrumentSetting.quoteAddress, undefined, 6);
     console.log(`ℹ️ Total margin required: ${totalMarginFormatted}`);
 
     await ensureMarginAndAllowance(snapshot, publicClient, walletClient, kit, marginNeededInDecimals);
@@ -212,7 +201,7 @@ export async function demoCrossLimitOrder(context: DemoContext, side: Side = Sid
         const tradeParam = {
             expiry: perpClient.expiry,
             size: tradeSize, // Use signed size directly
-            amount: crossResult.tradeSimulation.marginDelta,
+            amount: crossResult.tradeParam.amount,
             limitTick,
             deadline: perpClient.userSetting.getDeadline(),
         };
@@ -376,7 +365,11 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
         }
     }
 
-    const totalMargin = scaledResult.totalMargin;
+    // Derive aggregated values from orders
+    const totalMargin = scaledResult.orders.reduce(
+        (sum, order) => sum + (order ? order.param.amount : 0n),
+        0n
+    );
     // Convert WAD to token decimals: multiply by 10^decimals
     const marginNeededInDecimals = wmul(totalMargin, 10n ** BigInt(instrumentSetting.quoteDecimals));
     const totalMarginFormatted = await formatTokenAmount(totalMargin, instrumentSetting.quoteAddress, undefined, 6);
@@ -388,7 +381,7 @@ export async function demoScaledLimitOrder(context: DemoContext): Promise<void> 
     const orderTicks = scaledResult.orders.map((order) => (order ? order.param.tick : null));
     const alignedTicks = orderTicks.filter((tick): tick is number => tick !== null);
     const ratios = scaledResult.orders.map((order) => (order ? order.ratio : 0));
-    const totalQuantity = scaledResult.totalBase;
+    const totalQuantity = scaledOrderInput.baseQuantity; // Use input baseQuantity directly
     const leverage = targetLeverage;
     const side = scaledOrderInput.side; // Get the side from the input
 

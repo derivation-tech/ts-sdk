@@ -1,12 +1,9 @@
 import type { Address } from 'viem';
-import { abs, wdiv, wmul, wmulDown, ratioToWad, sqrt, sqrtX96ToTick, sqrtX96ToWad, tickToWad } from '../math';
-import { MAX_INT_24, MIN_INT_24, ZERO } from '../constants';
 import {
     Errors,
     ErrorCode,
     Position,
     Range,
-    Side,
     UserSetting,
     type AddParam,
     type PairSnapshot,
@@ -66,7 +63,6 @@ export class AddInput {
         }
 
         const imr = instrumentSetting.imr;
-        const mmr = instrumentSetting.mmr;
 
         // Align ticks to range spacing
         const upperTick = instrumentSetting.alignRangeTickUpper(this.tickUpper);
@@ -84,57 +80,13 @@ export class AddInput {
             lowerTick,
             upperTick
         );
-        const lowerPosition = rangeWithTicks.lowerPositionIfRemove(ammForAdd);
-        const upperPosition = rangeWithTicks.upperPositionIfRemove(ammForAdd);
 
-        const minLiquidity = instrumentSetting.minLiquidity(ammForAdd.sqrtPX96);
-        const minMargin = Range.minMargin(lowerTick, upperTick, ammForAdd.sqrtPX96, minLiquidity, imr);
-
-        const lowerPrice = tickToWad(lowerTick);
-        const upperPrice = tickToWad(upperTick);
-
-        const lowerLeverage =
-            lowerPosition.balance === 0n
-                ? 0n
-                : wdiv(wmul(lowerPrice, abs(lowerPosition.size)), abs(lowerPosition.balance));
-        const upperLeverage =
-            upperPosition.balance === 0n
-                ? 0n
-                : wdiv(wmul(upperPrice, abs(upperPosition.size)), abs(upperPosition.balance));
+        const simulation: AddSimulation = {
+            range: rangeWithTicks,
+        };
 
         const tickDeltaLower = Math.abs(lowerTick - ammForAdd.tick);
         const tickDeltaUpper = Math.abs(upperTick - ammForAdd.tick);
-
-        const alphaLowerNumber = tickDeltaToAlphaNumber(tickDeltaLower);
-        const alphaUpperNumber = tickDeltaToAlphaNumber(tickDeltaUpper);
-
-        const lowerLiquidationPrice = lowerPosition.liquidationPrice(ammForAdd, mmr);
-        const upperLiquidationPrice = upperPosition.liquidationPrice(ammForAdd, mmr);
-
-        const capitalEfficiencyBoost =
-            alphaLowerNumber === alphaUpperNumber
-                ? calcBoost(alphaLowerNumber, imr)
-                : calcAsymmetricBoost(alphaLowerNumber, alphaUpperNumber, imr);
-
-        const simulation: AddSimulation = {
-            lowerRemovalPrice: lowerPrice,
-            lowerRemovalSize: lowerPosition.size,
-            lowerRemovalMargin: lowerPosition.balance,
-            lowerRemovalSide: Side.LONG,
-            lowerLeverage,
-            upperRemovalPrice: upperPrice,
-            upperRemovalSize: upperPosition.size,
-            upperRemovalSide: Side.SHORT,
-            upperRemovalMargin: upperPosition.balance,
-            upperLeverage,
-            minMargin,
-            equivalentTickDelta: (upperTick - lowerTick) / 2,
-            lowerLiquidationPrice,
-            upperLiquidationPrice,
-            capitalEfficiencyBoost,
-            lowerPosition,
-            upperPosition,
-        };
 
         const addParam: AddParam = {
             expiry: snapshot.expiry,
@@ -232,20 +184,9 @@ export class RemoveInput {
         const removedPosition = rangeWithTicks.toPosition(amm);
         const postPosition = Position.combine(amm, removedPosition, portfolio.position).position;
 
-        const sqrtStrikePX96Lower = amm.sqrtPX96 - wmulDown(amm.sqrtPX96, ratioToWad(userSetting.slippage));
-        const sqrtStrikePX96Upper = amm.sqrtPX96 + wmulDown(amm.sqrtPX96, ratioToWad(userSetting.slippage));
-
-        const lowerTick = sqrtStrikePX96Lower === ZERO ? Number(MIN_INT_24) : sqrtX96ToTick(sqrtStrikePX96Lower) + 1;
-        const upperTick = sqrtStrikePX96Upper === ZERO ? Number(MAX_INT_24) : sqrtX96ToTick(sqrtStrikePX96Upper);
-
         const simulation: RemoveSimulation = {
             removedPosition: removedPosition,
             postPosition: postPosition,
-            lowerTick,
-            upperTick,
-            removedPositionEntryPrice: sqrt(
-                wmul(sqrtX96ToWad(amm.sqrtPX96), sqrtX96ToWad(rangeWithTicks.sqrtEntryPX96))
-            ),
         };
 
         const removeParam: RemoveParam = {
@@ -266,69 +207,11 @@ export class RemoveInput {
 // ============================================================================
 
 export interface AddSimulation {
-    lowerRemovalPrice: bigint;
-    lowerRemovalSize: bigint;
-    lowerRemovalSide: Side;
-    lowerRemovalMargin: bigint;
-    lowerLeverage: bigint;
-    upperRemovalPrice: bigint;
-    upperRemovalSize: bigint;
-    upperRemovalSide: Side;
-    upperRemovalMargin: bigint;
-    upperLeverage: bigint;
-    minMargin: bigint;
-    equivalentTickDelta: number;
-    lowerLiquidationPrice: bigint;
-    upperLiquidationPrice: bigint;
-    capitalEfficiencyBoost: number;
-    lowerPosition: Position;
-    upperPosition: Position;
+    range: Range;
 }
 
 export interface RemoveSimulation {
-    lowerTick: number;
-    upperTick: number;
     removedPosition: Position;
     postPosition: Position;
-    removedPositionEntryPrice: bigint;
 }
 
-// ============================================================================
-// Alpha and Boost Calculations
-// ============================================================================
-
-import { Q96, RATIO_DECIMALS } from '../constants';
-import { tickToSqrtX96 } from '../math';
-
-export function tickDeltaToAlphaNumber(tickDelta: number): number {
-    if (tickDelta === 0) return 0;
-
-    // Get sqrt ratio directly and convert to price number
-    const sqrtRatio = tickToSqrtX96(tickDelta);
-    // Convert sqrtRatio to price: (sqrtRatio / 2^96)^2
-    // Using Number conversion for efficiency since we want the final result as number
-    const sqrtRatioNumber = Number(sqrtRatio) / Number(Q96);
-    return sqrtRatioNumber * sqrtRatioNumber;
-}
-
-export function calcBoost(alpha: number, imr: number): number {
-    if (alpha === 1) {
-        throw Errors.calculation('Invalid alpha', ErrorCode.CALCULATION_FAILED, { alpha });
-    }
-    const ratio = imr / 10 ** RATIO_DECIMALS;
-    return -2 / (alpha * (ratio + 1) - Math.sqrt(alpha)) / (1 / Math.sqrt(alpha) - 1);
-}
-
-export function calcAsymmetricBoost(alphaLower: number, alphaUpper: number, imr: number): number {
-    if (alphaLower === 1 && alphaUpper === 1) {
-        throw Errors.calculation('Invalid alpha and beta', ErrorCode.CALCULATION_FAILED, {
-            alphaLower,
-            alphaUpper,
-            imr,
-        });
-    }
-    const ratio = imr / 10 ** RATIO_DECIMALS;
-    const boostLower = 2 / (1 / Math.sqrt(alphaLower) - 1) / ((1 / Math.sqrt(alphaLower)) * (1 - ratio) - 1);
-    const boostUpper = calcBoost(alphaUpper, ratio);
-    return Math.min(boostLower, boostUpper);
-}

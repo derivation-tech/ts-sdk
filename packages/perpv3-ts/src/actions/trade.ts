@@ -179,7 +179,6 @@ export class TradeInput {
         tradeParam.amount = marginDelta;
 
         const simulation: TradeSimulation = {
-            marginDelta,
             realized,
             postPosition,
             exceedMaxLeverage,
@@ -208,14 +207,6 @@ export class TradeInput {
 // ============================================================================
 export interface TradeSimulation {
     /**
-     * Margin delta for the trade (positive = deposit, negative = withdraw).
-     * This is the margin change amount calculated for the trade, which may be adjusted
-     * during simulation to meet leverage requirements.
-     * Special case: if position is fully closed and has positive balance,
-     * this will be `-postPosition.balance` to withdraw all remaining balance.
-     */
-    marginDelta: bigint;
-    /**
      * Realized PnL from closing part of a position.
      * Non-zero only when trading opposite side or partially closing a position.
      */
@@ -228,4 +219,7 @@ export interface TradeSimulation {
      * Whether the trade exceeded max leverage and required margin adjustment.
      */
     exceedMaxLeverage: boolean;
+    /**
+     * Note: marginDelta can be obtained from TradeParam.amount (they are always equal).
+     */
 }

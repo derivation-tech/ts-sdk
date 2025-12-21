@@ -17,7 +17,7 @@ import {
     type Portfolio,
     type Setting,
 } from '../types';
-import { tickToWad } from '../math';
+import { abs, tickToWad, wdiv, wmul } from '../math';
 
 const abcOnchainContext = parseOnchainContext(onchainFixture.context);
 const fixtureInstrumentAddress = onchainFixture.instrumentAddress as Address;
@@ -179,54 +179,78 @@ describe('simulateAdd', () => {
             });
             const [, result] = addInput.simulate(onchainContext, userSetting);
 
+            // Derive positions from range using the amm from the context
+            const lowerPosition = result.range.lowerPositionIfRemove(amm);
+            const upperPosition = result.range.upperPositionIfRemove(amm);
+
             // Validate removal prices
             const expectedUpperRemovalPrice = BigInt(expectedOutput.upperRemovalPrice);
             const expectedLowerRemovalPrice = BigInt(expectedOutput.lowerRemovalPrice);
-            expectBigIntClose(result.upperRemovalPrice, expectedUpperRemovalPrice);
-            expectBigIntClose(result.lowerRemovalPrice, expectedLowerRemovalPrice);
+            const lowerPrice = tickToWad(result.range.tickLower);
+            const upperPrice = tickToWad(result.range.tickUpper);
+            expectBigIntClose(upperPrice, expectedUpperRemovalPrice);
+            expectBigIntClose(lowerPrice, expectedLowerRemovalPrice);
 
             // Validate lower position (only fields that are actually returned by the function)
-            expectBigIntClose(result.lowerPosition.balance, BigInt(expectedOutput.lowerPosition.balance));
-            expectBigIntClose(result.lowerPosition.size, BigInt(expectedOutput.lowerPosition.size));
-            expectBigIntClose(result.lowerPosition.entryNotional, BigInt(expectedOutput.lowerPosition.entryNotional));
-            expect(result.lowerPosition.entrySocialLossIndex.toString()).toBe(
-                expectedOutput.lowerPosition.entrySocialLossIndex
-            );
-            expect(result.lowerPosition.entryFundingIndex.toString()).toBe(
-                expectedOutput.lowerPosition.entryFundingIndex
-            );
+            expectBigIntClose(lowerPosition.balance, BigInt(expectedOutput.lowerPosition.balance));
+            expectBigIntClose(lowerPosition.size, BigInt(expectedOutput.lowerPosition.size));
+            expectBigIntClose(lowerPosition.entryNotional, BigInt(expectedOutput.lowerPosition.entryNotional));
+            expect(lowerPosition.entrySocialLossIndex.toString()).toBe(expectedOutput.lowerPosition.entrySocialLossIndex);
+            expect(lowerPosition.entryFundingIndex.toString()).toBe(expectedOutput.lowerPosition.entryFundingIndex);
 
             // Validate upper position (only fields that are actually returned by the function)
-            expectBigIntClose(result.upperPosition.balance, BigInt(expectedOutput.upperPosition.balance));
-            expectBigIntClose(result.upperPosition.size, BigInt(expectedOutput.upperPosition.size));
-            expectBigIntClose(result.upperPosition.entryNotional, BigInt(expectedOutput.upperPosition.entryNotional));
-            expect(result.upperPosition.entrySocialLossIndex.toString()).toBe(
-                expectedOutput.upperPosition.entrySocialLossIndex
-            );
-            expect(result.upperPosition.entryFundingIndex.toString()).toBe(
-                expectedOutput.upperPosition.entryFundingIndex
-            );
+            expectBigIntClose(upperPosition.balance, BigInt(expectedOutput.upperPosition.balance));
+            expectBigIntClose(upperPosition.size, BigInt(expectedOutput.upperPosition.size));
+            expectBigIntClose(upperPosition.entryNotional, BigInt(expectedOutput.upperPosition.entryNotional));
+            expect(upperPosition.entrySocialLossIndex.toString()).toBe(expectedOutput.upperPosition.entrySocialLossIndex);
+            expect(upperPosition.entryFundingIndex.toString()).toBe(expectedOutput.upperPosition.entryFundingIndex);
 
             // Validate leverage values (allow for small differences due to calculation precision)
+            // Derive leverage from positions (lowerPrice and upperPrice already declared above)
+            const lowerLeverage =
+                lowerPosition.balance === 0n
+                    ? 0n
+                    : wdiv(wmul(lowerPrice, abs(lowerPosition.size)), abs(lowerPosition.balance));
+            const upperLeverage =
+                upperPosition.balance === 0n
+                    ? 0n
+                    : wdiv(wmul(upperPrice, abs(upperPosition.size)), abs(upperPosition.balance));
+
             const expectedLowerLeverage = BigInt(expectedOutput.lowerLeverage);
             const expectedUpperLeverage = BigInt(expectedOutput.upperLeverage);
             const leverageTolerance = WAD / 10n; // 0.1 tolerance
             const lowerLeverageDiff =
-                result.lowerLeverage >= expectedLowerLeverage
-                    ? result.lowerLeverage - expectedLowerLeverage
-                    : expectedLowerLeverage - result.lowerLeverage;
+                lowerLeverage >= expectedLowerLeverage
+                    ? lowerLeverage - expectedLowerLeverage
+                    : expectedLowerLeverage - lowerLeverage;
             const upperLeverageDiff =
-                result.upperLeverage >= expectedUpperLeverage
-                    ? result.upperLeverage - expectedUpperLeverage
-                    : expectedUpperLeverage - result.upperLeverage;
+                upperLeverage >= expectedUpperLeverage
+                    ? upperLeverage - expectedUpperLeverage
+                    : expectedUpperLeverage - upperLeverage;
             expect(lowerLeverageDiff).toBeLessThanOrEqual(leverageTolerance);
             expect(upperLeverageDiff).toBeLessThanOrEqual(leverageTolerance);
 
             // Validate minimum margin
-            expectBigIntClose(result.minMargin, BigInt(expectedOutput.minMargin));
+            const minLiquidity = onchainContext.instrumentSetting.minLiquidity(amm.sqrtPX96);
+            const minMargin = Range.minMargin(
+                result.range.tickLower,
+                result.range.tickUpper,
+                amm.sqrtPX96,
+                minLiquidity,
+                onchainContext.instrumentSetting.imr
+            );
+            expectBigIntClose(minMargin, BigInt(expectedOutput.minMargin));
 
             // Validate capital efficiency boost (with tolerance for calculation differences)
-            expect(Math.abs(result.capitalEfficiencyBoost - expectedOutput.capitalEfficiencyBoost)).toBeLessThan(
+            const tickDeltaLower = Math.abs(result.range.tickLower - amm.tick);
+            const tickDeltaUpper = Math.abs(result.range.tickUpper - amm.tick);
+            const alphaLowerNumber = Range.tickDeltaToAlphaNumber(tickDeltaLower);
+            const alphaUpperNumber = Range.tickDeltaToAlphaNumber(tickDeltaUpper);
+            const capitalEfficiencyBoost =
+                alphaLowerNumber === alphaUpperNumber
+                    ? Range.calcBoost(alphaLowerNumber, onchainContext.instrumentSetting.imr)
+                    : Range.calcAsymmetricBoost(alphaLowerNumber, alphaUpperNumber, onchainContext.instrumentSetting.imr);
+            expect(Math.abs(capitalEfficiencyBoost - expectedOutput.capitalEfficiencyBoost)).toBeLessThan(
                 CAPITAL_EFFICIENCY_TOLERANCE
             );
         });
@@ -299,25 +323,14 @@ describe('simulateAdd', () => {
         });
         const [, result] = addInput.simulate(onchainContext, userSetting);
 
-        // Validate that result has all expected properties
-        expect(result).toHaveProperty('upperRemovalPrice');
-        expect(result).toHaveProperty('lowerRemovalPrice');
-        expect(result).toHaveProperty('lowerPosition');
-        expect(result).toHaveProperty('upperPosition');
-        expect(result).toHaveProperty('lowerLeverage');
-        expect(result).toHaveProperty('upperLeverage');
-        expect(result).toHaveProperty('minMargin');
-        expect(result).toHaveProperty('capitalEfficiencyBoost');
+        // Validate structure
+        expect(result).toHaveProperty('range');
 
         // Validate types
-        expect(typeof result.upperRemovalPrice).toBe('bigint');
-        expect(typeof result.lowerRemovalPrice).toBe('bigint');
-        expect(typeof result.lowerPosition).toBe('object');
-        expect(typeof result.upperPosition).toBe('object');
-        expect(typeof result.lowerLeverage).toBe('bigint');
-        expect(typeof result.upperLeverage).toBe('bigint');
-        expect(typeof result.minMargin).toBe('bigint');
-        expect(typeof result.capitalEfficiencyBoost).toBe('number');
+        expect(result.range).toBeInstanceOf(Range);
+        expect(typeof result.range.tickLower).toBe('number');
+        expect(typeof result.range.tickUpper).toBe('number');
+        expect(typeof result.range.liquidity).toBe('bigint');
     });
 });
 
@@ -442,9 +455,6 @@ describe('simulateRemove', () => {
 
             expect(result.removedPosition).toBeDefined();
             expect(result.postPosition).toBeDefined();
-            expect(typeof result.lowerTick).toBe('number');
-            expect(typeof result.upperTick).toBe('number');
-            expect(typeof result.removedPositionEntryPrice).toBe('bigint');
         });
 
         it('should handle zero slippage', () => {
@@ -694,12 +704,6 @@ describe('simulateRemove', () => {
                 // Verify simulation results
                 expect(result.removedPosition).toBeDefined();
                 expect(result.postPosition).toBeDefined();
-                expect(typeof result.lowerTick).toBe('number');
-                expect(typeof result.upperTick).toBe('number');
-                expect(typeof result.removedPositionEntryPrice).toBe('bigint');
-
-                // Verify entry price is non-negative
-                expect(result.removedPositionEntryPrice).toBeGreaterThanOrEqual(0);
             });
         });
 
@@ -747,17 +751,6 @@ describe('simulateRemove', () => {
             // Verify simulation results
             expect(result.removedPosition).toBeDefined();
             expect(result.postPosition).toBeDefined();
-            expect(typeof result.lowerTick).toBe('number');
-            expect(typeof result.upperTick).toBe('number');
-            expect(typeof result.removedPositionEntryPrice).toBe('bigint');
-
-            // Verify tick bounds are reasonable
-            expect(result.lowerTick).toBeLessThanOrEqual(result.upperTick);
-            expect(result.lowerTick).toBeGreaterThanOrEqual(-8388608); // INT24_MIN
-            expect(result.upperTick).toBeLessThanOrEqual(8388607); // INT24_MAX
-
-            // Verify entry price is reasonable
-            expect(result.removedPositionEntryPrice).toBeGreaterThanOrEqual(0);
 
             // Verify positions expose bigint balances
             expect(typeof result.removedPosition.balance).toBe('bigint');

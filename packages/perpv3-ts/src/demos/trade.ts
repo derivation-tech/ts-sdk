@@ -58,7 +58,7 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
     const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize, perpClient.userSetting);
 
     console.log(`📈 Executing trade by margin (limit tick: ${formatTick(tradeParam.limitTick)})...`);
-    console.log(`ℹ️ Post-trade margin delta: ${formatWad(simulation.marginDelta)}`);
+    console.log(`ℹ️ Post-trade margin delta: ${formatWad(tradeParam.amount)}`);
     console.log(`ℹ️ Post-trade leverage: ${formatWad(simulation.postPosition.leverage(snapshot.amm, markPrice))}`);
 
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
@@ -113,15 +113,15 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
 
     const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize, perpClient.userSetting);
 
-    if (simulation.marginDelta > ZERO) {
-        const marginNeeded = wmul(simulation.marginDelta, 10n ** BigInt(instrumentSetting.quoteDecimals));
+    if (tradeParam.amount > ZERO) {
+        const marginNeeded = wmul(tradeParam.amount, 10n ** BigInt(instrumentSetting.quoteDecimals));
         const marginFormatted = await formatTokenAmount(marginNeeded, instrumentSetting.quoteAddress, undefined, 6);
         console.log(`ℹ️ Required margin: ${marginFormatted}`);
         await ensureMarginAndAllowance(snapshot, publicClient, walletClient, kit, marginNeeded);
     }
 
     console.log(`📈 Executing trade by leverage (limit tick: ${formatTick(tradeParam.limitTick)})...`);
-    console.log(`ℹ️ Post-trade margin delta: ${formatWad(simulation.marginDelta)}`);
+    console.log(`ℹ️ Post-trade margin delta: ${formatWad(tradeParam.amount)}`);
     console.log(`ℹ️ Post-trade leverage: ${formatWad(simulation.postPosition.leverage(snapshot.amm, markPrice))}`);
 
     const { sendTxWithLog } = await import('@synfutures/viem-kit');

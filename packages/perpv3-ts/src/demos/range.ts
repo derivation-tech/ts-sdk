@@ -100,7 +100,6 @@ export async function demoRemoveLiquidity(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Removed position margin: ${formatWad(simulation.removedPosition.balance)}`);
     console.log(`ℹ️ Post position size: ${formatWad(simulation.postPosition.size)}`);
     console.log(`ℹ️ Post position margin: ${formatWad(simulation.postPosition.balance)}`);
-    console.log(`ℹ️ Removed position entry price: ${formatWad(simulation.removedPositionEntryPrice)}`);
 
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
