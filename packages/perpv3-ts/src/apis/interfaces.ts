@@ -1,9 +1,18 @@
 import { Address } from 'viem';
 import { Erc20TokenInfo } from '@synfutures/viem-kit';
-import { Condition, MinimalPearl, Side } from '../types';
-import { Position } from '../types/position';
-import { Amm, BlockInfo, Order, QuoteParam, Quotation, Range } from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
+import {
+    Amm,
+    BlockInfo,
+    Condition,
+    MinimalPearl,
+    Order,
+    PairSnapshot,
+    Position,
+    QuoteParam,
+    Quotation,
+    Range,
+    Side,
+} from '../types';
 import { HISTORY_RANGE } from './constants';
 
 // TokenInfo type compatible with API responses (name is optional, address can be string or Address)

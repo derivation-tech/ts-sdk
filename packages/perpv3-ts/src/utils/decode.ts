@@ -1,9 +1,16 @@
 import { Address, padHex, toHex } from 'viem';
 import { EMPTY_TICK, MAX_INT_24, ONE } from '../constants';
 import { asInt24, asInt128 } from '../math';
-import { Errors } from '../types/error';
-import { MAX_CANCEL_ORDER_COUNT } from '../types/setting';
-import type { AddParam, BatchPlaceParam, FillParam, PlaceParam, RemoveParam, TradeParam } from '../types/contract';
+import {
+    Errors,
+    MAX_CANCEL_ORDER_COUNT,
+    type AddParam,
+    type BatchPlaceParam,
+    type FillParam,
+    type PlaceParam,
+    type RemoveParam,
+    type TradeParam,
+} from '../types';
 
 // ============================================================================
 // Exported Functions

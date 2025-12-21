@@ -6,18 +6,22 @@ import { InstrumentSetting } from './setting';
 import { QuotationWithSize } from './quotation';
 import { Position } from './position';
 import { Range } from './range';
-import type {
-    Amm,
-    PriceData,
-    Portfolio,
-    Quotation,
-    QuoteState,
-    BlockInfo,
-    PlaceParam,
-    OnchainContext,
+import {
+    Condition,
+    Status,
+    PERP_EXPIRY,
+    Side,
+    type Amm,
+    type PriceData,
+    type Portfolio,
+    type Quotation,
+    type QuoteState,
+    type BlockInfo,
+    type PlaceParam,
+    type OnchainContext,
 } from './contract';
-import { Condition, Status, PERP_EXPIRY, Side } from './contract';
 import type { Address } from 'viem';
+import { formatInTimeZone } from 'date-fns-tz';
 
 /**
  * PairSnapshot represents a snapshot of the complete on-chain state of a trading pair and trader's portfolio.
@@ -27,6 +31,7 @@ import type { Address } from 'viem';
  * - Trader-specific data (portfolio, quoteState) - always present
  * - Optional quotation (only present when signedSize is provided)
  * - Computed instrument settings (instrumentSetting) - contains setting, condition, and spacing
+ * - Pair identification (instrumentAddress, expiry) - defines the trading pair
  * - Validation methods for place, trade, and add operations
  *
  * Note: `setting`, `condition`, and `spacing` are not exposed directly as they are redundant
@@ -35,6 +40,8 @@ import type { Address } from 'viem';
  * This class wraps the raw `OnchainContext` contract struct with computed properties and methods.
  */
 export class PairSnapshot {
+    public readonly instrumentAddress: Address;
+    public readonly expiry: number;
     public readonly blockInfo: BlockInfo;
     public readonly instrumentSetting: InstrumentSetting;
     public readonly amm: Amm;
@@ -49,6 +56,9 @@ export class PairSnapshot {
         this.priceData = options.priceData;
         this.portfolio = options.portfolio;
         this.quoteState = options.quoteState;
+        // Extract pair identification from priceData and amm
+        this.instrumentAddress = options.priceData.instrument;
+        this.expiry = options.amm.expiry;
         // Create InstrumentSetting from setting, condition, and spacing
         this.instrumentSetting = new InstrumentSetting(
             options.setting,
@@ -58,6 +68,28 @@ export class PairSnapshot {
             options.spacing.range
         );
         this.quotation = options.quotation;
+    }
+
+    /**
+     * Get the instrument symbol (e.g., "ETH-USDM").
+     */
+    get instrumentSymbol(): string {
+        return this.instrumentSetting.symbol;
+    }
+
+    /**
+     * Get the pair symbol (e.g., "ETH-USDM-PERP" for perpetuals or "ETH-USDM-241225" for dated contracts).
+     * Format: {instrumentSymbol}-{PERP|YYMMDD}
+     */
+    get pairSymbol(): string {
+        const symbol = this.instrumentSymbol;
+        if (this.expiry === PERP_EXPIRY) {
+            return `${symbol}-PERP`;
+        }
+        // Format expiry as YYMMDD (2-digit year, month, day)
+        const expiryDate = new Date(this.expiry * 1000);
+        const yyMMdd = formatInTimeZone(expiryDate, 'UTC', 'yyMMdd');
+        return `${symbol}-${yyMMdd}`;
     }
 
     /**

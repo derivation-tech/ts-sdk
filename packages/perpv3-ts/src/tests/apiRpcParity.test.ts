@@ -5,14 +5,21 @@ import type { Address, Chain, PublicClient } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { base as baseChain } from 'viem/chains';
 import { abctest } from '@synfutures/viem-kit';
-import { SimulationError } from '../types/error';
-import { InstrumentSetting } from '../types/setting';
-import { type Amm, type BlockInfo, type Portfolio, type Quotation, type Setting, Side } from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
-import type { OnchainContext } from '../types/contract';
-import { Position } from '../types/position';
-import { QuotationWithSize } from '../types/quotation';
-import { UserSetting } from '../types';
+import {
+    InstrumentSetting,
+    PairSnapshot,
+    Position,
+    QuotationWithSize,
+    Side,
+    SimulationError,
+    UserSetting,
+    type Amm,
+    type BlockInfo,
+    type OnchainContext,
+    type Portfolio,
+    type Quotation,
+    type Setting,
+} from '../types';
 import { TradeInput } from '../actions/trade';
 import { AdjustInput } from '../actions/adjust';
 import { PlaceInput } from '../actions/order';
@@ -277,7 +284,7 @@ beforeAll(async () => {
 
 if (!parityFixtureEnv || scenarios.length === 0) {
     describe('simulate api/rpc parity', () => {
-        test.skip('SIMULATE_PARITY_FIXTURE not provided, skipping parity tests', () => { });
+        test.skip('SIMULATE_PARITY_FIXTURE not provided, skipping parity tests', () => {});
     });
 } else {
     describe('simulate api/rpc parity', () => {
@@ -452,15 +459,7 @@ async function runMarketByMarginScenario(
         portfolioContext
     );
 
-    const tradeInput = new TradeInput(
-        scenario.instrumentAddress,
-        scenario.expiry,
-        traderAddress,
-        bigAbs(signedSize),
-        side,
-        userSetting,
-        { margin: marginAmount }
-    );
+    const tradeInput = new TradeInput(traderAddress, bigAbs(signedSize), side, { margin: marginAmount });
 
     // Use the original onchainContext for API side (it was passed to loadMarketArtifacts)
     const apiOnchainContextWithQuotation = onchainContext.with({
@@ -472,7 +471,7 @@ async function runMarketByMarginScenario(
     });
 
     const apiQuotationWithSize = artifacts.quotationWithSize;
-    const [, apiResult] = tradeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize);
+    const [, apiResult] = tradeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -485,7 +484,7 @@ async function runMarketByMarginScenario(
         throw new Error('Quotation is required');
     }
     const rpcQuotationWithSize = new QuotationWithSize(signedSize, rpcOnchainContext.quotation);
-    const [, rpcResult] = tradeInput.simulate(rpcOnchainContext, rpcQuotationWithSize);
+    const [, rpcResult] = tradeInput.simulate(rpcOnchainContext, rpcQuotationWithSize, userSetting);
 
     compareTradeResults(apiResult, rpcResult);
 }
@@ -538,14 +537,7 @@ async function runMarketByLeverageScenario(
         userSetting.markPriceBufferInBps,
         userSetting.strictMode
     );
-    const tradeInput = new TradeInput(
-        scenario.instrumentAddress,
-        scenario.expiry,
-        traderAddress,
-        bigAbs(signedSize),
-        side,
-        leverageUserSetting
-    );
+    const tradeInput = new TradeInput(traderAddress, bigAbs(signedSize), side);
 
     // Use the original onchainContext for API side (it was passed to loadMarketArtifacts)
     const apiOnchainContextWithQuotation = onchainContext.with({
@@ -557,7 +549,7 @@ async function runMarketByLeverageScenario(
     });
 
     const apiQuotationWithSize = artifacts.quotationWithSize;
-    const [, apiResult] = tradeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize);
+    const [, apiResult] = tradeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -570,7 +562,7 @@ async function runMarketByLeverageScenario(
         throw new Error('Quotation is required');
     }
     const rpcQuotationWithSize = new QuotationWithSize(signedSize, rpcOnchainContext.quotation);
-    const [, rpcResult] = tradeInput.simulate(rpcOnchainContext, rpcQuotationWithSize);
+    const [, rpcResult] = tradeInput.simulate(rpcOnchainContext, rpcQuotationWithSize, userSetting);
 
     compareTradeResults(apiResult, rpcResult);
 }
@@ -603,12 +595,9 @@ async function runMarketCloseScenario(
 
     const closeSide = signedSize >= ZERO ? Side.LONG : Side.SHORT;
     const closeInput = new TradeInput(
-        scenario.instrumentAddress,
-        scenario.expiry,
         traderAddress,
         abs(signedSize), // positive quantity
-        closeSide, // side determined from signed size
-        userSetting
+        closeSide // side determined from signed size
     );
 
     const artifacts = await loadMarketArtifacts(
@@ -632,7 +621,7 @@ async function runMarketCloseScenario(
     });
 
     const apiQuotationWithSize = artifacts.quotationWithSize;
-    const [, apiResult] = closeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize);
+    const [, apiResult] = closeInput.simulate(apiOnchainContextWithQuotation, apiQuotationWithSize, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -645,7 +634,7 @@ async function runMarketCloseScenario(
         throw new Error('Quotation is required');
     }
     const rpcQuotationWithSize = new QuotationWithSize(signedSize, rpcOnchainContext.quotation);
-    const [, rpcResult] = closeInput.simulate(rpcOnchainContext, rpcQuotationWithSize);
+    const [, rpcResult] = closeInput.simulate(rpcOnchainContext, rpcQuotationWithSize, userSetting);
 
     compareTradeResults(apiResult, rpcResult);
 
@@ -685,19 +674,12 @@ async function runAdjustMarginScenario(
     const instrumentSetting = portfolioContext?.instrumentSetting ?? onchainContext.instrumentSetting;
 
     const userSetting = new UserSetting(0, 0, 3n * WAD);
-    const adjustInput = new AdjustInput(
-        instrumentAddress,
-        expiry,
-        traderAddress,
-        userSetting,
-        amount,
-        scenario.input.transferIn
-    );
+    const adjustInput = new AdjustInput(traderAddress, amount, scenario.input.transferIn);
 
     const apiOnchainContext = onchainContext.with({
         portfolio: portfolioContext?.portfolio ?? createEmptyPortfolio(),
     });
-    const [, apiResult] = adjustInput.simulate(apiOnchainContext);
+    const [apiParam, apiResult] = adjustInput.simulate(apiOnchainContext, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -705,7 +687,7 @@ async function runAdjustMarginScenario(
         cloneRpcConfigWithBlock(rpcConfig, onchainContext.blockInfo?.height),
         traderAddress
     );
-    const [, rpcResult] = adjustInput.simulate(rpcOnchainContext);
+    const [rpcParam, rpcResult] = adjustInput.simulate(rpcOnchainContext, userSetting);
 
     // TypeScript narrows the types after checking
     // apiResult and rpcResult are AdjustSimulation
@@ -754,12 +736,12 @@ async function runAdjustMarginByLeverageScenario(
     const instrumentSetting = portfolioContext?.instrumentSetting ?? onchainContext.instrumentSetting;
 
     const userSetting = new UserSetting(0, 0, targetLeverage);
-    const adjustInput = new AdjustInput(instrumentAddress, expiry, traderAddress, userSetting);
+    const adjustInput = new AdjustInput(traderAddress);
 
     const apiOnchainContext = onchainContext.with({
         portfolio: portfolioContext?.portfolio ?? createEmptyPortfolio(),
     });
-    const [apiParam, apiResult] = adjustInput.simulate(apiOnchainContext);
+    const [apiParam, apiResult] = adjustInput.simulate(apiOnchainContext, userSetting);
 
     const rpcOnchainContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -767,7 +749,7 @@ async function runAdjustMarginByLeverageScenario(
         cloneRpcConfigWithBlock(rpcConfig, onchainContext.blockInfo?.height),
         traderAddress
     );
-    const [rpcParam, rpcResult] = adjustInput.simulate(rpcOnchainContext);
+    const [rpcParam, rpcResult] = adjustInput.simulate(rpcOnchainContext, userSetting);
 
     // TypeScript narrows the types after checking
     // apiResult and rpcResult are AdjustSimulation
@@ -837,21 +819,13 @@ async function runLimitOrderScenario(
         userSetting.strictMode
     );
 
-    const placeInput = new PlaceInput(
-        scenario.instrumentAddress,
-        scenario.expiry,
-        scenario.traderAddress,
-        targetTick,
-        baseQuantity,
-        side,
-        userSettingWithBuffer
-    );
+    const placeInput = new PlaceInput(scenario.traderAddress, targetTick, baseQuantity, side);
 
     // Simulate with API context
     const apiContextWithPortfolio = context.with({
         portfolio,
     });
-    const [apiPlaceParam] = placeInput.simulate(apiContextWithPortfolio);
+    const [apiPlaceParam] = placeInput.simulate(apiContextWithPortfolio, userSettingWithBuffer);
 
     const rpcContext = await fetchOnchainContextFromRpc(
         instrumentAddress,
@@ -864,7 +838,7 @@ async function runLimitOrderScenario(
         ...getOnchainContextOptions(rpcContext),
         portfolio,
     });
-    const [rpcPlaceParam] = placeInput.simulate(rpcContextWithPortfolio);
+    const [rpcPlaceParam] = placeInput.simulate(rpcContextWithPortfolio, userSettingWithBuffer);
 
     // Verify both produce the same placeParam
     expect(normalizeData(apiPlaceParam)).toEqual(normalizeData(rpcPlaceParam));

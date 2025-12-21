@@ -2,7 +2,7 @@
  * Math operations for bigint and numeric types
  */
 
-import { Errors, ErrorCode } from './types/error';
+import { Errors, ErrorCode } from './types';
 import {
     MAX_INT_24,
     MAX_SAFE_INTEGER,

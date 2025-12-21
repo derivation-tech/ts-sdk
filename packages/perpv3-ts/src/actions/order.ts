@@ -1,33 +1,17 @@
 import type { Address } from 'viem';
 import { abs, wmulDown, ratioToWad, tickToWad } from '../math';
-import { Order } from '../types/order';
-import { UserSetting } from '../types';
-import { type PlaceParam, Side, sideSign } from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
-import { Errors, ErrorCode } from '../types/error';
+import { Errors, ErrorCode, Order, PairSnapshot, Side, sideSign, UserSetting, type PlaceParam } from '../types';
 
 export class PlaceInput {
-    public readonly instrumentAddress: Address;
-    public readonly expiry: number;
     public readonly traderAddress: Address;
 
     public readonly tick: number;
     public readonly baseQuantity: bigint; // unsigned base quantity
     public readonly side: Side; // LONG or SHORT
 
-    public readonly userSetting: UserSetting;
-
     public readonly targetPrice: bigint; // cached price at tick
 
-    constructor(
-        instrumentAddress: Address,
-        expiry: number,
-        traderAddress: Address,
-        tick: number,
-        baseQuantity: bigint,
-        side: Side,
-        userSetting: UserSetting
-    ) {
+    constructor(traderAddress: Address, tick: number, baseQuantity: bigint, side: Side) {
         // Validate baseQuantity is positive at construction time
         if (baseQuantity <= 0n) {
             throw Errors.validation('Order baseQuantity must be positive', ErrorCode.INVALID_SIZE, {
@@ -35,13 +19,10 @@ export class PlaceInput {
             });
         }
 
-        this.instrumentAddress = instrumentAddress;
-        this.expiry = expiry;
         this.traderAddress = traderAddress;
         this.tick = tick;
         this.baseQuantity = baseQuantity;
         this.side = side;
-        this.userSetting = userSetting;
         this.targetPrice = tickToWad(tick);
     }
 
@@ -58,15 +39,16 @@ export class PlaceInput {
      * Handles all validation, parameter conversion, and simulation in one call.
      *
      * @param snapshot - Pair snapshot (must include portfolio and priceData.markPrice)
+     * @param userSetting - User settings (leverage, deadline, etc.)
      * @returns Tuple of [validated PlaceParam, simulation result]
      */
-    simulate(snapshot: PairSnapshot): [PlaceParam, PlaceInputSimulation] {
+    simulate(snapshot: PairSnapshot, userSetting: UserSetting): [PlaceParam, PlaceInputSimulation] {
         const { instrumentSetting } = snapshot;
         const markPrice = snapshot.priceData.markPrice;
 
         // Validate leverage (baseQuantity validation is done in constructor)
-        if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
-            this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
+        if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
+            userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
         }
 
         // Calculate required margin based on leverage
@@ -77,17 +59,17 @@ export class PlaceInput {
         const tempOrder = new Order(0n, signedSize, this.tick, 0);
         const requiredMargin = tempOrder.marginForLeverage(
             markPrice,
-            this.userSetting.leverage,
-            this.userSetting.markPriceBufferInBps
+            userSetting.leverage,
+            userSetting.markPriceBufferInBps
         );
 
         // Convert to PlaceParam
         const placeParam: PlaceParam = {
-            expiry: this.expiry,
+            expiry: snapshot.expiry,
             tick: this.tick,
             size: signedSize,
             amount: requiredMargin,
-            deadline: this.userSetting.getDeadline(),
+            deadline: userSetting.getDeadline(),
         };
 
         // Validate PlaceParam with full context (includes minimum order value check)

@@ -1,33 +1,25 @@
 import { parseUnits } from 'viem';
-import { wmul, abs, sqrtX96ToWad } from '../math';
+import { abs, sqrtX96ToWad, wmul } from '../math';
 import { WAD_DECIMALS, ZERO } from '../constants';
-import { PERP_EXPIRY, Side } from '../types/contract';
-import { TradeInput } from '../actions/trade';
-import { AdjustInput } from '../actions/adjust';
-import { QuotationWithSize } from '../types/quotation';
 import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { fetchOnchainContext } from '../queries';
-import { encodeTradeParam, encodeAdjustParam } from '../utils/encode';
-import { DefaultUserSetting, ensureMarginAndAllowance } from './utils';
-import { formatTick, formatWad, formatTokenAmount } from '../utils/format';
+import { AdjustInput } from '../actions/adjust';
+import { TradeInput } from '../actions/trade';
+import { QuotationWithSize, Side, UserSetting } from '../types';
+import { encodeAdjustParam, encodeTradeParam } from '../utils/encode';
+import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
-import { UserSetting } from '../types';
+import { DefaultUserSetting, ensureMarginAndAllowance } from './utils';
 
 /**
  * Demo: Trade by margin using TradeInput
  */
 export async function demoTradeByMargin(context: DemoContext): Promise<void> {
-    const {
-        instrumentAddress,
-        walletAddress,
-        instrumentSetting,
-        snapshot,
-        publicClient,
-        walletClient,
-        kit,
-        rpcConfig,
-    } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
+    const { instrumentSetting } = snapshot;
 
     const fairPrice = sqrtX96ToWad(snapshot.amm.sqrtPX96);
     const markPrice = snapshot.priceData.markPrice;
@@ -49,16 +41,10 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
 
     await ensureMarginAndAllowance(snapshot, publicClient, walletClient, kit, marginNeeded);
 
-    // Fetch quotation
+    // Fetch quotation using client
     const signedSize = side === Side.LONG ? baseQuantity : -baseQuantity;
-    const onchainContextWithQuotation = await fetchOnchainContext(
-        instrumentAddress,
-        PERP_EXPIRY,
-        rpcConfig,
-        walletAddress,
-        signedSize
-    );
-    const quotation = onchainContextWithQuotation.quotation;
+    const snapshotWithQuotation = await perpClient.getSnapshot(walletAddress, signedSize);
+    const quotation = snapshotWithQuotation.quotation;
 
     if (!quotation) {
         throw new Error('Failed to fetch quotation');
@@ -67,17 +53,9 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
     const quotationWithSize = new QuotationWithSize(signedSize, quotation);
 
     // Create TradeInput (by margin) and simulate
-    const tradeInput = new TradeInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        baseQuantity,
-        side,
-        DefaultUserSetting,
-        { margin: marginAmountInWad }
-    );
+    const tradeInput = new TradeInput(walletAddress, baseQuantity, side, { margin: marginAmountInWad });
 
-    const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize);
+    const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize, perpClient.userSetting);
 
     console.log(`📈 Executing trade by margin (limit tick: ${formatTick(tradeParam.limitTick)})...`);
     console.log(`ℹ️ Post-trade margin delta: ${formatWad(simulation.marginDelta)}`);
@@ -85,7 +63,7 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
 
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'trade',
         args: [encodeTradeParam(tradeParam)],
@@ -99,16 +77,11 @@ export async function demoTradeByMargin(context: DemoContext): Promise<void> {
  * Demo: Trade by leverage using TradeInput
  */
 export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
-    const {
-        instrumentAddress,
-        walletAddress,
-        instrumentSetting,
-        snapshot,
-        publicClient,
-        walletClient,
-        kit,
-        rpcConfig,
-    } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
+    const { instrumentSetting } = snapshot;
 
     const fairPrice = sqrtX96ToWad(snapshot.amm.sqrtPX96);
     const markPrice = snapshot.priceData.markPrice;
@@ -124,16 +97,10 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Base quantity: ${formatWad(baseQuantity)}`);
     console.log(`ℹ️ Target leverage: ${formatWad(targetLeverage)}x`);
 
-    // Fetch quotation
+    // Fetch quotation using client
     const signedSize = side === Side.LONG ? baseQuantity : -baseQuantity;
-    const onchainContextWithQuotation = await fetchOnchainContext(
-        instrumentAddress,
-        PERP_EXPIRY,
-        rpcConfig,
-        walletAddress,
-        signedSize
-    );
-    const quotation = onchainContextWithQuotation.quotation;
+    const snapshotWithQuotation = await perpClient.getSnapshot(walletAddress, signedSize);
+    const quotation = snapshotWithQuotation.quotation;
 
     if (!quotation) {
         throw new Error('Failed to fetch quotation');
@@ -142,16 +109,9 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
     const quotationWithSize = new QuotationWithSize(signedSize, quotation);
 
     // Create TradeInput (by leverage) and simulate
-    const tradeInput = new TradeInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        baseQuantity,
-        side,
-        DefaultUserSetting
-    );
+    const tradeInput = new TradeInput(walletAddress, baseQuantity, side);
 
-    const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize);
+    const [tradeParam, simulation] = tradeInput.simulate(snapshot, quotationWithSize, perpClient.userSetting);
 
     if (simulation.marginDelta > ZERO) {
         const marginNeeded = wmul(simulation.marginDelta, 10n ** BigInt(instrumentSetting.quoteDecimals));
@@ -166,7 +126,7 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
 
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'trade',
         args: [encodeTradeParam(tradeParam)],
@@ -180,7 +140,10 @@ export async function demoTradeByLeverage(context: DemoContext): Promise<void> {
  * Demo: Close position using TradeInput
  */
 export async function demoCloseTrade(context: DemoContext): Promise<void> {
-    const { instrumentAddress, walletAddress, snapshot, rpcConfig, publicClient, walletClient, kit } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
 
     if (snapshot.portfolio.position.size === ZERO) {
         console.log(`ℹ️ No position to close. Skipping close trade demo.`);
@@ -193,15 +156,9 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Current position size: ${formatWad(abs(signedSize))}`);
     console.log(`ℹ️ Position side: ${signedSize >= ZERO ? 'LONG' : 'SHORT'}`);
 
-    // Fetch quotation for closing
-    const onchainContextWithQuotation = await fetchOnchainContext(
-        instrumentAddress,
-        PERP_EXPIRY,
-        rpcConfig,
-        walletAddress,
-        -signedSize // Opposite sign to close
-    );
-    const quotation = onchainContextWithQuotation.quotation;
+    // Fetch quotation for closing using client
+    const snapshotWithQuotation = await perpClient.getSnapshot(walletAddress, -signedSize); // Opposite sign to close
+    const quotation = snapshotWithQuotation.quotation;
 
     if (!quotation) {
         throw new Error('Failed to fetch quotation');
@@ -214,22 +171,19 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
     const closeSignedSize = -signedSize;
     const closeSide = closeSignedSize >= ZERO ? Side.LONG : Side.SHORT;
     const closeInput = new TradeInput(
-        instrumentAddress,
-        PERP_EXPIRY,
         walletAddress,
         abs(closeSignedSize), // positive quantity
-        closeSide, // side determined from signed size
-        DefaultUserSetting
+        closeSide // side determined from signed size
     );
 
-    const [tradeParam, simulation] = closeInput.simulate(snapshot, quotationWithSize);
+    const [tradeParam, simulation] = closeInput.simulate(snapshot, quotationWithSize, perpClient.userSetting);
 
     console.log(`📈 Closing position (limit tick: ${formatTick(tradeParam.limitTick)})...`);
     console.log(`ℹ️ Realized PnL: ${formatWad(simulation.realized)}`);
 
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'trade',
         args: [encodeTradeParam(tradeParam)],
@@ -243,7 +197,11 @@ export async function demoCloseTrade(context: DemoContext): Promise<void> {
  * Demo: Adjust margin using AdjustInput
  */
 export async function demoAdjustMargin(context: DemoContext): Promise<void> {
-    const { instrumentAddress, walletAddress, instrumentSetting, snapshot, publicClient, walletClient, kit } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
+    const { instrumentSetting } = snapshot;
 
     if (snapshot.portfolio.position.size === ZERO) {
         console.log(`ℹ️ No position to adjust margin for. Skipping adjust margin demo.`);
@@ -266,15 +224,12 @@ export async function demoAdjustMargin(context: DemoContext): Promise<void> {
 
     // Create AdjustInput and simulate
     const adjustInput = new AdjustInput(
-        instrumentAddress,
-        PERP_EXPIRY,
         walletAddress,
-        DefaultUserSetting,
         marginAmountInWad,
         true // transferIn
     );
 
-    const [adjustParam, simulation] = adjustInput.simulate(snapshot);
+    const [adjustParam, simulation] = adjustInput.simulate(snapshot, perpClient.userSetting);
 
     const postPosition = simulation.postPosition;
     const newLeverage = postPosition.leverage(snapshot.amm, markPrice);
@@ -288,7 +243,7 @@ export async function demoAdjustMargin(context: DemoContext): Promise<void> {
     // Adjust margin uses trade function with size=0
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'trade',
         args: [encodeAdjustParam(adjustParam)],
@@ -302,7 +257,11 @@ export async function demoAdjustMargin(context: DemoContext): Promise<void> {
  * Demo: Adjust leverage using AdjustInput
  */
 export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
-    const { instrumentAddress, walletAddress, instrumentSetting, snapshot, publicClient, walletClient, kit } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
+    const { instrumentSetting } = snapshot;
 
     if (snapshot.portfolio.position.size === ZERO) {
         console.log(`ℹ️ No position to adjust leverage for. Skipping adjust leverage demo.`);
@@ -326,9 +285,9 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
         DefaultUserSetting.markPriceBufferInBps,
         DefaultUserSetting.strictMode
     );
-    const adjustInput = new AdjustInput(instrumentAddress, PERP_EXPIRY, walletAddress, targetLeverageUserSetting);
+    const adjustInput = new AdjustInput(walletAddress);
 
-    const [adjustParam, simulation] = adjustInput.simulate(snapshot);
+    const [adjustParam, simulation] = adjustInput.simulate(snapshot, targetLeverageUserSetting);
 
     const marginDelta = adjustParam.net;
     const marginNeeded = abs(marginDelta);
@@ -348,12 +307,11 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
     }
 
     const postPosition = simulation.postPosition;
-    const newLeverage = postPosition.leverage(snapshot.amm, markPrice);
     const newLiquidationPrice = postPosition.liquidationPrice(snapshot.amm, instrumentSetting.maintenanceMarginRatio);
 
     console.log(`📈 Adjusting leverage to ${formatWad(targetLeverage)}x...`);
     console.log(`ℹ️ New position margin: ${formatWad(postPosition.balance)}`);
-    console.log(`ℹ️ New leverage: ${formatWad(newLeverage)}x`);
+    console.log(`ℹ️ New leverage: ${formatWad(targetLeverage)}x`);
     console.log(`ℹ️ Margin delta: ${formatWad(marginDelta)}`);
     console.log(`ℹ️ Transfer in: ${marginDelta >= ZERO}`);
     console.log(`ℹ️ Liquidation price: ${formatWad(newLiquidationPrice)}`);
@@ -361,7 +319,7 @@ export async function demoAdjustLeverage(context: DemoContext): Promise<void> {
     // Adjust leverage uses trade function with size=0
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'trade',
         args: [encodeAdjustParam(adjustParam)],

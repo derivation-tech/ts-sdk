@@ -1,17 +1,17 @@
 import type { Address } from 'viem';
-import { wmul, wmulDown, wdiv, abs, ratioToWad, wadToTick, tickToWad, sqrtX96ToTick, wdivUp } from '../math';
+import { abs, ratioToWad, sqrtX96ToTick, tickToWad, wadToTick, wdiv, wdivUp, wmul, wmulDown } from '../math';
 import {
-    RATIO_BASE,
-    WAD,
-    Q96,
-    ONE_RATIO,
     DEFAULT_DEADLINE_SECONDS,
     DEFAULT_FUNDING_HOUR,
-    MIN_TICK,
     MAX_TICK,
+    MIN_TICK,
+    ONE_RATIO,
+    Q96,
+    RATIO_BASE,
+    WAD,
 } from '../constants';
-import { type Setting, type QuoteParam, Side, sideSign, Condition } from './contract';
 import { Errors, ErrorCode } from './error';
+import { Condition, Side, sideSign, type QuoteParam, type Setting } from './contract';
 
 export class UserSetting {
     /**

@@ -1,8 +1,6 @@
 import type { Address, PublicClient, WalletClient } from 'viem';
 import { ChainKit } from '@synfutures/viem-kit';
-import type { RpcConfig } from '../../queries/config';
-import type { InstrumentSetting, PairSnapshot } from '../../types';
-import type { PerpInfo } from '../../info';
+import type { PerpClient } from '../../client';
 
 /**
  * Demo context containing all necessary setup for running demos.
@@ -11,16 +9,11 @@ import type { PerpInfo } from '../../info';
 export interface DemoContext {
     chainName: string;
     signerId: string;
-    instrumentSymbol: string;
     kit: ChainKit;
     publicClient: PublicClient;
     walletClient: WalletClient;
     walletAddress: Address;
-    rpcConfig: RpcConfig;
-    instrumentAddress: Address;
-    instrumentSetting: InstrumentSetting;
-    snapshot: PairSnapshot;
-    perpInfo: PerpInfo;
+    perpClient: PerpClient;
 }
 
 /**

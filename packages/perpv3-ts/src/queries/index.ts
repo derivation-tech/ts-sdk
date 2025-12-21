@@ -1,17 +1,16 @@
 import type { Address } from 'viem';
 import { fetchFuturesPairOrderBook } from '../apis/api';
 import type { IFuturesOrderBookAllSteps } from '../apis/interfaces';
-import { type Quotation } from '../types/contract';
-import { type PairSnapshot } from '../types/snapshot';
+import type { PairSnapshot, Quotation } from '../types';
 import { fetchOnchainContext as fetchOnchainContextFromApi, inquireByTick as inquireByTickFromApi } from './api';
 import {
     fetchOnchainContext as fetchOnchainContextFromRpc,
-    inquireByTick as inquireByTickFromRpc,
     fetchOrderBookFromObserver as fetchOrderBookFromObserverRpc,
+    inquireByTick as inquireByTickFromRpc,
     type FetchOrderBookOptions,
 } from './rpc';
 import { isApiConfig } from './config';
-import type { ApiConfig, RpcConfig, ReadOptions } from './config';
+import type { ApiConfig, ReadOptions, RpcConfig } from './config';
 
 // ============================================================================
 // Unified Data Fetching Functions

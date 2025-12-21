@@ -1,11 +1,7 @@
 import type { Address } from 'viem';
 import { abs } from '../math';
 import { ZERO } from '../constants';
-import { Errors, ErrorCode } from '../types/error';
-import { Position } from '../types/position';
-import { type AdjustParam } from '../types/contract';
-import { type PairSnapshot } from '../types/snapshot';
-import { UserSetting } from '../types';
+import { Errors, ErrorCode, Position, UserSetting, type AdjustParam, type PairSnapshot } from '../types';
 
 // ============================================================================
 // Adjust Input Classes
@@ -18,27 +14,13 @@ import { UserSetting } from '../types';
  * - Leverage adjustment: Omit `amount` and `transferIn` to adjust to target leverage from `userSetting.leverage`
  */
 export class AdjustInput {
-    public readonly instrumentAddress: Address;
-    public readonly expiry: number;
     public readonly traderAddress: Address;
 
     public readonly amount?: bigint;
     public readonly transferIn?: boolean;
 
-    public readonly userSetting: UserSetting;
-
-    constructor(
-        instrumentAddress: Address,
-        expiry: number,
-        traderAddress: Address,
-        userSetting: UserSetting,
-        amount?: bigint,
-        transferIn?: boolean
-    ) {
-        this.instrumentAddress = instrumentAddress;
-        this.expiry = expiry;
+    constructor(traderAddress: Address, amount?: bigint, transferIn?: boolean) {
         this.traderAddress = traderAddress;
-        this.userSetting = userSetting;
         this.amount = amount;
         this.transferIn = transferIn;
 
@@ -56,9 +38,10 @@ export class AdjustInput {
      * Mode 2 (Leverage adjustment): When `amount` is omitted, adjusts margin to achieve `userSetting.leverage`.
      *
      * @param snapshot - Pair snapshot (must include portfolio, amm, and priceData.markPrice)
+     * @param userSetting - User settings (leverage, deadline, etc.)
      * @returns Tuple of [validated AdjustParam, simulation result]
      */
-    simulate(snapshot: PairSnapshot): [AdjustParam, AdjustSimulation] {
+    simulate(snapshot: PairSnapshot, userSetting: UserSetting): [AdjustParam, AdjustSimulation] {
         const { instrumentSetting, amm, portfolio } = snapshot;
         const markPrice = snapshot.priceData.markPrice;
         const position = Position.ensureInstance(portfolio.position);
@@ -88,16 +71,16 @@ export class AdjustInput {
             }
         } else {
             // Mode 2: Leverage adjustment
-            if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
-                this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
+            if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
+                userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
             }
 
             // Check if leverage adjustment is feasible
-            if (!position.canAdjustToLeverage(this.userSetting.leverage, amm, markPrice, imr)) {
+            if (!position.canAdjustToLeverage(userSetting.leverage, amm, markPrice, imr)) {
                 throw Errors.simulation('Cannot adjust to target leverage', ErrorCode.SIMULATION_FAILED);
             }
 
-            marginDelta = position.transferAmountFromTargetLeverage(amm, this.userSetting.leverage, markPrice);
+            marginDelta = position.transferAmountFromTargetLeverage(amm, userSetting.leverage, markPrice);
 
             if (marginDelta < ZERO && position.size !== ZERO) {
                 this.validateWithdrawal(snapshot, position, marginDelta, 'leverage adjustment');
@@ -107,9 +90,9 @@ export class AdjustInput {
         const postPosition = position.withBalanceDelta(marginDelta);
 
         const adjustParam: AdjustParam = {
-            expiry: this.expiry,
+            expiry: snapshot.expiry,
             net: marginDelta,
-            deadline: this.userSetting.getDeadline(),
+            deadline: userSetting.getDeadline(),
         };
 
         const simulation: AdjustSimulation = {

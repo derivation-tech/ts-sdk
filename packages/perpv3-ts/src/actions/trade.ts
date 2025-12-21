@@ -1,12 +1,17 @@
 import type { Address } from 'viem';
 import { abs } from '../math';
 import { ZERO } from '../constants';
-import { Errors, ErrorCode } from '../types/error';
-import { Position } from '../types/position';
-import { QuotationWithSize } from '../types/quotation';
-import { UserSetting } from '../types';
-import { type TradeParam, Side, sideSign } from '../types/contract';
-import { type PairSnapshot } from '../types/snapshot';
+import {
+    Errors,
+    ErrorCode,
+    Position,
+    QuotationWithSize,
+    UserSetting,
+    Side,
+    sideSign,
+    type PairSnapshot,
+    type TradeParam,
+} from '../types';
 
 // ============================================================================
 // Trade Input Classes
@@ -20,36 +25,22 @@ export interface TradeInputOptions {
 }
 
 export class TradeInput {
-    public readonly instrumentAddress: Address;
-    public readonly expiry: number;
     public readonly traderAddress: Address;
 
     public readonly side: Side;
     public readonly baseQuantity: bigint;
 
-    public readonly userSetting: UserSetting;
     public readonly margin?: bigint;
 
-    constructor(
-        instrumentAddress: Address,
-        expiry: number,
-        traderAddress: Address,
-        baseQuantity: bigint,
-        side: Side,
-        userSetting: UserSetting,
-        options?: TradeInputOptions
-    ) {
+    constructor(traderAddress: Address, baseQuantity: bigint, side: Side, options?: TradeInputOptions) {
         if (baseQuantity <= 0n) {
             throw Errors.validation('Trade quantity must be positive', ErrorCode.INVALID_SIZE, {
                 baseQuantity: baseQuantity.toString(),
             });
         }
-        this.instrumentAddress = instrumentAddress;
-        this.expiry = expiry;
         this.traderAddress = traderAddress;
         this.baseQuantity = baseQuantity;
         this.side = side;
-        this.userSetting = userSetting;
         this.margin = options?.margin;
     }
 
@@ -67,15 +58,19 @@ export class TradeInput {
      * Note: Use the returned TradeParam for calldata encoding. Its `amount` is finalized by simulation
      * (it may be adjusted to satisfy margin/leverage constraints).
      */
-    simulate(snapshot: PairSnapshot, quotationWithSize: QuotationWithSize): [TradeParam, TradeSimulation] {
+    simulate(
+        snapshot: PairSnapshot,
+        quotationWithSize: QuotationWithSize,
+        userSetting: UserSetting
+    ): [TradeParam, TradeSimulation] {
         // Step 1: Extract context and validate inputs as early as possible
         const { instrumentSetting } = snapshot;
         const currentPosition = snapshot.portfolio.position;
         const markPrice = snapshot.priceData.markPrice;
 
         // Validate leverage first (before any calculations)
-        if (!instrumentSetting.isLeverageValid(this.userSetting.leverage)) {
-            this.userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
+        if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
+            userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
         }
 
         // Validate trade context (condition, status, price deviation, min trade value)
@@ -85,7 +80,7 @@ export class TradeInput {
         const updatedAmm = snapshot.updateAmmFundingIndex();
 
         // Step 3: Build trade parameters
-        const tradeParam = this.toTradeParam(quotationWithSize);
+        const tradeParam = this.toTradeParam(quotationWithSize, snapshot.expiry, userSetting);
         const isLong = tradeParam.size >= ZERO;
         const tradeSign = isLong ? 1n : -1n;
 
@@ -98,7 +93,7 @@ export class TradeInput {
                 updatedAmm,
                 tradeParam,
                 quotationWithSize,
-                this.userSetting.leverage
+                userSetting.leverage
             );
         }
 
@@ -131,7 +126,7 @@ export class TradeInput {
             const maxWithdrawable = updatedSnapshot.getMaxWithdrawableMargin();
 
             if (abs(marginDelta) > maxWithdrawable) {
-                if (this.userSetting.strictMode) {
+                if (userSetting.strictMode) {
                     throw Errors.simulation(
                         'Withdrawal amount exceeds maximum withdrawable margin',
                         ErrorCode.SIMULATION_FAILED
@@ -159,7 +154,7 @@ export class TradeInput {
         } else {
             // Opening or increasing position: check IMR
             if (!postPosition.isImrSafe(updatedAmm, instrumentSetting.imr, true, markPrice)) {
-                if (this.userSetting.strictMode) {
+                if (userSetting.strictMode) {
                     throw Errors.simulation('Exceed max leverage', ErrorCode.SIMULATION_FAILED);
                 }
                 // Auto-adjust margin to meet IMR requirements
@@ -167,7 +162,7 @@ export class TradeInput {
                     updatedAmm,
                     instrumentSetting.imr,
                     true,
-                    this.userSetting.slippage,
+                    userSetting.slippage,
                     markPrice
                 );
                 postPosition = postPosition.withBalanceDelta(additionalMargin);
@@ -193,13 +188,13 @@ export class TradeInput {
         return [tradeParam, simulation];
     }
 
-    private toTradeParam(quotationWithSize: QuotationWithSize): TradeParam {
+    private toTradeParam(quotationWithSize: QuotationWithSize, expiry: number, userSetting: UserSetting): TradeParam {
         const tradePrice = quotationWithSize.tradePrice;
-        const limitTick = this.userSetting.getTradeLimitTick(tradePrice, this.side);
-        const deadline = this.userSetting.getDeadline();
+        const limitTick = userSetting.getTradeLimitTick(tradePrice, this.side);
+        const deadline = userSetting.getDeadline();
 
         return {
-            expiry: this.expiry,
+            expiry,
             size: this.getSignedSize(),
             amount: this.margin ?? ZERO,
             limitTick,

@@ -1,8 +1,4 @@
 import { Address, Hex, encodeFunctionData, ethAddress, zeroAddress } from 'viem';
-import { Errors, ErrorCode } from '../types/error';
-import { MAX_CANCEL_ORDER_COUNT } from '../types/setting';
-import { UserSetting } from '../types';
-import { Side } from '../types';
 import {
     CURRENT_GATE_ABI,
     CURRENT_GELATO_RELAY_ROUTER_ABI,
@@ -10,14 +6,19 @@ import {
     ERC20_WITH_PERMIT_ABI,
 } from '../abis';
 import {
-    AdjustParam,
-    AddParam,
-    BatchPlaceParam,
-    FillParam,
-    PlaceParam,
-    RemoveParam,
-    TradeParam,
-} from '../types/contract';
+    Errors,
+    ErrorCode,
+    MAX_CANCEL_ORDER_COUNT,
+    Side,
+    UserSetting,
+    type AdjustParam,
+    type AddParam,
+    type BatchPlaceParam,
+    type FillParam,
+    type PlaceParam,
+    type RemoveParam,
+    type TradeParam,
+} from '../types';
 import {
     encodeAddParam,
     encodeAdjustParam,

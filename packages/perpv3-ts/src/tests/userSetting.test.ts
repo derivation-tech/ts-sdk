@@ -1,4 +1,4 @@
-import { MAX_SLIPPAGE, UserSetting } from '../types/setting';
+import { MAX_SLIPPAGE, UserSetting } from '../types';
 import { WAD } from '../constants';
 
 // Note: validateUserSetting was removed as it was not a range-specific function

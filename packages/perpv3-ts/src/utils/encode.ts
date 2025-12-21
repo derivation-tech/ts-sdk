@@ -1,17 +1,17 @@
 import { Hex, padHex, toHex } from 'viem';
-import { EMPTY_TICK, ZERO, RATIO_BASE, MAX_BATCH_ORDER_COUNT } from '../constants';
-import { asUint16, asUint24, asUint48, asUint128 } from '../math';
-import { Errors } from '../types/error';
-import { MAX_CANCEL_ORDER_COUNT } from '../types/setting';
-import type {
-    AddParam,
-    AdjustParam,
-    BatchCancelParam,
-    FillParam,
-    PlaceParam,
-    RemoveParam,
-    TradeParam,
-} from '../types/contract';
+import { EMPTY_TICK, MAX_BATCH_ORDER_COUNT, RATIO_BASE, ZERO } from '../constants';
+import { asUint128, asUint16, asUint24, asUint48 } from '../math';
+import {
+    Errors,
+    MAX_CANCEL_ORDER_COUNT,
+    type AddParam,
+    type AdjustParam,
+    type BatchCancelParam,
+    type FillParam,
+    type PlaceParam,
+    type RemoveParam,
+    type TradeParam,
+} from '../types';
 
 // ============================================================================
 // Exported Functions

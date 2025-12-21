@@ -1,10 +1,11 @@
 import type { Address } from 'viem';
 import { createWalletClient, http } from 'viem';
 import { getAccount } from '@synfutures/viem-kit';
+import { PerpClient } from '../../client';
+import { getPerpInfo } from '../../info';
 import { PERP_EXPIRY } from '../../types/contract';
-import { fetchOnchainContext } from '../../queries';
 import type { DemoContext } from './types';
-import { prepare, findInstrumentBySymbol } from '../utils';
+import { DefaultUserSetting, findInstrumentBySymbol, prepare } from '../utils';
 
 /**
  * Create a demo context with all necessary setup.
@@ -15,7 +16,7 @@ export async function createDemoContext(
     signerId: string,
     instrumentSymbol: string
 ): Promise<DemoContext> {
-    const { kit, publicClient, perpInfo, instrumentSettingMap } = await prepare(chainName);
+    const { kit, publicClient, instrumentSettingMap } = await prepare(chainName);
     const { instrumentAddress } = findInstrumentBySymbol(instrumentSymbol, instrumentSettingMap);
 
     const account = await getAccount(kit, signerId);
@@ -26,47 +27,36 @@ export async function createDemoContext(
     });
     const walletAddress = walletClient.account!.address as Address;
 
+    // Get perpInfo from chainId when needed
+    const perpInfo = getPerpInfo(kit.chain.id);
+
     const rpcConfig = {
         chainId: kit.chain.id,
         publicClient,
         observerAddress: perpInfo.observer,
     };
 
-    const snapshot = await fetchOnchainContext(instrumentAddress, PERP_EXPIRY, rpcConfig, walletAddress);
-    const { instrumentSetting } = snapshot;
+    // Create PerpClient
+    const perpClient = new PerpClient(rpcConfig, DefaultUserSetting, instrumentAddress, PERP_EXPIRY);
 
     return {
         chainName,
         signerId,
-        instrumentSymbol,
         kit,
         publicClient,
         walletClient,
         walletAddress,
-        rpcConfig,
-        instrumentAddress,
-        instrumentSetting,
-        snapshot,
-        perpInfo,
+        perpClient,
     };
 }
 
 /**
- * Refresh the onchain context in a demo context.
+ * Refresh the demo context.
  * Useful when state may have changed after a transaction.
+ * Note: PerpClient is immutable, so we don't need to refresh it.
  */
 export async function refreshDemoContext(context: DemoContext): Promise<DemoContext> {
-    const snapshot = await fetchOnchainContext(
-        context.instrumentAddress,
-        PERP_EXPIRY,
-        context.rpcConfig,
-        context.walletAddress
-    );
-    const { instrumentSetting } = snapshot;
-
-    return {
-        ...context,
-        snapshot,
-        instrumentSetting,
-    };
+    // PerpClient is immutable and doesn't need refreshing
+    // Snapshots are fetched fresh via client.getSnapshot() when needed
+    return context;
 }

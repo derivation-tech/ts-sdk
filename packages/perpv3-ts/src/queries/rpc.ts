@@ -1,25 +1,25 @@
-import { type Address, zeroAddress } from 'viem';
-import { mulDivRoundingUp, tickToSqrtX96, tickToWad, ratioToWad, wadToTick } from '../math';
-import { WAD, RATIO_BASE } from '../constants';
+import type { Address } from 'viem';
+import { zeroAddress } from 'viem';
 import { CURRENT_OBSERVER_ABI } from '../abis';
 import type { IFuturesOrderBook, IFuturesOrderBookAllSteps, OrderDataFromApi } from '../apis/interfaces';
-import { Order } from '../types/order';
-import { Position } from '../types/position';
-import { Range } from '../types/range';
+import { mulDivRoundingUp, ratioToWad, tickToSqrtX96, tickToWad, wadToTick } from '../math';
+import { RATIO_BASE, WAD } from '../constants';
 import {
+    Order,
+    PairSnapshot,
+    Position,
+    Range,
     type LiquidityDetails,
     type MinimalPearl,
+    type OnchainContext,
     type Portfolio,
     type PriceData,
     type Quotation,
     type QuoteState,
-} from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
-import type { OnchainContext } from '../types/contract';
-import type { RpcConfig, ReadOptions } from './config';
+} from '../types';
+import type { ReadOptions, RpcConfig } from './config';
 
-export type { PairSnapshot } from '../types/snapshot';
-export type { OnchainContext } from '../types/contract';
+export type { OnchainContext, PairSnapshot } from '../types';
 
 /**
  * Fetches OnchainContext from Observer contract (1:1 mapping with contract OnchainContext struct)

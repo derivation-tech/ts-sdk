@@ -1,20 +1,23 @@
 import { parseUnits } from 'viem';
 import { ratioToWad, sqrtX96ToWad, wadToTick, wmul } from '../math';
 import { RATIO_BASE } from '../constants';
+import { CURRENT_INSTRUMENT_ABI } from '../abis';
 import { AddInput, RemoveInput } from '../actions/range';
 import { encodeAddParam, encodeRemoveParam } from '../utils/encode';
-import { DefaultUserSetting, ensureMarginAndAllowance } from './utils';
-import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { PERP_EXPIRY } from '../types/contract';
-import { formatTick, formatWad, formatTokenAmount } from '../utils/format';
+import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
+import { ensureMarginAndAllowance } from './utils';
 
 /**
  * Demo: Add liquidity using AddInput
  */
 export async function demoAddLiquidity(context: DemoContext): Promise<void> {
-    const { instrumentAddress, walletAddress, snapshot, instrumentSetting, publicClient, walletClient, kit } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
+    const { instrumentSetting } = snapshot;
 
     // Calculate range bounds with random offsets
     const fairPrice = sqrtX96ToWad(snapshot.amm.sqrtPX96);
@@ -35,16 +38,8 @@ export async function demoAddLiquidity(context: DemoContext): Promise<void> {
     // Formula: value * 10^(18 - decimals)
     const amountInWad = amountInDecimals * 10n ** BigInt(18 - instrumentSetting.quoteDecimals);
 
-    const addInput = new AddInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        amountInWad,
-        tickLower,
-        tickUpper,
-        DefaultUserSetting
-    );
-    const [addParam] = addInput.simulate(snapshot);
+    const addInput = new AddInput(walletAddress, amountInWad, tickLower, tickUpper);
+    const [addParam] = addInput.simulate(snapshot, perpClient.userSetting);
 
     // Convert WAD to token decimals: multiply by 10^decimals
     const marginNeededInDecimals = wmul(addInput.marginAmount, 10n ** BigInt(instrumentSetting.quoteDecimals));
@@ -62,7 +57,7 @@ export async function demoAddLiquidity(context: DemoContext): Promise<void> {
     console.log(`📝 Adding liquidity...`);
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'add',
         args: [encodeAddParam(addParam)],
@@ -76,7 +71,10 @@ export async function demoAddLiquidity(context: DemoContext): Promise<void> {
  * Demo: Remove liquidity using RemoveInput
  */
 export async function demoRemoveLiquidity(context: DemoContext): Promise<void> {
-    const { instrumentAddress, walletAddress, snapshot, publicClient, walletClient, kit } = context;
+    const { walletAddress, publicClient, walletClient, kit, perpClient } = context;
+
+    // Get fresh snapshot
+    const snapshot = await perpClient.getSnapshot(walletAddress);
 
     if (snapshot.portfolio.ranges.length === 0) {
         console.log(`ℹ️ No ranges to remove. Skipping remove liquidity demo.`);
@@ -94,15 +92,8 @@ export async function demoRemoveLiquidity(context: DemoContext): Promise<void> {
     console.log(`ℹ️ Range liquidity: ${formatWad(rangeToRemove.liquidity)}`);
 
     // Create RemoveInput and simulate
-    const removeInput = new RemoveInput(
-        instrumentAddress,
-        PERP_EXPIRY,
-        walletAddress,
-        tickLower,
-        tickUpper,
-        DefaultUserSetting
-    );
-    const [removeParam, simulation] = removeInput.simulate(snapshot);
+    const removeInput = new RemoveInput(walletAddress, tickLower, tickUpper);
+    const [removeParam, simulation] = removeInput.simulate(snapshot, perpClient.userSetting);
 
     console.log(`📝 Removing liquidity...`);
     console.log(`ℹ️ Removed position size: ${formatWad(simulation.removedPosition.size)}`);
@@ -113,7 +104,7 @@ export async function demoRemoveLiquidity(context: DemoContext): Promise<void> {
 
     const { sendTxWithLog } = await import('@synfutures/viem-kit');
     await sendTxWithLog(publicClient, walletClient, kit, {
-        address: instrumentAddress,
+        address: perpClient.instrumentAddress,
         abi: CURRENT_INSTRUMENT_ABI,
         functionName: 'remove',
         args: [encodeRemoveParam(removeParam)],

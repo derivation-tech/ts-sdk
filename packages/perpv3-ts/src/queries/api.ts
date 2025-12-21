@@ -1,11 +1,13 @@
-import { type Address, zeroAddress } from 'viem';
-import { Errors } from '../types/error';
-import { Order } from '../types/order';
-import { Position } from '../types/position';
-import { Range } from '../types/range';
+import type { Address } from 'viem';
+import { zeroAddress } from 'viem';
+import { fetchFuturesInstrumentInquireByTick, fetchMarketOnChainContext } from '../apis/api';
 import { getPerpInfo } from '../info';
-import { fetchMarketOnChainContext, fetchFuturesInstrumentInquireByTick } from '../apis/api';
 import {
+    Errors,
+    Order,
+    PairSnapshot,
+    Position,
+    Range,
     type Amm,
     type Portfolio,
     type PriceData,
@@ -13,8 +15,7 @@ import {
     type QuoteState,
     type Setting,
     type SpacingConfig,
-} from '../types/contract';
-import { PairSnapshot } from '../types/snapshot';
+} from '../types';
 import type { ApiConfig } from './config';
 import type {
     InstrumentFromApi,

@@ -104,7 +104,6 @@ export function sortJsonKeys(jsonStr: string): string {
     try {
         const data = JSON.parse(jsonStr);
         return JSON.stringify(data, Object.keys(data).sort());
-
     } catch (error) {
         return jsonStr;
     }
