@@ -1,8 +1,8 @@
 import type { Address } from 'viem';
 import { max, tickToWad, wadToTick, wdivUp, wmulUp } from '../math';
 import { MAX_BATCH_ORDER_COUNT, MIN_BATCH_ORDER_COUNT, RATIO_BASE, ZERO } from '../constants';
-import { Errors, ErrorCode, Order, PairSnapshot, Side, UserSetting, type PlaceParam } from '../types';
-import { PlaceInput, type PlaceInputSimulation } from './order';
+import { Errors, ErrorCode, PairSnapshot, Side, UserSetting, type PlaceParam } from '../types';
+import { PlaceInput, type PlaceSimulation } from './order';
 
 // ============================================================================
 // Scaled Limit Order
@@ -60,7 +60,7 @@ export class ScaledLimitOrderInput {
 
         // Determine ratios based on size distribution
         // For RANDOM distribution, fallback to FLAT if sizes violate minimum constraints
-        const ratios = this.computeRatios(alignedTicks.length, minOrderSizes);
+        const ratios = this.calcRatios(alignedTicks.length, minOrderSizes);
 
         const orders: (ScaledOrderDetail | null)[] = [];
         const portionSizes = ratios.map((ratio) => (this.baseQuantity * BigInt(ratio)) / BigInt(RATIO_BASE));
@@ -81,7 +81,6 @@ export class ScaledLimitOrderInput {
 
                 orders.push({
                     ratio: ratios[i],
-                    minOrderSize: minOrderSizes[i],
                     param: placeParam,
                     simulation,
                 });
@@ -106,29 +105,8 @@ export class ScaledLimitOrderInput {
         // to ensure all orders meet their minimum size constraints
         const maxRatio = minSizeRatios.reduce((acc, value) => max(acc, value), ZERO);
         const minBaseQuantity = maxRatio === ZERO ? ZERO : wmulUp(this.baseQuantity, maxRatio);
-        // Calculate aggregated values from placeParams in a single pass using Order getters
-        const { aggregatedQuote, totalMargin } = orders.reduce(
-            (acc, orderDetail) => {
-                if (orderDetail) {
-                    const order = new Order(
-                        orderDetail.param.amount,
-                        orderDetail.param.size,
-                        orderDetail.param.tick,
-                        0
-                    );
-                    acc.aggregatedQuote += order.value;
-                    acc.totalMargin += orderDetail.param.amount;
-                }
-                return acc;
-            },
-            { aggregatedQuote: ZERO, totalMargin: ZERO }
-        );
-
         const result: ScaledLimitOrderSimulation = {
             orders,
-            totalBase: this.baseQuantity,
-            totalQuote: aggregatedQuote,
-            totalMargin: totalMargin,
             minBase: minBaseQuantity,
         };
 
@@ -136,37 +114,36 @@ export class ScaledLimitOrderInput {
     }
 
     /**
-     * Compute order size ratios based on distribution strategy.
+     * Calculate order size ratios based on distribution strategy.
      * For RANDOM distribution, falls back to FLAT if tentative ratios violate minimum size constraints.
      */
-    private computeRatios(orderCount: number, minOrderSizes: bigint[]): number[] {
+    private calcRatios(orderCount: number, minOrderSizes: bigint[]): number[] {
         if (this.sizeDistribution === BatchOrderSizeDistribution.RANDOM) {
-            const tentativeRatios = getBatchOrderRatios(this.sizeDistribution, orderCount);
+            const tentativeRatios = generateBatchOrderRatios(this.sizeDistribution, orderCount);
             const tentativeSizes = tentativeRatios.map(
                 (ratio) => (this.baseQuantity * BigInt(ratio)) / BigInt(RATIO_BASE)
             );
             const violates = tentativeSizes.some((size, index) => size < minOrderSizes[index]);
             const minTotal = minOrderSizes.reduce((sum, size) => sum + size, ZERO);
             return violates && minTotal < this.baseQuantity
-                ? getBatchOrderRatios(BatchOrderSizeDistribution.FLAT, orderCount)
+                ? generateBatchOrderRatios(BatchOrderSizeDistribution.FLAT, orderCount)
                 : tentativeRatios;
         }
-        return getBatchOrderRatios(this.sizeDistribution, orderCount);
+        return generateBatchOrderRatios(this.sizeDistribution, orderCount);
     }
 }
 
 export interface ScaledOrderDetail {
     ratio: number;
-    minOrderSize: bigint;
     param: PlaceParam;
-    simulation: PlaceInputSimulation;
+    simulation: PlaceSimulation;
+    /**
+     * Note: minOrderSize can be derived from `instrumentSetting.minOrderSizeAtTick(param.tick)`
+     */
 }
 
 export interface ScaledLimitOrderSimulation {
     orders: (ScaledOrderDetail | null)[];
-    totalBase: bigint;
-    totalQuote: bigint;
-    totalMargin: bigint;
     /**
      * Minimum base quantity required to ensure all orders meet their minimum size constraints.
      *
@@ -174,8 +151,10 @@ export interface ScaledLimitOrderSimulation {
      * minOrderValue setting. This field represents the minimum total baseQuantity that must be used
      * to ensure every order in the batch meets its individual minimum size requirement.
      *
-     * If totalBase < minBase, some orders may fail validation due to being below their minimum size.
-     * Use this value to validate that the input baseQuantity is sufficient before placing orders.
+     * To derive aggregated values:
+     * - `totalBase`: Use the input `baseQuantity` (it's the same value)
+     * - `totalQuote`: `orders.reduce((sum, order) => sum + (order ? order.simulation.order.value : 0n), 0n)`
+     * - `totalMargin`: `orders.reduce((sum, order) => sum + (order ? order.param.amount : 0n), 0n)`
      */
     minBase: bigint;
 }
@@ -197,7 +176,7 @@ export enum BatchOrderSizeDistribution {
  * Generate ratios for batch orders based on size distribution strategy.
  * Ratios sum up to {@link RATIO_BASE}.
  */
-export function getBatchOrderRatios(sizeDistribution: BatchOrderSizeDistribution, orderCount: number): number[] {
+export function generateBatchOrderRatios(sizeDistribution: BatchOrderSizeDistribution, orderCount: number): number[] {
     if (!Number.isSafeInteger(orderCount)) {
         throw Errors.validation('orderCount must be a safe integer', ErrorCode.INVALID_PARAM, { orderCount });
     }

@@ -44,12 +44,6 @@ export class TradeInput {
         this.margin = options?.margin;
     }
 
-    getSignedSize(): bigint {
-        // baseQuantity is already validated in constructor
-        const sign = sideSign(this.side);
-        return abs(this.baseQuantity) * BigInt(sign);
-    }
-
     /**
      * Simulate a market trade with full validation.
      * Returns [TradeParam, TradeSimulation] tuple.
@@ -69,9 +63,7 @@ export class TradeInput {
         const markPrice = snapshot.priceData.markPrice;
 
         // Validate leverage first (before any calculations)
-        if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
-            userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
-        }
+        userSetting.validateLeverage(instrumentSetting.maxLeverage);
 
         // Validate trade context (condition, status, price deviation, min trade value)
         snapshot.validateTradeContext(quotationWithSize, currentPosition);
@@ -115,7 +107,7 @@ export class TradeInput {
 
         // Step 6: Adjust margin delta if needed (handle negative margin withdrawal case)
         let postPosition = combinedPosition;
-        let exceedMaxLeverage = false;
+        let marginAdjusted = false;
 
         if (postPosition.size !== ZERO && marginDelta < ZERO) {
             // Create updated snapshot with updated AMM and postPosition for max withdrawable calculation
@@ -133,7 +125,7 @@ export class TradeInput {
                     );
                 }
                 marginDelta = -maxWithdrawable;
-                exceedMaxLeverage = true;
+                marginAdjusted = true;
             }
 
             postPosition = postPosition.withBalanceDelta(marginDelta);
@@ -167,7 +159,7 @@ export class TradeInput {
                 );
                 postPosition = postPosition.withBalanceDelta(additionalMargin);
                 marginDelta += additionalMargin;
-                exceedMaxLeverage = true;
+                marginAdjusted = true;
             }
         }
 
@@ -179,10 +171,9 @@ export class TradeInput {
         tradeParam.amount = marginDelta;
 
         const simulation: TradeSimulation = {
-            marginDelta,
             realized,
             postPosition,
-            exceedMaxLeverage,
+            marginAdjusted,
         };
 
         return [tradeParam, simulation];
@@ -195,7 +186,7 @@ export class TradeInput {
 
         return {
             expiry,
-            size: this.getSignedSize(),
+            size: abs(this.baseQuantity) * BigInt(sideSign(this.side)),
             amount: this.margin ?? ZERO,
             limitTick,
             deadline,
@@ -208,14 +199,6 @@ export class TradeInput {
 // ============================================================================
 export interface TradeSimulation {
     /**
-     * Margin delta for the trade (positive = deposit, negative = withdraw).
-     * This is the margin change amount calculated for the trade, which may be adjusted
-     * during simulation to meet leverage requirements.
-     * Special case: if position is fully closed and has positive balance,
-     * this will be `-postPosition.balance` to withdraw all remaining balance.
-     */
-    marginDelta: bigint;
-    /**
      * Realized PnL from closing part of a position.
      * Non-zero only when trading opposite side or partially closing a position.
      */
@@ -225,7 +208,14 @@ export interface TradeSimulation {
      */
     postPosition: Position;
     /**
-     * Whether the trade exceeded max leverage and required margin adjustment.
+     * Whether the margin was automatically adjusted from the requested amount.
+     * Set to true when:
+     * - Withdrawal amount exceeds maximum withdrawable margin (adjusted to max withdrawable)
+     * - Position exceeds IMR and additional margin is auto-added to meet requirements
      */
-    exceedMaxLeverage: boolean;
+    marginAdjusted: boolean;
+    /**
+     * Note: The margin delta can be obtained from `tradeParam.amount` (they are always equal).
+     * `tradeParam.amount` is the final margin adjustment after all validations and auto-adjustments.
+     */
 }

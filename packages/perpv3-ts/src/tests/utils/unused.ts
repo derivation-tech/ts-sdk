@@ -136,7 +136,7 @@ export interface SwapImpact {
     dy: bigint;
 }
 
-export function calculateSwapResult(
+export function calcSwapResult(
     sqrtPX96: bigint,
     liquidity: bigint,
     amountIn: bigint,
@@ -162,17 +162,17 @@ export function calculateSwapResult(
     return { amount0Delta, amount1Delta, nextSqrtPX96 };
 }
 
-export function calculateSwapFee(amountIn: bigint, feeRate: bigint): bigint {
+export function calcSwapFee(amountIn: bigint, feeRate: bigint): bigint {
     if (amountIn <= ZERO || feeRate <= ZERO) return ZERO;
     return (amountIn * feeRate) / 10_000n;
 }
 
-export function calculatePriceImpact(amountIn: bigint, liquidity: bigint): bigint {
+export function calcPriceImpact(amountIn: bigint, liquidity: bigint): bigint {
     if (amountIn <= ZERO || liquidity <= ZERO) return ZERO;
     return (amountIn * Q96) / liquidity;
 }
 
-export function calculateMinimumAmountOut(amountOut: bigint, slippageTolerance: bigint): bigint {
+export function calcMinimumAmountOut(amountOut: bigint, slippageTolerance: bigint): bigint {
     if (amountOut <= ZERO || slippageTolerance <= ZERO) return amountOut;
     const slippageAmount = (amountOut * slippageTolerance) / 10_000n;
     return amountOut - slippageAmount;

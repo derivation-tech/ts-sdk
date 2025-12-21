@@ -253,7 +253,7 @@ export async function fetchOrderBookFromObserver(
         if (!details || size <= 0 || tickDelta <= 0) {
             return;
         }
-        const orderbookForRatio = calculateOrderBookFromLiquidityDetails(details, size, tickDelta, length);
+        const orderbookForRatio = calcOrderBookFromLiquidityDetails(details, size, tickDelta, length);
         orderBook[ratio.toString()] = {
             asks: sortByTickDesc(orderbookForRatio.asks),
             bids: sortByTickDesc(orderbookForRatio.bids),
@@ -296,7 +296,7 @@ function calcTickDeltaAndSize(ratio: number): { tickDelta: number; size: number 
     return { tickDelta, size };
 }
 
-function calculateOrderBookFromLiquidityDetails(
+function calcOrderBookFromLiquidityDetails(
     liquidityDetails: LiquidityDetails | null | undefined,
     size: number,
     tickDelta: number,
@@ -357,7 +357,7 @@ function buildOrderBookSide(
     let currentPX96 = currPX96;
 
     for (let tick = currTick; right ? tick < currTick + tickDelta : tick > currTick - tickDelta; ) {
-        const page = calculatePage(currTick, tick, pageAdjustmentDelta, size, right);
+        const page = calcPage(currTick, tick, pageAdjustmentDelta, size, right);
         if (page >= length) {
             break;
         }
@@ -444,7 +444,7 @@ function buildOrderBookSide(
     });
 }
 
-function calculatePage(
+function calcPage(
     currTick: number,
     tick: number,
     pageAdjustmentDelta: number,

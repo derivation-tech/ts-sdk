@@ -71,9 +71,7 @@ export class AdjustInput {
             }
         } else {
             // Mode 2: Leverage adjustment
-            if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
-                userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
-            }
+            userSetting.validateLeverage(instrumentSetting.maxLeverage);
 
             // Check if leverage adjustment is feasible
             if (!position.canAdjustToLeverage(userSetting.leverage, amm, markPrice, imr)) {

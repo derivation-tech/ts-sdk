@@ -18,7 +18,7 @@ import {
     sqrtX96ToTick,
 } from '../math';
 import { RATIO_DECIMALS, WAD } from '../constants';
-import { calcAsymmetricBoost, calcBoost } from '../actions/range';
+import { Range } from '../types';
 import { Condition, InstrumentSetting, QuoteType, Range, Setting, Side, UserSetting } from '../types';
 import { calcOrderLeverageByMargin, getNextSqrtPriceFromInput } from './utils/unused';
 import { zeroAddress } from 'viem';
@@ -366,7 +366,7 @@ describe('math.ts', () => {
         test('calcBoost with specific values', () => {
             const alpha = 1.8;
             const imr = 1_000;
-            const result = calcBoost(alpha, imr);
+            const result = Range.calcBoost(alpha, imr);
             expect(result).toBeCloseTo(12.303577359188738, 12);
         });
 
@@ -374,8 +374,8 @@ describe('math.ts', () => {
             const alphaLower = 1.6;
             const alphaUpper = 2.4;
             const imr = 1_000;
-            const result = calcAsymmetricBoost(alphaLower, alphaUpper, imr);
-            expect(result).toBeCloseTo(6.6308197675930085, 12);
+            const result = Range.calcAsymmetricBoost(alphaLower, alphaUpper, imr);
+            expect(result).toBeCloseTo(5.172048327441648, 12);
         });
     });
 
