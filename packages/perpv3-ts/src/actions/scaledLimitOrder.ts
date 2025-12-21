@@ -60,7 +60,7 @@ export class ScaledLimitOrderInput {
 
         // Determine ratios based on size distribution
         // For RANDOM distribution, fallback to FLAT if sizes violate minimum constraints
-        const ratios = this.computeRatios(alignedTicks.length, minOrderSizes);
+        const ratios = this.calcRatios(alignedTicks.length, minOrderSizes);
 
         const orders: (ScaledOrderDetail | null)[] = [];
         const portionSizes = ratios.map((ratio) => (this.baseQuantity * BigInt(ratio)) / BigInt(RATIO_BASE));
@@ -114,22 +114,22 @@ export class ScaledLimitOrderInput {
     }
 
     /**
-     * Compute order size ratios based on distribution strategy.
+     * Calculate order size ratios based on distribution strategy.
      * For RANDOM distribution, falls back to FLAT if tentative ratios violate minimum size constraints.
      */
-    private computeRatios(orderCount: number, minOrderSizes: bigint[]): number[] {
+    private calcRatios(orderCount: number, minOrderSizes: bigint[]): number[] {
         if (this.sizeDistribution === BatchOrderSizeDistribution.RANDOM) {
-            const tentativeRatios = getBatchOrderRatios(this.sizeDistribution, orderCount);
+            const tentativeRatios = generateBatchOrderRatios(this.sizeDistribution, orderCount);
             const tentativeSizes = tentativeRatios.map(
                 (ratio) => (this.baseQuantity * BigInt(ratio)) / BigInt(RATIO_BASE)
             );
             const violates = tentativeSizes.some((size, index) => size < minOrderSizes[index]);
             const minTotal = minOrderSizes.reduce((sum, size) => sum + size, ZERO);
             return violates && minTotal < this.baseQuantity
-                ? getBatchOrderRatios(BatchOrderSizeDistribution.FLAT, orderCount)
+                ? generateBatchOrderRatios(BatchOrderSizeDistribution.FLAT, orderCount)
                 : tentativeRatios;
         }
-        return getBatchOrderRatios(this.sizeDistribution, orderCount);
+        return generateBatchOrderRatios(this.sizeDistribution, orderCount);
     }
 }
 
@@ -176,7 +176,7 @@ export enum BatchOrderSizeDistribution {
  * Generate ratios for batch orders based on size distribution strategy.
  * Ratios sum up to {@link RATIO_BASE}.
  */
-export function getBatchOrderRatios(sizeDistribution: BatchOrderSizeDistribution, orderCount: number): number[] {
+export function generateBatchOrderRatios(sizeDistribution: BatchOrderSizeDistribution, orderCount: number): number[] {
     if (!Number.isSafeInteger(orderCount)) {
         throw Errors.validation('orderCount must be a safe integer', ErrorCode.INVALID_PARAM, { orderCount });
     }
