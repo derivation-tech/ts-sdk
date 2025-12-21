@@ -375,7 +375,7 @@ describe('math.ts', () => {
             const alphaUpper = 2.4;
             const imr = 1_000;
             const result = Range.calcAsymmetricBoost(alphaLower, alphaUpper, imr);
-            expect(result).toBeCloseTo(6.6308197675930085, 12);
+            expect(result).toBeCloseTo(5.172048327441648, 12);
         });
     });
 

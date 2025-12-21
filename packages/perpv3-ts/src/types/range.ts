@@ -324,7 +324,7 @@ export class Range {
         }
         const ratio = imr / 10 ** RATIO_DECIMALS;
         const boostLower = 2 / (1 / Math.sqrt(alphaLower) - 1) / ((1 / Math.sqrt(alphaLower)) * (1 - ratio) - 1);
-        const boostUpper = Range.calcBoost(alphaUpper, ratio);
+        const boostUpper = Range.calcBoost(alphaUpper, imr);
         return Math.min(boostLower, boostUpper);
     }
 }
