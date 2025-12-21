@@ -14,7 +14,7 @@ import {
     type PlaceParam,
     type Portfolio,
 } from '../types';
-import { PlaceInput, type PlaceInputSimulation } from '../actions/order';
+import { PlaceInput, type PlaceSimulation } from '../actions/order';
 import { CrossLimitOrderInput } from '../actions/crossLimitOrder';
 import { ScaledLimitOrderInput, BatchOrderSizeDistribution } from '../actions/scaledLimitOrder';
 import type { TradeSimulation } from '../actions/trade';
@@ -448,11 +448,11 @@ describe('CrossLimitOrderInput.simulate', () => {
             deadline: 0,
         };
 
-        const mockLimitSimulation: PlaceInputSimulation = {
+        const mockLimitSimulation: PlaceSimulation = {
             order: new Order(mockLimitMargin, 3n * BASE, input.targetTick, 0),
         };
 
-        const mockLimitSimulationResult: [PlaceParam, PlaceInputSimulation] = [
+        const mockLimitSimulationResult: [PlaceParam, PlaceSimulation] = [
             mockLimitPlaceParam,
             mockLimitSimulation,
         ];

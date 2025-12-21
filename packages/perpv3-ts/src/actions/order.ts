@@ -30,7 +30,7 @@ export class PlaceInput {
      * @param userSetting - User settings (leverage, deadline, etc.)
      * @returns Tuple of [validated PlaceParam, simulation result]
      */
-    simulate(snapshot: PairSnapshot, userSetting: UserSetting): [PlaceParam, PlaceInputSimulation] {
+    simulate(snapshot: PairSnapshot, userSetting: UserSetting): [PlaceParam, PlaceSimulation] {
         const { instrumentSetting } = snapshot;
         const markPrice = snapshot.priceData.markPrice;
 
@@ -64,7 +64,7 @@ export class PlaceInput {
         // Create Order instance with final parameters for convenience
         const order = new Order(placeParam.amount, placeParam.size, placeParam.tick, 0);
 
-        const simulation: PlaceInputSimulation = {
+        const simulation: PlaceSimulation = {
             order,
         };
 
@@ -86,6 +86,6 @@ export class PlaceInput {
  * - `margin`: `placeParam.amount` or `simulation.order.balance`
  * - `tradeValue`: `simulation.order.value`
  */
-export interface PlaceInputSimulation {
+export interface PlaceSimulation {
     order: Order;
 }

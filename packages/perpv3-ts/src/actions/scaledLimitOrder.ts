@@ -2,7 +2,7 @@ import type { Address } from 'viem';
 import { max, tickToWad, wadToTick, wdivUp, wmulUp } from '../math';
 import { MAX_BATCH_ORDER_COUNT, MIN_BATCH_ORDER_COUNT, RATIO_BASE, ZERO } from '../constants';
 import { Errors, ErrorCode, PairSnapshot, Side, UserSetting, type PlaceParam } from '../types';
-import { PlaceInput, type PlaceInputSimulation } from './order';
+import { PlaceInput, type PlaceSimulation } from './order';
 
 // ============================================================================
 // Scaled Limit Order
@@ -136,7 +136,7 @@ export class ScaledLimitOrderInput {
 export interface ScaledOrderDetail {
     ratio: number;
     param: PlaceParam;
-    simulation: PlaceInputSimulation;
+    simulation: PlaceSimulation;
     /**
      * Note: minOrderSize can be derived from `instrumentSetting.minOrderSizeAtTick(param.tick)`
      */

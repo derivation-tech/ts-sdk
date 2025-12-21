@@ -11,7 +11,7 @@ import {
     type PlaceParam,
     type TradeParam,
 } from '../types';
-import { PlaceInput, type PlaceInputSimulation } from './order';
+import { PlaceInput, type PlaceSimulation } from './order';
 import { TradeInput, type TradeSimulation } from './trade';
 
 // ============================================================================
@@ -215,5 +215,5 @@ export interface CrossLimitOrderSimulation {
     /** Parameters for the limit leg order */
     placeParam: PlaceParam;
     /** Simulation result for the limit leg order */
-    placeSimulation: PlaceInputSimulation;
+    placeSimulation: PlaceSimulation;
 }
