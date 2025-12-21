@@ -10,7 +10,6 @@ export class PlaceInput {
     public readonly side: Side; // LONG or SHORT
 
     constructor(traderAddress: Address, tick: number, baseQuantity: bigint, side: Side) {
-        // Validate baseQuantity is positive at construction time
         if (baseQuantity <= 0n) {
             throw Errors.validation('Order baseQuantity must be positive', ErrorCode.INVALID_SIZE, {
                 baseQuantity: baseQuantity.toString(),
@@ -21,14 +20,6 @@ export class PlaceInput {
         this.tick = tick;
         this.baseQuantity = baseQuantity;
         this.side = side;
-    }
-
-    /**
-     * Get the signed size for contract parameters (positive for LONG, negative for SHORT).
-     */
-    getSignedSize(): bigint {
-        const sign = sideSign(this.side);
-        return abs(this.baseQuantity) * BigInt(sign);
     }
 
     /**
@@ -44,15 +35,13 @@ export class PlaceInput {
         const markPrice = snapshot.priceData.markPrice;
 
         // Validate leverage (baseQuantity validation is done in constructor)
-        if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
-            userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
-        }
+        userSetting.validateLeverage(instrumentSetting.maxLeverage);
 
         // Calculate required margin based on leverage
         // Since leverage is validated to be <= maxLeverage, and maxLeverage = 10000 / IMR,
         // the leverage-based margin will always satisfy IMR requirements
         // Use markPriceBufferInBps to account for mark price changes (mark price changes every second by design)
-        const signedSize = this.getSignedSize();
+        const signedSize = abs(this.baseQuantity) * BigInt(sideSign(this.side));
         const tempOrder = new Order(0n, signedSize, this.tick, 0);
         const requiredMargin = tempOrder.marginForLeverage(
             markPrice,

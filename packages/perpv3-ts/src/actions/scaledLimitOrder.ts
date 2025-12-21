@@ -1,7 +1,7 @@
 import type { Address } from 'viem';
 import { max, tickToWad, wadToTick, wdivUp, wmulUp } from '../math';
 import { MAX_BATCH_ORDER_COUNT, MIN_BATCH_ORDER_COUNT, RATIO_BASE, ZERO } from '../constants';
-import { Errors, ErrorCode, Order, PairSnapshot, Side, UserSetting, type PlaceParam } from '../types';
+import { Errors, ErrorCode, PairSnapshot, Side, UserSetting, type PlaceParam } from '../types';
 import { PlaceInput, type PlaceInputSimulation } from './order';
 
 // ============================================================================

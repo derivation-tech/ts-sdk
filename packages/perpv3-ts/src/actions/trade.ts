@@ -44,12 +44,6 @@ export class TradeInput {
         this.margin = options?.margin;
     }
 
-    getSignedSize(): bigint {
-        // baseQuantity is already validated in constructor
-        const sign = sideSign(this.side);
-        return abs(this.baseQuantity) * BigInt(sign);
-    }
-
     /**
      * Simulate a market trade with full validation.
      * Returns [TradeParam, TradeSimulation] tuple.
@@ -69,9 +63,7 @@ export class TradeInput {
         const markPrice = snapshot.priceData.markPrice;
 
         // Validate leverage first (before any calculations)
-        if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
-            userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
-        }
+        userSetting.validateLeverage(instrumentSetting.maxLeverage);
 
         // Validate trade context (condition, status, price deviation, min trade value)
         snapshot.validateTradeContext(quotationWithSize, currentPosition);
@@ -194,7 +186,7 @@ export class TradeInput {
 
         return {
             expiry,
-            size: this.getSignedSize(),
+            size: abs(this.baseQuantity) * BigInt(sideSign(this.side)),
             amount: this.margin ?? ZERO,
             limitTick,
             deadline,

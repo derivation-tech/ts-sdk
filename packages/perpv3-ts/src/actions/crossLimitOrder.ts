@@ -88,9 +88,7 @@ export class CrossLimitOrderInput {
         const { instrumentSetting, portfolio } = snapshot;
 
         // Validate leverage
-        if (!instrumentSetting.isLeverageValid(userSetting.leverage)) {
-            userSetting.validateLeverage(instrumentSetting.maxLeverage); // throws with proper error
-        }
+        userSetting.validateLeverage(instrumentSetting.maxLeverage);
 
         // Validate cross limit order feasibility
         const feasibility = snapshot.isCrossLimitOrderFeasible(this.side, this.targetTick);
@@ -183,9 +181,6 @@ export class CrossLimitOrderInput {
         const limitOrderPlaceInput = new PlaceInput(this.traderAddress, limitOrderTick, remainingBase, this.side);
 
         const [limitPlaceParam, limitSimulation] = limitOrderPlaceInput.simulate(updatedSnapshot, userSetting);
-
-        // Calculate limit leg trade value using Order from simulation
-        const limitTradeValue = limitSimulation.order.value;
 
         // Aggregate results from both legs
         const result: CrossLimitOrderSimulation = {
