@@ -4,7 +4,7 @@
  * @param bigIntKeys - Array of keys that should be converted to BigInt
  * @returns A new object with specified keys converted to BigInt
  */
-export function bigInitObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
+export function bigIntObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
 	if (!bigIntKeys || bigIntKeys.length === 0) {
 		return obj;
 	}
@@ -21,7 +21,7 @@ export function bigInitObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
 				if (bigIntKeys?.includes(key)) {
 					cloneObj[key] = BigInt(val || 0);
 				} else if (typeof val === 'object' && val && Object.keys(val).length > 0) {
-					const newVal = bigInitObjectCheckByKeys(val, bigIntKeys);
+					const newVal = bigIntObjectCheckByKeys(val, bigIntKeys);
 					cloneObj[key] = newVal;
 				}
 			});

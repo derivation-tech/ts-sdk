@@ -104,7 +104,7 @@ import {
     Position,
     Range,
 } from '../types';
-import { axiosGet, bigInitObjectCheckByKeys } from '../utils';
+import { axiosGet, bigIntObjectCheckByKeys } from '../utils';
 import { getDepthRangeDataByLiquidityDetails } from '../frontend/chart';
 import { getStartEndTimeByRangeType } from '../frontend/history';
 
@@ -130,7 +130,7 @@ export const fetchFuturesInstrument = async (
     });
 
     if (res?.data?.data) {
-        return bigInitObjectCheckByKeys(res.data.data, INSTRUMENT_BIGINT_KEYS);
+        return bigIntObjectCheckByKeys(res.data.data, INSTRUMENT_BIGINT_KEYS);
     }
     return null;
 };
@@ -160,12 +160,12 @@ export const fetchMarketOnChainContext = async (
     const { instrument: instrumentData, inquireRes, portfolioRes, priceData, quoteState } = res.data.data;
 
     const normalizedInstrument = instrumentData
-        ? bigInitObjectCheckByKeys(instrumentData, INSTRUMENT_BIGINT_KEYS)
+        ? bigIntObjectCheckByKeys(instrumentData, INSTRUMENT_BIGINT_KEYS)
         : null;
 
     const normalizedQuotation = inquireRes
         ? (() => {
-            const inquireData = bigInitObjectCheckByKeys(inquireRes, INQUIRE_BIGINT_KEYS);
+            const inquireData = bigIntObjectCheckByKeys(inquireRes, INQUIRE_BIGINT_KEYS);
             return {
                 ...inquireData,
                 tick: Number(inquireData.tick),
@@ -175,12 +175,12 @@ export const fetchMarketOnChainContext = async (
         : null;
 
     const normalizedPortfolio = portfolioRes
-        ? bigInitObjectCheckByKeys(portfolioRes, [...PORTFOLIO_BIG_INT_KEYS])
+        ? bigIntObjectCheckByKeys(portfolioRes, [...PORTFOLIO_BIG_INT_KEYS])
         : null;
 
-    const normalizedPriceData = priceData ? bigInitObjectCheckByKeys(priceData, PRICE_DATA_BIGINT_KEYS) : null;
+    const normalizedPriceData = priceData ? bigIntObjectCheckByKeys(priceData, PRICE_DATA_BIGINT_KEYS) : null;
 
-    const normalizedQuoteState = quoteState ? bigInitObjectCheckByKeys(quoteState, QUOTE_STATE_BIGINT_KEYS) : null;
+    const normalizedQuoteState = quoteState ? bigIntObjectCheckByKeys(quoteState, QUOTE_STATE_BIGINT_KEYS) : null;
 
     return {
         instrument: normalizedInstrument,
@@ -233,7 +233,7 @@ export const fetchFuturesInstrumentInquire = async (
         authInfo,
     });
     if (res?.data?.data) {
-        const data = bigInitObjectCheckByKeys(res.data.data, INQUIRE_BIGINT_KEYS);
+        const data = bigIntObjectCheckByKeys(res.data.data, INQUIRE_BIGINT_KEYS);
 
         return {
             ...data,
@@ -254,7 +254,7 @@ export const fetchFuturesInstrumentInquireByTick = async (
         authInfo,
     });
     if (res?.data?.data) {
-        const data = bigInitObjectCheckByKeys(res.data.data, INQUIRE_BY_TICK_BIGINT_KEYS);
+        const data = bigIntObjectCheckByKeys(res.data.data, INQUIRE_BY_TICK_BIGINT_KEYS);
 
         // Return the data in the expected structure
         return {
@@ -283,7 +283,7 @@ export const fetchFuturesInstrumentInquireByNotional = async (
         authInfo,
     });
     if (res?.data?.data) {
-        const data = bigInitObjectCheckByKeys(res.data.data, INQUIRE_BY_TICK_BIGINT_KEYS);
+        const data = bigIntObjectCheckByKeys(res.data.data, INQUIRE_BY_TICK_BIGINT_KEYS);
 
         // Return the data in the expected structure
         return {
@@ -318,7 +318,7 @@ export const fetchPortfolioListFromApi = async (
         authInfo,
     });
     if (res?.data?.data) {
-        const data = bigInitObjectCheckByKeys(res.data.data, [...PORTFOLIO_BIG_INT_KEYS]);
+        const data = bigIntObjectCheckByKeys(res.data.data, [...PORTFOLIO_BIG_INT_KEYS]);
         return data;
     }
     return null;
@@ -339,12 +339,12 @@ export const fetchFuturesPairOrderBook = async (
             // Transform bids and asks to left and right arrays
             const bids: OrderDataFromApi[] = (depth.bids || [])
                 // TODO: Normalize legacy `baseSize` responses to `baseQuantity` once API payloads are updated.
-                .map((b: OrderDataFromApi) => bigInitObjectCheckByKeys(b, ORDER_DATA_BIGINT_KEYS))
+                .map((b: OrderDataFromApi) => bigIntObjectCheckByKeys(b, ORDER_DATA_BIGINT_KEYS))
                 .sort((a: OrderDataFromApi, b: OrderDataFromApi) => b.tick - a.tick);
 
             const asks: OrderDataFromApi[] = (depth.asks || [])
                 // TODO: Normalize legacy `baseSize` responses to `baseQuantity` once API payloads are updated.
-                .map((a: OrderDataFromApi) => bigInitObjectCheckByKeys(a, ORDER_DATA_BIGINT_KEYS))
+                .map((a: OrderDataFromApi) => bigIntObjectCheckByKeys(a, ORDER_DATA_BIGINT_KEYS))
                 .sort((a: OrderDataFromApi, b: OrderDataFromApi) => a.tick - b.tick);
 
             acc[key] = { asks, bids };
@@ -370,12 +370,12 @@ export const fetchMmOrderBook = async (
         const newData = Object.entries(res.data.data).reduce((acc, [key, depthData]: [string, any]) => {
             const bids: OrderDataFromApi[] = (depthData.bids || [])
                 // TODO: Normalize legacy `baseSize` responses to `baseQuantity` once API payloads are updated.
-                .map((b: OrderDataFromApi) => bigInitObjectCheckByKeys(b, ORDER_DATA_BIGINT_KEYS))
+                .map((b: OrderDataFromApi) => bigIntObjectCheckByKeys(b, ORDER_DATA_BIGINT_KEYS))
                 .sort((a: OrderDataFromApi, b: OrderDataFromApi) => b.tick - a.tick);
 
             const asks: OrderDataFromApi[] = (depthData.asks || [])
                 // TODO: Normalize legacy `baseSize` responses to `baseQuantity` once API payloads are updated.
-                .map((a: OrderDataFromApi) => bigInitObjectCheckByKeys(a, ORDER_DATA_BIGINT_KEYS))
+                .map((a: OrderDataFromApi) => bigIntObjectCheckByKeys(a, ORDER_DATA_BIGINT_KEYS))
                 .sort((a: OrderDataFromApi, b: OrderDataFromApi) => a.tick - b.tick);
 
             acc[key] = { asks, bids };
@@ -403,7 +403,7 @@ export const fetchMmWalletBalance = async (
     }
 
     const portfolios: MmWalletPortfolio[] = (data.portfolios ?? []).map((p: MmWalletPortfolio) =>
-        bigInitObjectCheckByKeys(p, MM_WALLET_PORTFOLIO_BIGINT_KEYS as unknown as string[])
+        bigIntObjectCheckByKeys(p, MM_WALLET_PORTFOLIO_BIGINT_KEYS as unknown as string[])
     );
 
     return {
@@ -429,7 +429,7 @@ export const fetchMmPositionList = async (
     }
 
     return (data as MmPositionFromApi[]).map((p) =>
-        bigInitObjectCheckByKeys(p, MM_POSITION_BIGINT_KEYS as unknown as string[])
+        bigIntObjectCheckByKeys(p, MM_POSITION_BIGINT_KEYS as unknown as string[])
     );
 };
 
@@ -443,7 +443,7 @@ export const fetchUserGateBalanceFromApi = async (
         authInfo,
     });
     if (res?.data?.data.portfolios) {
-        const data = bigInitObjectCheckByKeys(res.data.data.portfolios, GATE_BALANCE_BIGINT_KEYS);
+        const data = bigIntObjectCheckByKeys(res.data.data.portfolios, GATE_BALANCE_BIGINT_KEYS);
         return data;
     }
     return null;
@@ -514,7 +514,7 @@ export const fetchFuturesPairDepthChart = async (
         authInfo,
     });
     if (res?.data?.data) {
-        const data = bigInitObjectCheckByKeys(res.data.data, DEPTH_CHART_BIGINT_KEYS);
+        const data = bigIntObjectCheckByKeys(res.data.data, DEPTH_CHART_BIGINT_KEYS);
         const tick2PearlRaw = (data as { tick2Pearl?: unknown }).tick2Pearl;
         const tick2PearlEntries =
             tick2PearlRaw && typeof tick2PearlRaw === 'object'

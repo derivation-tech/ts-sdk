@@ -128,7 +128,7 @@ export class HttpClient {
                 // Retry logic
                 if (
                     error.response?.status >= 500 &&
-                    originalRequest._retryCount < (this.config.retries || 3)
+                    originalRequest._retryCount < (this.config.retries ?? 3)
                 ) {
                     originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
 
@@ -169,6 +169,9 @@ export class HttpClient {
      */
     private async getAuthHeaders(url: string, method: string): Promise<APIHeaders | undefined> {
         if (!this.isRequireAuth(url)) {
+            return undefined;
+        }
+        if (!this.config.authInfo) {
             return undefined;
         }
         const requestPath = getRequestPathFromUrl(this.config.baseUrl! + url);
