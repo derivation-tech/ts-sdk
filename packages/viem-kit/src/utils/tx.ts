@@ -581,6 +581,8 @@ export async function deployBytecode(
 ): Promise<string> {
     const { abi, bytecode, linkReferenceMap = {}, constructorArgs = [], confirmations = 2 } = opts;
 
+    const { linkBytecode } = await import('./artifact-helper');
+
     // extract chain from walletClient or publicClient if available
     const chain = (walletClient as any).chain ?? (publicClient as any).chain;
     const logger = LoggerFactory.getLogger(`${chain?.name || 'unknown'}::Tx`);
@@ -588,7 +590,6 @@ export async function deployBytecode(
     // link bytecode if a linkReferenceMap was provided
     let linkedBytecode = bytecode;
     if (linkReferenceMap && Object.keys(linkReferenceMap).length > 0) {
-        const { linkBytecode } = await import('./artifact-helper');
         linkedBytecode = linkBytecode(bytecode as string, linkReferenceMap);
     }
 
