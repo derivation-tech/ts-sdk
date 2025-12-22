@@ -136,7 +136,7 @@ export const fetchFuturesInstrument = async (
 
 export const fetchMarketOnChainContext = async (
     { chainId, instrument, expiry, userAddress, signedSize }: FetchOnChainContextInput,
-    authInfo: AuthInfo
+    authInfo?: AuthInfo
 ): Promise<FetchOnChainContextResponse | null> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.ONCHAIN_CONTEXT,
@@ -245,7 +245,7 @@ export const fetchFuturesInstrumentInquire = async (
 
 export const fetchFuturesInstrumentInquireByTick = async (
     { chainId, instrument, expiry, tick }: FetchFuturesInstrumentInquireByTickInput,
-    authInfo: AuthInfo
+    authInfo?: AuthInfo
 ): Promise<FetchFuturesInstrumentInquireByTickResponse> => {
     const res = await axiosGet({
         url: API_URLS.MARKET.INQUIRE_BY_TICK,

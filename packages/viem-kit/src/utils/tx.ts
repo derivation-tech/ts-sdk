@@ -3,7 +3,6 @@ import { decodeEventLog, encodeFunctionData } from 'viem';
 import type { Abi } from 'viem';
 import type { ChainKit } from '../chain-kit';
 import { LoggerFactory } from './logger';
-import { loadArtifact, linkBytecode } from './artifact-helper';
 import fs from 'fs';
 import path from 'path';
 
@@ -510,6 +509,8 @@ export async function deployArtifact(
 ): Promise<string> {
     const { artifact: artifactPathOrObject, constructorArgs = [], linkReferenceMap = {}, confirmations = 2 } = opts;
 
+    const { loadArtifact } = await import('./artifact-helper');
+
     let artifact: any;
     if (typeof artifactPathOrObject === 'string') {
         // If the string is a filesystem path to a file, prefer loading from file.
@@ -587,6 +588,7 @@ export async function deployBytecode(
     // link bytecode if a linkReferenceMap was provided
     let linkedBytecode = bytecode;
     if (linkReferenceMap && Object.keys(linkReferenceMap).length > 0) {
+        const { linkBytecode } = await import('./artifact-helper');
         linkedBytecode = linkBytecode(bytecode as string, linkReferenceMap);
     }
 

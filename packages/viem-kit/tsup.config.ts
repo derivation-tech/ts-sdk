@@ -8,7 +8,7 @@ export default defineConfig({
     platform: 'node',
     bundle: true,
     dts: false,
-    clean: true,
+    clean: false,
     sourcemap: true,
     splitting: false,
     treeshake: true,
