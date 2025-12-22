@@ -14,8 +14,8 @@ export function bigIntObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
 
 	const cloneObj = Array.isArray(obj) ? [...obj] : { ...obj };
 	if (cloneObj) {
-		try {
-			Object.keys(cloneObj).forEach((key) => {
+		Object.keys(cloneObj).forEach((key) => {
+			try {
 				const val = cloneObj[key];
 				// If bigNumberKeys is provided, only convert keys that are in the array
 				if (bigIntKeys?.includes(key)) {
@@ -24,11 +24,11 @@ export function bigIntObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
 					const newVal = bigIntObjectCheckByKeys(val, bigIntKeys);
 					cloneObj[key] = newVal;
 				}
-			});
-		} catch {
-			// Silently handle conversion errors and return the original cloned object
-			// This prevents the function from throwing while maintaining data integrity
-		}
+			} catch {
+				// Silently handle conversion errors and return the original cloned object
+				// This prevents the function from throwing while maintaining data integrity
+			}
+		});
 	}
 	return cloneObj;
 }
