@@ -24,7 +24,8 @@ export function bigIntObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
 					const newVal = bigIntObjectCheckByKeys(val, bigIntKeys);
 					cloneObj[key] = newVal;
 				}
-			} catch {
+			} catch (error) {
+				console.error(`Error converting key ${key} to BigInt`, error);
 				// Silently handle conversion errors and return the original cloned object
 				// This prevents the function from throwing while maintaining data integrity
 			}

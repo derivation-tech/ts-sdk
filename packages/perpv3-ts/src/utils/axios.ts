@@ -201,7 +201,7 @@ export class HttpClient {
         };
     }
 
-    async get<T>(
+    async get<T = unknown>(
         url: string,
         config?: AxiosRequestConfig
     ): Promise<AxiosResponse<T>> {
@@ -216,7 +216,7 @@ export class HttpClient {
         return await this.client.get(url, requestConfig);
     }
 
-    async post<T = any>(
+    async post<T = unknown>(
         url: string,
         data?: unknown,
         config?: AxiosRequestConfig
@@ -225,7 +225,7 @@ export class HttpClient {
         return await this.client.post(url, data, requestConfig);
     }
 
-    async put<T = any>(
+    async put<T = unknown>(
         url: string,
         data?: any,
         config?: AxiosRequestConfig
@@ -234,7 +234,7 @@ export class HttpClient {
         return await this.client.put(url, data, requestConfig);
     }
 
-    async delete<T = any>(
+    async delete<T = unknown>(
         url: string,
         config?: AxiosRequestConfig
     ): Promise<AxiosResponse<T>> {
