@@ -751,18 +751,20 @@ export type GetFundingHistoryResponse = FundingHistory[];
  */
 export interface GetTransferHistoryParams extends HistoryRequestBase, HistoryRequestPairInfo {}
 
-/**
- * Response type for getTransferHistory function
- * @interface GetTransferHistoryResponse
- */
-export type GetTransferHistoryResponse = (TransferHistory & {
+export interface GetTransferHistoryItemResponse extends TransferHistory {
     timestamp: number;
     instrumentAddress: string;
     expiry: number;
     isTransferIn: boolean;
     txHash: string;
     logIndex: number;
-})[];
+}
+
+/**
+ * Response type for getTransferHistory function
+ * @interface GetTransferHistoryResponse
+ */
+export type GetTransferHistoryResponse = GetTransferHistoryItemResponse[];
 
 /**
  * Parameters for getLiquidityHistory function
