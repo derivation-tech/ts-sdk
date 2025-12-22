@@ -1,10 +1,10 @@
 import type { Address, PublicClient, WalletClient } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { ChainKit, ChainKitRegistry, ERC20, sendTxWithLog } from '@synfutures/viem-kit';
-import { abs, wdiv } from '../math';
-import { WAD, ZERO } from '../constants';
-import { PlaceInput } from '../actions/order';
-import { RemoveInput } from '../actions/range';
+import { abs, wdiv } from '../src/math';
+import { WAD, ZERO } from '../src/constants';
+import { PlaceInput } from '../src/actions/order';
+import { RemoveInput } from '../src/actions/range';
 import {
     Condition,
     Errors,
@@ -20,14 +20,14 @@ import {
     type Setting,
     type SpacingConfig,
     type TradeParam,
-} from '../types';
-import { getPerpInfo, type PerpInfo } from '../info';
-import { CURRENT_OBSERVER_ABI, CURRENT_INSTRUMENT_ABI } from '../abis';
-import { createInstrumentParser, createGateParser } from '../parsers';
-import { fetchOnchainContext } from '../queries';
-import type { RpcConfig } from '../queries/config';
-import { encodeCancelParam, encodeTradeParam, encodeRemoveParam } from '../utils/encode';
-import { formatTick, formatWad } from '../utils/format';
+} from '../src/types';
+import { getPerpInfo, type PerpInfo } from '../src/info';
+import { CURRENT_OBSERVER_ABI, CURRENT_INSTRUMENT_ABI } from '../src/abis';
+import { createInstrumentParser, createGateParser } from '../src/parsers';
+import { fetchOnchainContext } from '../src/queries';
+import type { RpcConfig } from '../src/queries/config';
+import { encodeCancelParam, encodeTradeParam, encodeRemoveParam } from '../src/utils/encode';
+import { formatTick, formatWad } from '../src/utils/format';
 
 export const DefaultUserSetting = new UserSetting(10, 10, 3n * WAD, 1); // 10 seconds deadline, 0.1% slippage tolerance, 3x leverage, 1bps margin buffer
 

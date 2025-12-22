@@ -1,4 +1,6 @@
 export const API_DOMAIN = 'https://mainnet-api.monday.trade';
+export const API_DEFAULT_TIMEOUT = 10000;
+export const API_DEFAULT_RETRIES = 3;
 export const DEFAULT_PUBLIC_WS_URL = 'wss://mainnet-api.monday.trade/v4/public/ws';
 
 export enum FundingChartInterval {

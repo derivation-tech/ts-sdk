@@ -1,7 +1,8 @@
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosInstance } from 'axios';
 import { getHeaders } from './mm';
-import { API_DOMAIN } from '../apis/constants';
+import { API_DOMAIN, API_DEFAULT_TIMEOUT, API_DEFAULT_RETRIES } from '../apis/constants';
 import type { AuthInfo } from '../apis/interfaces';
+import { ErrorCode, SynfError } from '../types/error';
 
 /**
  * Get the request path from the URL
@@ -13,11 +14,23 @@ export function getRequestPathFromUrl(url: string): string {
     return urlObj.pathname + urlObj.search;
 }
 
+/**
+ * Get the request URL from the base URL and parameters
+ * @param url - The base URL to get the request URL from
+ * @param params - The parameters to get the request URL from
+ * @returns The request URL from the base URL and parameters
+ */
+export function getRequestUrl(url: string, params: string): string {
+    const pa = new URLSearchParams(params);
+    pa.sort();
+    url += (url.includes('?') ? '&' : '?') + pa.toString();
+    return url;
+}
+
 // ============================================================================
 // Axios Functions
 // ============================================================================
-
-export async function axiosGet({
+export async function axiosGet<T = any>({
     url,
     config,
     jwtToken,
@@ -25,71 +38,183 @@ export async function axiosGet({
 }: {
     url: string;
     config?: AxiosRequestConfig;
-    domain?: string;
     authInfo?: AuthInfo;
     jwtToken?: string;
 }): Promise<AxiosResponse> {
-    // need move params to url for encrypted
-
-    if (config?.params) {
-        const pa = new URLSearchParams(config.params);
-        pa.sort();
-        const params = pa.toString();
-        url += (url.includes('?') ? '&' : '?') + params;
-        config.params = undefined;
-    }
-    if (!url.startsWith(API_DOMAIN)) {
-        url = API_DOMAIN + url;
-    }
-    const requestPath = getRequestPathFromUrl(url);
-    let extraHeaders;
-    if (authInfo) {
-        extraHeaders = await getHeaders({
-            method: 'GET',
-            requestPath,
-            ...authInfo,
-        });
-    }
-
-    return await axios.get(url, {
-        ...config,
-        headers: {
-            ...config?.headers,
-            Authorization: jwtToken,
-            ...extraHeaders,
-        },
+    const httpClient = new HttpClient({
+        authInfo: authInfo!,
+        jwtToken,
     });
+
+    return await httpClient.get<T>(url, config);
 }
 
-// ============================================================================
-// Utility Functions
-// ============================================================================
 
-export function bigInitObjectCheckByKeys(obj: any, bigIntKeys?: string[]): any {
-    if (!bigIntKeys || bigIntKeys.length === 0) {
-        return obj;
-    }
-    if (obj === null || obj === undefined || typeof obj !== 'object') {
-        return obj;
+/**
+ * HttpClient config
+ */
+export interface HttpClientConfig {
+    baseUrl?: string;
+    timeout?: number;
+    retries?: number;
+    jwtToken?: string;
+    authInfo: AuthInfo;
+}
+
+/**
+ * HttpClient
+ * This class is used to make HTTP requests to the API.
+ */
+export class HttpClient {
+    private client: AxiosInstance;
+    private config: HttpClientConfig;
+
+    constructor(config: HttpClientConfig) {
+        const baseUrl = config.baseUrl ?? API_DOMAIN;
+        this.config = {
+            baseUrl,
+            timeout: config.timeout ?? API_DEFAULT_TIMEOUT,
+            retries: config.retries ?? API_DEFAULT_RETRIES,
+            authInfo: config.authInfo,
+            jwtToken: config.jwtToken,
+        };
+
+        this.client = axios.create({
+            baseURL: this.config.baseUrl,
+            timeout: this.config.timeout,
+            headers: {
+                'accept': 'application/json',
+            },
+        });
+
+        this.setupInterceptors();
     }
 
-    const cloneObj = Array.isArray(obj) ? [...obj] : { ...obj };
-    if (cloneObj) {
-        try {
-            Object.keys(cloneObj).forEach((key) => {
-                const val = cloneObj[key];
-                // If bigNumberKeys is provided, only convert keys that are in the array
-                if (bigIntKeys?.includes(key)) {
-                    cloneObj[key] = BigInt(val || 0);
-                } else if (typeof val === 'object' && val && Object.keys(val).length > 0) {
-                    const newVal = bigInitObjectCheckByKeys(val, bigIntKeys);
-                    cloneObj[key] = newVal;
+    private isRequireAuth(url?: string): boolean {
+        return !!url?.startsWith('/v4/public/mm');
+    }
+
+    private hasAuthInfo(): boolean {
+        return !!(this.config.authInfo?.apiKey && this.config.authInfo?.passphrase && this.config.authInfo?.secretKey)
+    }
+
+    private setupInterceptors(): void {
+        // Request interceptor
+        this.client.interceptors.request.use(
+            (config) => {
+                // Checks if auth info is required for this request
+                if (this.isRequireAuth(config.url) && !this.hasAuthInfo()) {
+                    throw new Error(
+                        'API key is required for API calls. Please provide apiKey in HttpClient config. ' +
+                        'Note: API key is not required with custom api url.'
+                    );
                 }
-            });
-        } catch {
-            // Silently handle conversion errors and return the original cloned object
-            // This prevents the function from throwing while maintaining data integrity
+                return config;
+            },
+            (error) => {
+                return Promise.reject(error);
+            }
+        );
+
+        // Response interceptor
+        this.client.interceptors.response.use(
+            (response: AxiosResponse) => {
+                return response;
+            },
+            async (error) => {
+                const originalRequest = error.config;
+
+                // Retry logic
+                if (
+                    error.response?.status >= 500 &&
+                    originalRequest._retryCount < (this.config.retries || 3)
+                ) {
+                    originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+
+                    // Exponential backoff
+                    const delay = Math.pow(2, originalRequest._retryCount) * 100;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+
+                    return this.client(originalRequest);
+                }
+
+                throw this.handleError(error);
+            }
+        );
+    }
+
+    private handleError(error: any): SynfError {
+        if (error.response) {
+            // Server responded with error status
+            const message = error.response.data?.message || error.response.data?.error || error.message;
+            return new SynfError(
+                message,
+                ErrorCode.API_REQUEST_FAILED,
+                {
+                    status: error.response.status,
+                    data: error.response.data,
+                }
+            );
+        } else if (error.request) {
+            // Request was made but no response received
+            return new SynfError('Network error: No response received', ErrorCode.API_REQUEST_FAILED);
+        } else {
+            return new SynfError(error.message, ErrorCode.API_REQUEST_FAILED);
         }
     }
-    return cloneObj;
-}
+
+    async get<T>(
+        url: string,
+        config?: AxiosRequestConfig
+    ): Promise<AxiosResponse<T>> {
+        const { params, ...extraConfig } = config || {};
+        if (params) {
+            const pa = new URLSearchParams(params);
+            pa.sort();
+            const sortedParams = pa.toString();
+            url += (url.includes('?') ? '&' : '?') + sortedParams;
+        }
+        const requestPath = getRequestPathFromUrl(this.config.baseUrl! + url);
+        let extraHeaders;
+        if (this.isRequireAuth(url)) {
+            extraHeaders = await getHeaders({
+                method: 'GET',
+                requestPath,
+                ...this.config.authInfo,
+            });
+        }
+        const response = await this.client.get(url, {
+            ...extraConfig,
+            headers: {
+                ...config?.headers,
+                Authorization: this.config.jwtToken,
+                ...extraHeaders,
+            },
+        });
+        return response;
+    }
+
+    async post<T = any>(
+        url: string,
+        data?: unknown,
+        config?: AxiosRequestConfig
+    ): Promise<AxiosResponse<T>> {
+        return await this.client.post(url, data, config);
+    }
+
+    async put<T = any>(
+        url: string,
+        data?: any,
+        config?: AxiosRequestConfig
+    ): Promise<AxiosResponse<T>> {
+        return await this.client.put(url, data, config);
+    }
+
+    async delete<T = any>(
+        url: string,
+        config?: AxiosRequestConfig
+    ): Promise<T> {
+        return await this.client.delete(url, config);
+    }
+
+} 

@@ -114,6 +114,7 @@ export const fetchMmServerTime = async (authInfo: AuthInfo): Promise<number> => 
         config: {},
         authInfo,
     });
+
     return res.data.data;
 };
 

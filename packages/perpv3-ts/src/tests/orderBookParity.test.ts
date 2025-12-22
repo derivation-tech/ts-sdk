@@ -7,7 +7,8 @@ import type { AuthInfo, IFuturesOrderBookAllSteps, OrderDataFromApi } from '../a
 import { getPerpInfo } from '../info';
 import { fetchOrderBook } from '../queries';
 import type { RpcConfig } from '../queries/config';
-import { axiosGet, bigInitObjectCheckByKeys } from '../utils/axios';
+import { axiosGet } from '../utils/axios';
+import { bigInitObjectCheckByKeys } from '../utils/convert';
 
 const CHAIN_ID = 20250903;
 const INSTRUMENTS: Address[] = [

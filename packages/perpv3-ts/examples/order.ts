@@ -1,14 +1,13 @@
 import { parseUnits } from 'viem';
-import { abs, wmul } from '../math';
-import { WAD_DECIMALS } from '../constants';
-import { CrossLimitOrderInput } from '../actions/crossLimitOrder';
-import { PlaceInput } from '../actions/order';
-import { BatchOrderSizeDistribution, ScaledLimitOrderInput } from '../actions/scaledLimitOrder';
-import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { Order, Side, buildInquireByTickResult } from '../types';
-import { isRpcConfig } from '../queries/config';
-import { encodeBatchPlaceParam, encodeCancelParam, encodePlaceParam, encodeTradeParam } from '../utils/encode';
-import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
+import { abs, wmul } from '../src/math';
+import { WAD_DECIMALS } from '../src/constants';
+import { CrossLimitOrderInput } from '../src/actions/crossLimitOrder';
+import { PlaceInput } from '../src/actions/order';
+import { BatchOrderSizeDistribution, ScaledLimitOrderInput } from '../src/actions/scaledLimitOrder';
+import { CURRENT_INSTRUMENT_ABI } from '../src/abis';
+import { Order, Side, buildInquireByTickResult } from '../src/types';
+import { isRpcConfig } from '../src/queries/config';
+import { encodeBatchPlaceParam, encodeCancelParam, encodePlaceParam, encodeTradeParam, formatTick, formatTokenAmount, formatWad } from '../src/utils';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
 import {

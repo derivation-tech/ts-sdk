@@ -8,6 +8,7 @@
     "scripts": {
         "preinstall": "npx -y only-allow pnpm",
         "nx": "npx nx run-many --target=build --all",
+        "test": "npx nx run-many --target=test --all",
         "deps": "pnpm -r i",
         "prepare": "husky",
         "lint": "npx eslint",
