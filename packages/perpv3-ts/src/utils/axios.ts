@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosInstance } from 'axios';
-import { getHeaders } from './mm';
+import { getHeaders, type APIHeaders } from './mm';
 import { API_DOMAIN, API_DEFAULT_TIMEOUT, API_DEFAULT_RETRIES } from '../apis/constants';
 import type { AuthInfo } from '../apis/interfaces';
 import { ErrorCode, SynfError } from '../types/error';
@@ -42,7 +42,7 @@ export async function axiosGet<T = any>({
     jwtToken?: string;
 }): Promise<AxiosResponse> {
     const httpClient = new HttpClient({
-        authInfo: authInfo!,
+        authInfo,
         jwtToken,
     });
 
@@ -58,7 +58,7 @@ export interface HttpClientConfig {
     timeout?: number;
     retries?: number;
     jwtToken?: string;
-    authInfo: AuthInfo;
+    authInfo?: AuthInfo;
 }
 
 /**
@@ -104,9 +104,10 @@ export class HttpClient {
             (config) => {
                 // Checks if auth info is required for this request
                 if (this.isRequireAuth(config.url) && !this.hasAuthInfo()) {
-                    throw new Error(
+                    throw new SynfError(
                         'API key is required for API calls. Please provide apiKey in HttpClient config. ' +
-                        'Note: API key is not required with custom api url.'
+                        'Note: API key is not required with public api url.'
+                        , ErrorCode.INVALID_PARAM,
                     );
                 }
                 return config;
@@ -163,6 +164,40 @@ export class HttpClient {
         }
     }
 
+    /**
+     * Get authentication headers if required
+     */
+    private async getAuthHeaders(url: string, method: string): Promise<APIHeaders | undefined> {
+        if (!this.isRequireAuth(url)) {
+            return undefined;
+        }
+        const requestPath = getRequestPathFromUrl(this.config.baseUrl! + url);
+        return await getHeaders({
+            method,
+            requestPath,
+            ...this.config.authInfo,
+        });
+    }
+
+    /**
+     * Build request config with authentication headers
+     */
+    private async buildRequestConfig(
+        config?: AxiosRequestConfig,
+        url?: string,
+        method?: string
+    ): Promise<AxiosRequestConfig> {
+        const extraHeaders = url && method ? await this.getAuthHeaders(url, method) : undefined;
+        return {
+            ...config,
+            headers: {
+                ...config?.headers,
+                Authorization: this.config.jwtToken,
+                ...extraHeaders,
+            },
+        };
+    }
+
     async get<T>(
         url: string,
         config?: AxiosRequestConfig
@@ -174,24 +209,8 @@ export class HttpClient {
             const sortedParams = pa.toString();
             url += (url.includes('?') ? '&' : '?') + sortedParams;
         }
-        const requestPath = getRequestPathFromUrl(this.config.baseUrl! + url);
-        let extraHeaders;
-        if (this.isRequireAuth(url)) {
-            extraHeaders = await getHeaders({
-                method: 'GET',
-                requestPath,
-                ...this.config.authInfo,
-            });
-        }
-        const response = await this.client.get(url, {
-            ...extraConfig,
-            headers: {
-                ...config?.headers,
-                Authorization: this.config.jwtToken,
-                ...extraHeaders,
-            },
-        });
-        return response;
+        const requestConfig = await this.buildRequestConfig(extraConfig, url, 'GET');
+        return await this.client.get(url, requestConfig);
     }
 
     async post<T = any>(
@@ -199,7 +218,8 @@ export class HttpClient {
         data?: unknown,
         config?: AxiosRequestConfig
     ): Promise<AxiosResponse<T>> {
-        return await this.client.post(url, data, config);
+        const requestConfig = await this.buildRequestConfig(config, url, 'POST');
+        return await this.client.post(url, data, requestConfig);
     }
 
     async put<T = any>(
@@ -207,14 +227,16 @@ export class HttpClient {
         data?: any,
         config?: AxiosRequestConfig
     ): Promise<AxiosResponse<T>> {
-        return await this.client.put(url, data, config);
+        const requestConfig = await this.buildRequestConfig(config, url, 'PUT');
+        return await this.client.put(url, data, requestConfig);
     }
 
     async delete<T = any>(
         url: string,
         config?: AxiosRequestConfig
-    ): Promise<T> {
-        return await this.client.delete(url, config);
+    ): Promise<AxiosResponse<T>> {
+        const requestConfig = await this.buildRequestConfig(config, url, 'DELETE');
+        return await this.client.delete(url, requestConfig);
     }
 
 } 
