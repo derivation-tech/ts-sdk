@@ -257,8 +257,8 @@ export class MarketMakerModule {
 
 	/**
 	 * Fetch MM liquidity history
-	 * @param params GetLiquidityListInput
-	 * @returns GetLiquidityHistoryResponse
+	 * @param params FetchMmLiquidityHistoryInput
+	 * @returns FetchMmLiquidityHistoryResponse
 	 */
 	async fetchLiquidityHistory(params: FetchMmLiquidityHistoryInput): Promise<FetchMmLiquidityHistoryResponse | null> {
 		const requestUrl = API_URLS.MM.MM_LIQUIDITY_HISTORY;
