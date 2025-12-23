@@ -59,8 +59,8 @@
     ],
     "scripts": {
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-        "build": "npm run build:bundle && npm run build:types",
-        "build:clean": "npm run clean && npm run build:bundle && npm run build:types",
+        "build": "tsup --config tsup.config.ts && tsc -p tsconfig.types.json",
+        "build:clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsup --config tsup.config.ts && tsc -p tsconfig.types.json",
         "build:bundle": "tsup --config tsup.config.ts",
         "build:types": "tsc -p tsconfig.types.json",
         "build:check": "tsc --noEmit -p tsconfig.json",

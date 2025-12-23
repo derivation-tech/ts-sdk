@@ -6,13 +6,13 @@
     "author": "SynFutures",
     "license": "MIT",
     "scripts": {
-        "preinstall": "npx -y only-allow pnpm",
-        "nx": "npx nx run-many --target=build --all",
-        "test": "npx nx run-many --target=test --all",
+        "preinstall": "node scripts/ensure-pnpm.cjs",
+        "nx": "nx run-many --target=build --all",
+        "test": "nx run-many --target=test --all",
         "deps": "pnpm -r i",
         "prepare": "husky",
-        "lint": "npx eslint",
-        "format": "npx prettier --write packages/**/*.ts apps/**/*.ts",
+        "lint": "eslint",
+        "format": "prettier --write packages/**/*.ts apps/**/*.ts",
         "clean": "pnpm -r clean"
     },
     "devDependencies": {

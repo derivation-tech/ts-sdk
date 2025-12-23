@@ -96,7 +96,7 @@
         "build:check": "tsc --noEmit",
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
         "prepack": "npm run build && npm run build:check",
-        "lint": "npx eslint",
+        "lint": "eslint",
         "format": "prettier --write \"**/*.{ts,json,md}\"",
         "test": "jest",
         "test:watch": "jest --watch",
