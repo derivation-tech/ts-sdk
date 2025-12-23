@@ -19,12 +19,12 @@ export abstract class BaseApiModule {
 		url: string,
 		params: Record<string, any>
 	): Promise<AxiosResponse<T>> {
+		const urlWithQuery = getRequestUrlWithQuery(url, params);
 		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(url, params),
+			uri: urlWithQuery,
 			ts: Date.now(),
 		});
-		return await this.httpClient.get<T>(url, {
-			params,
+		return await this.httpClient.get<T>(urlWithQuery, {
 			headers: {
 				...extraHeaders,
 			},
