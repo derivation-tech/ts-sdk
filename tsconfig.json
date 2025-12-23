@@ -13,7 +13,7 @@
         "strictNullChecks": true,
         "noImplicitReturns": true,
         "noUnusedLocals": true,
-        "preserveSymlinks": true,
+        "preserveSymlinks": false,
         "preserveWatchOutput": true,
         "sourceMap": true,
         "skipLibCheck": true,
