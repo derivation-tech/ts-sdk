@@ -180,10 +180,12 @@ export class MarketMakerModule {
 	 */
 	async fetchTicketList(params: FetchMmTicketListInput): Promise<FetchMmTicketListResponse | null> {
 		const requestUrl = API_URLS.MM.MM_TICKET_LIST;
-		const requestParams = { chainId: params.chainId, symbol: params.symbol };
+		const requestParams = {
+			chainId: params.chainId,
+			...(params.symbol !== undefined && { symbol: params.symbol }),
+		};
 		const res = await this.makeSignedRequest<{ data: FetchMmTicketListItem[] }>(requestUrl, requestParams);
-
-		const data = res?.data?.data;
+		const data = res?.data;
 		if (!data) {
 			return null;
 		}

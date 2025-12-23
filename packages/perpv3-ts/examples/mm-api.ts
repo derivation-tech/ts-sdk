@@ -38,12 +38,13 @@ async function main(): Promise<void> {
     }
 
     try {
-        const ticketList = await fetchMmTicketList({ chainId: CHAIN_ID, symbol: SYMBOL }, authInfo);
+        const ticketList = await fetchMmTicketList({ chainId: CHAIN_ID }, authInfo);
         console.log('ticketList : ', ticketList);
     } catch (error) {
         console.error('ticketList API error:', (error as Error).message);
     }
 
+    return;
     try {
         const accountTxHistory = await fetchMmAccountTransactionHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
         console.log('accountTxHistory : ', accountTxHistory);
