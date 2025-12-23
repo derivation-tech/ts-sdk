@@ -12,9 +12,8 @@ import type {
 	MmWalletPortfolio,
 	MmPositionFromApi,
 	AuthInfo,
-	FetchMmTicketListResponse,
-	FetchMmTicketListItem,
-	FetchMmTicketListInput,
+	FetchMmTickersResponse,
+	FetchMmTickersInput,
 	FetchMmAccountTransactionHistoryInput,
 	FetchMmAccountTransactionHistoryResponse,
 	FetchTradeHistoryInput,
@@ -159,7 +158,6 @@ export class MarketMakerModule {
 		return res?.data?.data ?? null;
 	}
 
-
 	async fetchTradeHistory(params: FetchTradeHistoryInput): Promise<FetchTradeHistoryResponse> {
 		const requestUrl = API_URLS.MM.MM_TRADE_HISTORY;
 		const requestParams = {
@@ -178,13 +176,13 @@ export class MarketMakerModule {
 	/**
 	 * Fetch MM ticket list
 	 */
-	async fetchTicketList(params: FetchMmTicketListInput): Promise<FetchMmTicketListResponse | null> {
-		const requestUrl = API_URLS.MM.MM_TICKET_LIST;
+	async fetchTickers(params: FetchMmTickersInput): Promise<FetchMmTickersResponse | null> {
+		const requestUrl = API_URLS.MM.MM_TICKERS;
 		const requestParams = {
 			chainId: params.chainId,
 			...(params.symbol !== undefined && { symbol: params.symbol }),
 		};
-		const res = await this.makeSignedRequest<{ data: FetchMmTicketListItem[] }>(requestUrl, requestParams);
+		const res = await this.makeSignedRequest<{ data: FetchMmTickersResponse }>(requestUrl, requestParams);
 		return res?.data?.data ?? null;
 	}
 }

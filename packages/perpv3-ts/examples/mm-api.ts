@@ -7,7 +7,7 @@ import {
     PublicWebsocketClient,
     AuthInfo,
     fetchMmServerTime,
-    fetchMmTicketList,
+    fetchMmTickers,
     fetchMmAccountTransactionHistory,
     fetchMmTradeHistory
 } from '../src';
@@ -38,13 +38,12 @@ async function main(): Promise<void> {
     }
 
     try {
-        const ticketList = await fetchMmTicketList({ chainId: CHAIN_ID }, authInfo);
-        console.log('ticketList : ', ticketList);
+        const tickets = await fetchMmTickers({ chainId: CHAIN_ID }, authInfo);
+        console.log('tickets : ', tickets);
     } catch (error) {
-        console.error('ticketList API error:', (error as Error).message);
+        console.error('tickets API error:', (error as Error).message);
     }
 
-    return;
     try {
         const accountTxHistory = await fetchMmAccountTransactionHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
         console.log('accountTxHistory : ', accountTxHistory);
@@ -53,11 +52,12 @@ async function main(): Promise<void> {
     }
 
     try {
-        const tradeHistory = await fetchMmTradeHistory({ chainId: CHAIN_ID, address: USER_ADDRESS, symbol: SYMBOL }, authInfo);
+        const tradeHistory = await fetchMmTradeHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
         console.log('tradeHistory : ', tradeHistory);
     } catch (error) {
         console.error('tradeHistory API error:', (error as Error).message);
     }
+
 
     try {
         const orderBook = await fetchMmOrderBook(
@@ -130,7 +130,7 @@ async function main(): Promise<void> {
     } catch (error) {
         console.error('position list API error:', (error as Error).message);
     }
-
+    return;
     console.log('\n=== WebSocket streams ===');
     const ws = new PublicWebsocketClient({
         onMessage: (msg) => {

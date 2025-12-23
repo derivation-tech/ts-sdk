@@ -19,7 +19,7 @@ export const GATE_BALANCE_DEBOUNCE_DELAY = 500;
 export const DEFAULT_HISTORY_PAGE_SIZE = 60;
 export const MAX_HISTORY_PAGE_SIZE = 1000;
 export const DEFAULT_PAGE = 1;
-export const DEFAULT_PAGE_SIZE = 100;
+export const DEFAULT_PAGE_SIZE = 50;
 export const DEFAULT_HISTORY_PAGE_SIZE_LOCAL = 30;
 
 // api request paths, v4 endpoints
@@ -49,7 +49,7 @@ export const API_URLS = {
         MM_WALLET_BALANCE: '/v4/public/mm/account/wallet-balance',
         MM_POSITION_LIST: '/v4/public/mm/position/list',
         MM_SERVER_TIME: '/v4/public/mm/serverTime',
-        MM_TICKET_LIST: '/v4/public/mm/ticket/list',
+        MM_TICKERS: '/v4/public/mm/tickers',
     },
     TOKEN: {
         TOKEN_ALL_PRICE: '/v4/public/token/tokensWithAddress',

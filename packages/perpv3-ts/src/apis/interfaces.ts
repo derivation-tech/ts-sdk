@@ -621,12 +621,12 @@ export interface MmPositionFromApi {
 
 export type FetchMmPositionListResponse = MmPositionFromApi[];
 
-export interface FetchMmTicketListInput {
+export interface FetchMmTickersInput {
     chainId: number;
     symbol?: string;
 }
 
-export interface FetchMmTicketListItem {
+export interface FetchMmTicker {
     closeTime24h: number;
     expiry: number;
     fundingRate: string;
@@ -647,7 +647,7 @@ export interface FetchMmTicketListItem {
     volume24h: string;
 }
 
-export type FetchMmTicketListResponse = FetchMmTicketListItem[];
+export type FetchMmTickersResponse = FetchMmTicker[];
 
 //kline chart
 export enum KlineInterval {

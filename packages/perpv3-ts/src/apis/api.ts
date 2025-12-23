@@ -65,8 +65,8 @@ import type {
     FetchMmPositionListInput,
     FetchMmPositionListResponse,
     ApiSigner,
-    FetchMmTicketListResponse,
-    FetchMmTicketListInput,
+    FetchMmTickersResponse,
+    FetchMmTickersInput,
     FetchMmAccountTransactionHistoryResponse,
     FetchMmAccountTransactionHistoryInput,
     FetchTradeHistoryResponse,
@@ -196,12 +196,12 @@ export const fetchMmServerTime = async (authInfo: AuthInfo): Promise<number> => 
     return mm.fetchServerTime();
 };
 
-export const fetchMmTicketList = async (
-    params: FetchMmTicketListInput,
+export const fetchMmTickers = async (
+    params: FetchMmTickersInput,
     authInfo: AuthInfo
-): Promise<FetchMmTicketListResponse | null> => {
+): Promise<FetchMmTickersResponse | null> => {
     const mm = new MarketMakerModule(httpClient, authInfo);
-    return mm.fetchTicketList(params);
+    return mm.fetchTickers(params);
 };
 
 export const fetchMmAccountTransactionHistory = async (
