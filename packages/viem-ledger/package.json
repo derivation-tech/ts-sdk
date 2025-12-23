@@ -15,6 +15,7 @@
     },
     "dependencies": {
         "@ledgerhq/hw-app-eth": "^6.32.0",
+        "@ledgerhq/hw-transport": "^6.31.14",
         "@ledgerhq/hw-transport-node-hid": "^6.27.12"
     },
     "devDependencies": {

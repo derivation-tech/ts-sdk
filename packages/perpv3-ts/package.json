@@ -114,6 +114,7 @@
         "sdk"
     ],
     "dependencies": {
+        "@noble/curves": "^1.9.1",
         "@synfutures/viem-kit": "workspace:*",
         "viem": "catalog:",
         "axios": "^1.12.2",
@@ -129,6 +130,7 @@
         }
     },
     "devDependencies": {
+        "@jest/globals": "^30.2.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^20.0.0",
         "eslint": "^9.0.0",

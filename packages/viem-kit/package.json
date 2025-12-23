@@ -81,6 +81,7 @@
     },
     "devDependencies": {
         "@synfutures/viem-ledger": "workspace:*",
+        "@jest/globals": "^29.7.0",
         "@types/jest": "^29.5.12",
         "@types/node": "^20.0.0",
         "jest": "^29.7.0",
