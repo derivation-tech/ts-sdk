@@ -49,16 +49,19 @@ export async function fetchOnchainContext(
     expiry: number,
     config: ApiConfig,
     traderAddress?: Address,
-    signedSize?: bigint
+    signedSize?: bigint,
 ): Promise<PairSnapshot> {
     const { chainId } = config;
+    if (!config.signer) {
+        throw Errors.apiRequestFailed('Signer is required for fetchOnchainContext');
+    }
 
     const userAddressParam = traderAddress ?? zeroAddress;
     const signedSizeParam = signedSize !== undefined ? signedSize.toString() : '0';
 
     const onChainContextResponse = await fetchMarketOnChainContext(
         { chainId, instrument: instrumentAddress, expiry, userAddress: userAddressParam, signedSize: signedSizeParam },
-        config.authInfo!
+        config.signer
     );
 
     if (!onChainContextResponse?.instrument) {
@@ -129,6 +132,9 @@ export async function inquireByTick(
     tick: number,
     config: ApiConfig
 ): Promise<{ size: bigint; quotation: Quotation }> {
+    if (!config.signer) {
+        throw Errors.apiRequestFailed('Signer is required for fetchOnchainContext');
+    }
     const result = await fetchFuturesInstrumentInquireByTick(
         {
             chainId: config.chainId,
@@ -136,8 +142,7 @@ export async function inquireByTick(
             expiry,
             tick,
         },
-        //TODO remove it
-        config.authInfo!
+        config.signer
     );
 
     if (!result || result.size === undefined) {

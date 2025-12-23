@@ -10,21 +10,41 @@ import type {
 	IFuturesOrderBookAllSteps,
 	MmWalletPortfolio,
 	MmPositionFromApi,
+	AuthInfo,
 } from './interfaces';
-import { HttpClient } from '../utils/axios';
+import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
 import { bigIntObjectCheckByKeys } from '../utils';
+import { ApiAuthSigner } from '../utils/mm';
 
 /**
  * MarketMakerModule - Market Maker API endpoints
  */
 export class MarketMakerModule {
-	constructor(private readonly httpClient: HttpClient) {}
+	private readonly signer: ApiAuthSigner;
+
+	constructor(
+		private readonly httpClient: HttpClient,
+		signerOrAuthInfo: ApiAuthSigner | AuthInfo
+	) {
+		if (signerOrAuthInfo instanceof ApiAuthSigner) {
+			this.signer = signerOrAuthInfo;
+		} else {
+			this.signer = new ApiAuthSigner(signerOrAuthInfo);
+		}
+	}
 
 	/**
 	 * Fetch MM server time
 	 */
 	async fetchServerTime(): Promise<number> {
-		const res = await this.httpClient.get<{ data: number }>(API_URLS.MM.MM_SERVER_TIME);
+		const requestUrl = API_URLS.MM.MM_SERVER_TIME;
+		const requestPath = requestUrl; // No params for this endpoint
+		const extraHeaders = await this.signer.sign('GET', requestPath);
+		const res = await this.httpClient.get<{ data: number }>(requestUrl, {
+			headers: {
+				...extraHeaders,
+			},
+		});
 		return res.data.data;
 	}
 
@@ -34,8 +54,15 @@ export class MarketMakerModule {
 	async fetchOrderBook(
 		params: FetchMmOrderBookInput,
 	): Promise<FetchMmOrderBookResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MM.MM_ORDER_BOOK, {
-			params: { chainId: params.chainId, symbol: params.symbol, ...(params.depth ? { depth: params.depth } : {}) },
+		const requestUrl = API_URLS.MM.MM_ORDER_BOOK;
+		const requestParams = { chainId: params.chainId, symbol: params.symbol, ...(params.depth ? { depth: params.depth } : {}) };
+		const requestPath = getRequestUrlWithQuery(requestUrl, requestParams);
+		const extraHeaders = await this.signer.sign('GET', requestPath);
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
 		});
 
 		if (res?.data?.data) {
@@ -63,8 +90,15 @@ export class MarketMakerModule {
 	async fetchWalletBalance(
 		params: FetchMmWalletBalanceInput,
 	): Promise<FetchMmWalletBalanceResponse | null> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MM.MM_WALLET_BALANCE, {
-			params: { chainId: params.chainId, address: params.address },
+		const requestUrl = API_URLS.MM.MM_WALLET_BALANCE;
+		const requestParams = { chainId: params.chainId, address: params.address };
+		const requestPath = getRequestUrlWithQuery(requestUrl, requestParams);
+		const extraHeaders = await this.signer.sign('GET', requestPath);
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
 		});
 
 		const data = res?.data?.data;
@@ -89,8 +123,15 @@ export class MarketMakerModule {
 	async fetchPositionList(
 		params: FetchMmPositionListInput,
 	): Promise<FetchMmPositionListResponse | null> {
-		const res = await this.httpClient.get<{ data: MmPositionFromApi[] }>(API_URLS.MM.MM_POSITION_LIST, {
-			params: { chainId: params.chainId, address: params.address },
+		const requestUrl = API_URLS.MM.MM_POSITION_LIST;
+		const requestParams = { chainId: params.chainId, address: params.address };
+		const requestPath = getRequestUrlWithQuery(requestUrl, requestParams);
+		const extraHeaders = await this.signer.sign('GET', requestPath);
+		const res = await this.httpClient.get<{ data: MmPositionFromApi[] }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
 		});
 
 		const data = res?.data?.data;

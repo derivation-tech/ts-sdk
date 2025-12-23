@@ -13,15 +13,16 @@ import type {
 	GetTransferHistoryParams,
 	GetTransferHistoryResponse,
 	GetTransferHistoryItemResponse,
+	ApiSigner,
 } from './interfaces';
-import { HttpClient } from '../utils';
+import { getRequestUrlWithQuery, HttpClient } from '../utils';
 import { getStartEndTimeByRangeType } from '../frontend';
 
 /**
  * HistoryModule - History API endpoints
  */
 export class HistoryModule {
-	constructor(private readonly httpClient: HttpClient) {}
+	constructor(private readonly httpClient: HttpClient, private readonly signer: ApiSigner) {}
 
 	/**
 	 * Fetch trade history
@@ -43,21 +44,32 @@ export class HistoryModule {
 		if (!userAddress) {
 			return [];
 		}
+
 		const { startTime, endTime } = getStartEndTimeByRangeType(timeRange);
+
+		const requestUrl = API_URLS.HISTORY.TRADE;
+		const requestParams = {
+			chainId,
+			userAddress,
+			...(download
+				? { download: true }
+				: {
+					...(pageSize !== undefined && { size: pageSize }),
+					...(instrumentAddress !== undefined && { instrumentAddress }),
+					...(expiry !== undefined && { expiry }),
+					...(startTime !== undefined && { startTime }),
+					...(endTime !== undefined && { endTime }),
+					...(page !== undefined && { page }),
+				}),
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
 		const result = await this.httpClient.get<{ data: { list: any[] } }>(API_URLS.HISTORY.TRADE, {
-			params: {
-				chainId,
-				userAddress,
-				...(download
-					? { download: true }
-					: {
-						...(pageSize !== undefined && { size: pageSize }),
-						...(instrumentAddress !== undefined && { instrumentAddress }),
-						...(expiry !== undefined && { expiry }),
-						...(startTime !== undefined && { startTime }),
-						...(endTime !== undefined && { endTime }),
-						...(page !== undefined && { page }),
-					}),
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
 		const tradeHistoryList = result?.data?.data?.list;
@@ -91,20 +103,30 @@ export class HistoryModule {
 			return [];
 		}
 		const { startTime, endTime } = getStartEndTimeByRangeType(timeRange);
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(API_URLS.HISTORY.ORDER, {
-			params: {
-				chainId,
-				userAddress,
-				...(download
-					? { download: true }
-					: {
-						...(pageSize !== undefined && { size: pageSize }),
-						...(instrumentAddress !== undefined && { instrumentAddress }),
-						...(expiry !== undefined && { expiry }),
-						...(startTime !== undefined && { startTime }),
-						...(endTime !== undefined && { endTime }),
-						...(page !== undefined && { page }),
-					}),
+
+		const requestUrl = API_URLS.HISTORY.ORDER;
+		const requestParams = {
+			chainId,
+			userAddress,
+			...(download
+				? { download: true }
+				: {
+					...(pageSize !== undefined && { size: pageSize }),
+					...(instrumentAddress !== undefined && { instrumentAddress }),
+					...(expiry !== undefined && { expiry }),
+					...(startTime !== undefined && { startTime }),
+					...(endTime !== undefined && { endTime }),
+					...(page !== undefined && { page }),
+				}),
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const result = await this.httpClient.get<{ data: { list: any[] } }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
 		const orderHistoryList = result?.data?.data?.list;
@@ -139,23 +161,31 @@ export class HistoryModule {
 		if (!userAddress) return [];
 
 		const { startTime, endTime } = getStartEndTimeByRangeType(timeRange);
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(API_URLS.HISTORY.FUNDING, {
-			params: {
-				chainId,
-				userAddress,
-				...(download
-					? { download: true }
-					: {
-						...(pageSize !== undefined && { size: pageSize }),
-						...(instrumentAddress !== undefined && { instrumentAddress }),
-						...(expiry !== undefined && { expiry }),
-						...(startTime !== undefined && { startTime }),
-						...(endTime !== undefined && { endTime }),
-						...(page !== undefined && { page }),
-					}),
+		const requestUrl = API_URLS.HISTORY.FUNDING;
+		const requestParams = {
+			chainId,
+			userAddress,
+			...(download
+				? { download: true }
+				: {
+					...(pageSize !== undefined && { size: pageSize }),
+					...(instrumentAddress !== undefined && { instrumentAddress }),
+					...(expiry !== undefined && { expiry }),
+					...(startTime !== undefined && { startTime }),
+					...(endTime !== undefined && { endTime }),
+					...(page !== undefined && { page }),
+				}),
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const result = await this.httpClient.get<{ data: { list: any[] } }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
-
 		const historyList = result.data.data.list || [];
 		return historyList;
 	}
@@ -180,24 +210,35 @@ export class HistoryModule {
 		if (!userAddress) return [];
 
 		const { startTime, endTime } = getStartEndTimeByRangeType(timeRange);
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(API_URLS.HISTORY.TRANSFER, {
-			params: {
-				chainId,
-				userAddress,
-				...(download
-					? { download: true }
-					: {
-						...(pageSize !== undefined && { size: pageSize }),
-						...(instrumentAddress !== undefined && { instrumentAddress }),
-						...(expiry !== undefined && { expiry }),
-						...(startTime !== undefined && { startTime }),
-						...(endTime !== undefined && { endTime }),
-						...(page !== undefined && { page }),
-					}),
+
+		const requestUrl = API_URLS.HISTORY.TRANSFER;
+		const requestParams = {
+			chainId,
+			userAddress,
+			...(download
+				? { download: true }
+				: {
+					...(pageSize !== undefined && { size: pageSize }),
+					...(instrumentAddress !== undefined && { instrumentAddress }),
+					...(expiry !== undefined && { expiry }),
+					...(startTime !== undefined && { startTime }),
+					...(endTime !== undefined && { endTime }),
+					...(page !== undefined && { page }),
+				}),
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+
+		const result = await this.httpClient.get<{ data: { list: GetTransferHistoryItemResponse[] } }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
 
-		const historyList = result.data.data.list || [];
+		const historyList = result.data.data?.list || [];
 
 		return (
 			historyList?.map((history: GetTransferHistoryItemResponse) => ({
@@ -226,20 +267,31 @@ export class HistoryModule {
 		if (!userAddress) return [];
 
 		const { startTime, endTime } = getStartEndTimeByRangeType(timeRange);
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(API_URLS.HISTORY.LQUIDITY, {
-			params: {
-				chainId,
-				userAddress,
-				...(download
-					? { download: true }
-					: {
-						...(pageSize !== undefined && { size: pageSize }),
-						...(instrumentAddress !== undefined && { instrumentAddress }),
-						...(expiry !== undefined && { expiry }),
-						...(startTime !== undefined && { startTime }),
-						...(endTime !== undefined && { endTime }),
-						...(page !== undefined && { page }),
-					}),
+
+		const requestUrl = API_URLS.HISTORY.LIQUIDITY;
+		const requestParams = {
+			chainId,
+			userAddress,
+			...(download
+				? { download: true }
+				: {
+					...(pageSize !== undefined && { size: pageSize }),
+					...(instrumentAddress !== undefined && { instrumentAddress }),
+					...(expiry !== undefined && { expiry }),
+					...(startTime !== undefined && { startTime }),
+					...(endTime !== undefined && { endTime }),
+					...(page !== undefined && { page }),
+				}),
+		};
+
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const result = await this.httpClient.get<{ data: { list: any[] } }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
 
@@ -265,19 +317,30 @@ export class HistoryModule {
 		if (!userAddress) return [];
 
 		const { startTime, endTime } = getStartEndTimeByRangeType(timeRange);
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(API_URLS.HISTORY.ACCOUNT, {
-			params: {
-				chainId,
-				userAddress,
 
-				...(download
-					? { download: true }
-					: {
-						...(startTime !== undefined && { startTime }),
-						...(endTime !== undefined && { endTime }),
-						...(page !== undefined && { page }),
-						...(pageSize !== undefined && { size: pageSize }),
-					}),
+		const requestUrl = API_URLS.HISTORY.ACCOUNT;
+		const requestParams = {
+			chainId,
+			userAddress,
+
+			...(download
+				? { download: true }
+				: {
+					...(startTime !== undefined && { startTime }),
+					...(endTime !== undefined && { endTime }),
+					...(page !== undefined && { page }),
+					...(pageSize !== undefined && { size: pageSize }),
+				}),
+		};
+
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const result = await this.httpClient.get<{ data: { list: any[] } }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
 

@@ -68,7 +68,7 @@ import type {
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
-const createHttpClient = (authInfo?: AuthInfo) => new HttpClient({ authInfo });
+const createHttpClient = () => new HttpClient();
 
 // Market functions
 export const fetchFuturesInstrument = async (
@@ -183,13 +183,13 @@ export const fetchPortfolioListFromApi = async (
     if (!authInfo) {
         throw new Error('authInfo is required for fetchPortfolioListFromApi');
     }
-    const publicModule = new PublicModule(createHttpClient(authInfo));
+    const publicModule = new PublicModule(createHttpClient(),);
     return publicModule.fetchPortfolioList(params);
 };
 
 // MM functions
 export const fetchMmServerTime = async (authInfo: AuthInfo): Promise<number> => {
-    const mm = new MarketMakerModule(createHttpClient(authInfo));
+    const mm = new MarketMakerModule(createHttpClient(), authInfo);
     return mm.fetchServerTime();
 };
 
@@ -197,7 +197,7 @@ export const fetchMmOrderBook = async (
     params: FetchMmOrderBookInput,
     authInfo: AuthInfo
 ): Promise<FetchMmOrderBookResponse> => {
-    const mm = new MarketMakerModule(createHttpClient(authInfo));
+    const mm = new MarketMakerModule(createHttpClient(), authInfo);
     return mm.fetchOrderBook(params);
 };
 
@@ -205,7 +205,7 @@ export const fetchMmWalletBalance = async (
     params: FetchMmWalletBalanceInput,
     authInfo: AuthInfo
 ): Promise<FetchMmWalletBalanceResponse | null> => {
-    const mm = new MarketMakerModule(createHttpClient(authInfo));
+    const mm = new MarketMakerModule(createHttpClient(), authInfo);
     return mm.fetchWalletBalance(params);
 };
 
@@ -213,64 +213,64 @@ export const fetchMmPositionList = async (
     params: FetchMmPositionListInput,
     authInfo: AuthInfo
 ): Promise<FetchMmPositionListResponse | null> => {
-    const mm = new MarketMakerModule(createHttpClient(authInfo));
+    const mm = new MarketMakerModule(createHttpClient(), authInfo);
     return mm.fetchPositionList(params);
 };
 
 // Token functions
 export const fetchTokenPriceMapFromApi = async (
     params: FetchTokenPriceMapInput,
-    authInfo: AuthInfo
+    signer: ApiSigner
 ): Promise<FetchTokenPriceMapResponse> => {
-    const token = new TokenModule(createHttpClient(authInfo));
+    const token = new TokenModule(createHttpClient(), signer);
     return token.fetchTokenPriceMap(params);
 };
 
 // History functions
 export const fetchTradeHistory = async (
     params: GetTradeHistoryParams,
-    authInfo: AuthInfo
+    signer: ApiSigner
 ): Promise<GetTradeHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(authInfo));
+    const history = new HistoryModule(createHttpClient(), signer);
     return history.fetchTradeHistory(params);
 };
 
 export const fetchOrdersHistory = async (
     params: GetOrdersHistoryParams,
-    authInfo: AuthInfo
+    signer: ApiSigner
 ): Promise<GetOrdersHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(authInfo));
+    const history = new HistoryModule(createHttpClient(), signer);
     return history.fetchOrdersHistory(params);
 };
 
 export const fetchFundingHistory = async (
     params: GetFundingHistoryParams,
-    authInfo: AuthInfo
+    signer: ApiSigner
 ): Promise<GetFundingHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(authInfo));
+    const history = new HistoryModule(createHttpClient(), signer);
     return history.fetchFundingHistory(params);
 };
 
 export const fetchTransferHistory = async (
     params: GetTransferHistoryParams,
-    authInfo: AuthInfo
+    signer: ApiSigner
 ): Promise<GetTransferHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(authInfo));
+    const history = new HistoryModule(createHttpClient(), signer);
     return history.fetchTransferHistory(params);
 };
 
 export const fetchLiquidityHistory = async (
     params: GetLiquidityHistoryParams,
-    authInfo: AuthInfo
+    signer: ApiSigner
 ): Promise<GetLiquidityHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(authInfo));
+    const history = new HistoryModule(createHttpClient(), signer);
     return history.fetchLiquidityHistory(params);
 };
 
 export const fetchAccountBalanceHistory = async (
     params: GetAccountBalanceHistoryParams,
-    authInfo: AuthInfo
+    signer: ApiSigner
 ): Promise<GetAccountBalanceHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(authInfo));
+    const history = new HistoryModule(createHttpClient(), signer);
     return history.fetchAccountBalanceHistory(params);
 };

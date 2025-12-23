@@ -49,8 +49,6 @@ export interface ApiSigner {
 
 /**
  * ApiSignerFunc is a function that signs the request parameters
- * @param params - The parameters to sign
- * @returns The signed parameters
  */
 export type ApiSignerFunc = (params: SignParams) => SignResult;
 
@@ -734,7 +732,7 @@ export interface HistoryRequestBase {
     /** Number of items per page (optional, defaults to DEFAULT_HISTORY_PAGE_SIZE) */
     size?: number;
     /** Time range filter for historical data */
-    timeRange: HISTORY_RANGE;
+    timeRange?: HISTORY_RANGE;
     /** Whether to fetch all data without pagination (optional, defaults to false) */
     download?: boolean;
 }

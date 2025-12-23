@@ -56,7 +56,7 @@ export const API_URLS = {
         ORDER: '/v4/public/history/order',
         ACCOUNT: '/v4/public/history/fundFlow',
         FUNDING: '/v4/public/history/funding',
-        LQUIDITY: '/v4/public/history/liquidity',
+        LIQUIDITY: '/v4/public/history/liquidity',
         TRANSFER: '/v4/public/history/transfer',
     },
 } as const;

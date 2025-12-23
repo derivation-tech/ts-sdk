@@ -1,7 +1,7 @@
 import type { Address } from 'viem';
 import { fetchFuturesPairOrderBook } from '../apis/api';
 import type { IFuturesOrderBookAllSteps } from '../apis/interfaces';
-import type { PairSnapshot, Quotation } from '../types';
+import { Errors, type PairSnapshot, type Quotation } from '../types';
 import { fetchOnchainContext as fetchOnchainContextFromApi, inquireByTick as inquireByTickFromApi } from './api';
 import {
     fetchOnchainContext as fetchOnchainContextFromRpc,
@@ -86,13 +86,16 @@ export async function fetchOrderBook(
     options?: ReadOptions
 ): Promise<IFuturesOrderBookAllSteps | null> {
     if (isApiConfig(config)) {
+        if (!config.signer) {
+            throw Errors.apiRequestFailed('Signer is required for fetchOrderBook');
+        }
         return fetchFuturesPairOrderBook(
             {
                 chainId: config.chainId,
                 address: instrument,
                 expiry: expiry,
             },
-            config.authInfo!
+            config.signer
         );
     }
 
