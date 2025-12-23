@@ -532,22 +532,22 @@ export interface FetchTradeHistoryInput {
 }
 
 export interface FetchTradeHistoryItem {
-    balance: string,
-    baseToken: TokenInfoFromApi,
-    event: string,
-    expiry: number,
-    id: string,
-    instrumentAddress: string,
-    price: string,
-    protocolFee: string,
-    quoteToken: TokenInfoFromApi,
-    side: string,
-    size: string,
-    symbol: string,
-    timestamp: number,
-    tradeFee: string,
-    txHash: string,
-    type: string,
+    balance: string;
+    baseToken: TokenInfoFromApi;
+    event: string;
+    expiry: number;
+    id: string;
+    instrumentAddress: string;
+    price: string;
+    protocolFee: string;
+    quoteToken: TokenInfoFromApi;
+    side: string;
+    size: string;
+    symbol: string;
+    timestamp: number;
+    tradeFee: string;
+    txHash: string;
+    type: string;
     typeString: string
 }
 
@@ -636,23 +636,23 @@ export interface FetchMmLiquidityHistoryInput {
 }
 
 export interface FetchMmLiquidityHistoryItem {
-    amount: string,
-    baseToken: TokenInfo,
-    expiry: number,
-    fairPrice: string,
-    feeEarned: string,
-    id: string,
-    instrumentAddress: string,
-    lowerPrice: string,
-    lowerTick: number,
-    quoteToken: TokenInfo,
-    symbol: string,
-    timestamp: number,
-    txHash: string,
-    type: number,
-    typeString: string,
-    upperPrice: string,
-    upperTick: number
+    amount: string;
+    baseToken: TokenInfo;
+    expiry: number;
+    fairPrice: string;
+    feeEarned: string;
+    id: string;
+    instrumentAddress: string;
+    lowerPrice: string;
+    lowerTick: number;
+    quoteToken: TokenInfo;
+    symbol: string;
+    timestamp: number;
+    txHash: string;
+    type: number;
+    typeString: string;
+    upperPrice: string;
+    upperTick: number;
 }
 
 export type FetchMmLiquidityHistoryResponse = {
