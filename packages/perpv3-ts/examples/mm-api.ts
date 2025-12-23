@@ -39,21 +39,21 @@ async function main(): Promise<void> {
 
     try {
         const tickets = await fetchMmTickers({ chainId: CHAIN_ID }, authInfo);
-        console.log('tickets : ', tickets);
+        console.log('tickets : ', tickets?.[0]);
     } catch (error) {
         console.error('tickets API error:', (error as Error).message);
     }
 
     try {
         const accountTxHistory = await fetchMmAccountTransactionHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
-        console.log('accountTxHistory : ', accountTxHistory);
+        console.log('accountTxHistory : ', accountTxHistory?.totalCount);
     } catch (error) {
         console.error('accountTxHistory API error:', (error as Error).message);
     }
 
     try {
         const tradeHistory = await fetchMmTradeHistory({ chainId: CHAIN_ID, address: USER_ADDRESS, symbol: SYMBOL }, authInfo);
-        console.log('tradeHistory : ', tradeHistory);
+        console.log('tradeHistory : ', tradeHistory?.totalCount);
     } catch (error) {
         console.error('tradeHistory API error:', (error as Error).message);
     }

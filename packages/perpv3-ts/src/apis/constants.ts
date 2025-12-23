@@ -44,7 +44,7 @@ export const API_URLS = {
     },
     MM: {
         MM_ACCOUNT_TRANSACTION_HISTORY: '/v4/public/mm/account/transaction-history',
-        MM_TRADE_HISTORY: 'v4/public/mm/execution/list',
+        MM_TRADE_HISTORY: '/v4/public/mm/execution/list',
         MM_ORDER_BOOK: '/v4/public/mm/orderBook',
         MM_WALLET_BALANCE: '/v4/public/mm/account/wallet-balance',
         MM_POSITION_LIST: '/v4/public/mm/position/list',
