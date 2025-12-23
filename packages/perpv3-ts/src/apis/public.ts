@@ -4,13 +4,16 @@ import type {
 	FetchPortfolioListFromApiResponse,
 	ApiSigner,
 } from './interfaces';
-import { HttpClient, bigIntObjectCheckByKeys, getRequestUrlWithQuery } from '../utils';
+import { HttpClient, bigIntObjectCheckByKeys } from '../utils';
+import { BaseApiModule } from './base';
 
 /**
  * PublicModule - Public API endpoints
  */
-export class PublicModule {
-	constructor(private readonly httpClient: HttpClient, private readonly signer: ApiSigner) {}
+export class PublicModule extends BaseApiModule {
+	constructor(httpClient: HttpClient, signer: ApiSigner) {
+		super(httpClient, signer);
+	}
 
 	/**
 	 * Fetch portfolio list from API
@@ -25,16 +28,7 @@ export class PublicModule {
 			...(params.instrumentAddress && { instrumentAddress: params.instrumentAddress }),
 			...(params.expiry && { expiry: params.expiry }),
 		};
-		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(requestUrl, params),
-			ts: Date.now(),
-		});
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.PUBLIC.PORTFOLIO, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const res = await this.makeSignedRequest<{ data: any }>(requestUrl, requestParams);
 
 		if (res?.data?.data) {
 			const data = bigIntObjectCheckByKeys(res.data.data, [...PORTFOLIO_BIG_INT_KEYS]);

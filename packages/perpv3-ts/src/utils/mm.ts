@@ -1,6 +1,6 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-export interface AuthInfo {
+interface AuthInfo {
     apiKey: string;
     passphrase: string;
     secretKey: string;

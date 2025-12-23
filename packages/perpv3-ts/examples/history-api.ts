@@ -25,7 +25,7 @@ async function main(): Promise<void> {
 	try {
 		const portfolioList = await fetchPortfolioListFromApi({ chainId: CHAIN_ID, userAddress: USER_ADDRESS }, signer);
 		console.log('portfolioList: ', portfolioList);
-		return;
+
 		const tradingHistory = await fetchTradeHistory({ chainId: CHAIN_ID, userAddress: USER_ADDRESS, instrumentAddress: INSTRUMENT, expiry: PERP_EXPIRY, timeRange: HISTORY_RANGE.ALL }, signer);
 		console.log('tradingHistory with instrument: ', tradingHistory);
 

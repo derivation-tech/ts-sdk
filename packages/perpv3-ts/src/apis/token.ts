@@ -5,13 +5,16 @@ import type {
 	FetchTokenPriceMapResponse,
 	TokenPriceFromApi,
 } from './interfaces';
-import { getRequestUrlWithQuery, HttpClient } from '../utils';
+import { HttpClient } from '../utils';
+import { BaseApiModule } from './base';
 
 /**
  * TokenModule - Token API endpoints
  */
-export class TokenModule {
-	constructor(private readonly httpClient: HttpClient, private readonly signer: ApiSigner) {}
+export class TokenModule extends BaseApiModule {
+	constructor(httpClient: HttpClient, signer: ApiSigner) {
+		super(httpClient, signer);
+	}
 
 	/**
 	 * Fetch token price map from API
@@ -20,16 +23,7 @@ export class TokenModule {
 		params: FetchTokenPriceMapInput,
 	): Promise<FetchTokenPriceMapResponse> {
 		const requestUrl = API_URLS.TOKEN.TOKEN_ALL_PRICE;
-		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(requestUrl, params),
-			ts: Date.now(),
-		});
-		const response = await this.httpClient.get<{ data: TokenPriceFromApi[] }>(API_URLS.TOKEN.TOKEN_ALL_PRICE, {
-			params,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const response = await this.makeSignedRequest<{ data: TokenPriceFromApi[] }>(requestUrl, params);
 		const tokenPriceMap = Object.fromEntries(
 			((response?.data?.data as TokenPriceFromApi[]) || []).map((item) => [item.address, item])
 		);

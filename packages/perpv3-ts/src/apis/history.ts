@@ -15,14 +15,17 @@ import type {
 	GetTransferHistoryItemResponse,
 	ApiSigner,
 } from './interfaces';
-import { getRequestUrlWithQuery, HttpClient } from '../utils';
+import { HttpClient } from '../utils';
 import { getStartEndTimeByRangeType } from '../frontend';
+import { BaseApiModule } from './base';
 
 /**
  * HistoryModule - History API endpoints
  */
-export class HistoryModule {
-	constructor(private readonly httpClient: HttpClient, private readonly signer: ApiSigner) {}
+export class HistoryModule extends BaseApiModule {
+	constructor(httpClient: HttpClient, signer: ApiSigner) {
+		super(httpClient, signer);
+	}
 
 	/**
 	 * Fetch trade history
@@ -62,17 +65,8 @@ export class HistoryModule {
 					...(page !== undefined && { page }),
 				}),
 		};
-		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(requestUrl, requestParams),
-			ts: Date.now(),
-		});
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(API_URLS.HISTORY.TRADE, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
-		const tradeHistoryList = result?.data?.data?.list;
+		const res = await this.makeSignedRequest<{ data: { list: any[] } }>(requestUrl, requestParams);
+		const tradeHistoryList = res?.data?.data?.list;
 		if (!Array.isArray(tradeHistoryList)) {
 			return [];
 		}
@@ -119,16 +113,7 @@ export class HistoryModule {
 					...(page !== undefined && { page }),
 				}),
 		};
-		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(requestUrl, requestParams),
-			ts: Date.now(),
-		});
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(requestUrl, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const result = await this.makeSignedRequest<{ data: { list: any[] } }>(requestUrl, requestParams);
 		const orderHistoryList = result?.data?.data?.list;
 		if (!Array.isArray(orderHistoryList)) {
 			return [];
@@ -176,16 +161,7 @@ export class HistoryModule {
 					...(page !== undefined && { page }),
 				}),
 		};
-		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(requestUrl, requestParams),
-			ts: Date.now(),
-		});
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(requestUrl, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const result = await this.makeSignedRequest<{ data: { list: any[] } }>(requestUrl, requestParams);
 		const historyList = result.data.data.list || [];
 		return historyList;
 	}
@@ -226,17 +202,8 @@ export class HistoryModule {
 					...(page !== undefined && { page }),
 				}),
 		};
-		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(requestUrl, requestParams),
-			ts: Date.now(),
-		});
 
-		const result = await this.httpClient.get<{ data: { list: GetTransferHistoryItemResponse[] } }>(requestUrl, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const result = await this.makeSignedRequest<{ data: { list: GetTransferHistoryItemResponse[] } }>(requestUrl, requestParams);
 
 		const historyList = result.data.data?.list || [];
 
@@ -284,16 +251,7 @@ export class HistoryModule {
 				}),
 		};
 
-		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(requestUrl, requestParams),
-			ts: Date.now(),
-		});
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(requestUrl, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const result = await this.makeSignedRequest<{ data: { list: any[] } }>(requestUrl, requestParams);
 
 		const eventList = result.data.data.list || [];
 		return eventList;
@@ -333,16 +291,7 @@ export class HistoryModule {
 				}),
 		};
 
-		const extraHeaders = this.signer.sign({
-			uri: getRequestUrlWithQuery(requestUrl, requestParams),
-			ts: Date.now(),
-		});
-		const result = await this.httpClient.get<{ data: { list: any[] } }>(requestUrl, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const result = await this.makeSignedRequest<{ data: { list: any[] } }>(requestUrl, requestParams);
 
 		const eventList = result.data.data.list || [];
 		return eventList || [];
