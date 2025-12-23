@@ -19,6 +19,7 @@ export const GATE_BALANCE_DEBOUNCE_DELAY = 500;
 export const DEFAULT_HISTORY_PAGE_SIZE = 60;
 export const MAX_HISTORY_PAGE_SIZE = 1000;
 export const DEFAULT_PAGE = 1;
+export const DEFAULT_PAGE_SIZE = 100;
 export const DEFAULT_HISTORY_PAGE_SIZE_LOCAL = 30;
 
 // api request paths, v4 endpoints
