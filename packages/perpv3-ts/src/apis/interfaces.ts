@@ -556,6 +556,21 @@ export type FetchMmAccountTransactionHistoryResponse = {
     totalCount: number;
 };
 
+export interface FetchMmFundingHistoryInput {
+    chainId: number;
+    symbol: string;
+    startTime?: number;
+    endTime?: number;
+    limit?: number;
+}
+
+export interface FetchMmFundingHistoryItem {
+    long: string;
+    short: string;
+    timestamp: number;
+}
+export type FetchMmFundingHistoryResponse = FetchMmFundingHistoryItem[];
+
 // mm orderbook
 export interface FetchMmOrderBookInput {
     chainId: number;

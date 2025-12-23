@@ -50,6 +50,7 @@ export const API_URLS = {
         MM_POSITION_LIST: '/v4/public/mm/position/list',
         MM_SERVER_TIME: '/v4/public/mm/serverTime',
         MM_TICKERS: '/v4/public/mm/tickers',
+        MM_FUNDING_HISTORY: '/v4/public/mm/funding/history',
     },
     TOKEN: {
         TOKEN_ALL_PRICE: '/v4/public/token/tokensWithAddress',

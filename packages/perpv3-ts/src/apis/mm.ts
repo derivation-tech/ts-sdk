@@ -18,6 +18,8 @@ import type {
 	FetchMmAccountTransactionHistoryResponse,
 	FetchTradeHistoryInput,
 	FetchTradeHistoryResponse,
+	FetchMmFundingHistoryInput,
+	FetchMmFundingHistoryResponse,
 } from './interfaces';
 import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
 import { bigIntObjectCheckByKeys } from '../utils';
@@ -185,5 +187,23 @@ export class MarketMakerModule {
 		const res = await this.makeSignedRequest<{ data: FetchMmTickersResponse }>(requestUrl, requestParams);
 		return res?.data?.data ?? null;
 	}
-}
 
+
+	/**
+	 * Fetch MM funding history
+	 * @param params FetchMmFundingHistoryInput
+	 * @returns FetchMmFundingHistoryResponse
+	 */
+	async fetchFundingHistory(params: FetchMmFundingHistoryInput): Promise<FetchMmFundingHistoryResponse | null> {
+		const requestUrl = API_URLS.MM.MM_FUNDING_HISTORY;
+		const requestParams = {
+			chainId: params.chainId,
+			symbol: params.symbol,
+			...(params.startTime !== undefined && { startTime: params.startTime }),
+			...(params.endTime !== undefined && { endTime: params.endTime }),
+			...(params.limit !== undefined && { limit: params.limit }),
+		};
+		const res = await this.makeSignedRequest<{ data: FetchMmFundingHistoryResponse }>(requestUrl, requestParams);
+		return res?.data?.data ?? null;
+	}
+}

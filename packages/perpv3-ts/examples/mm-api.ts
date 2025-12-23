@@ -9,7 +9,8 @@ import {
     fetchMmServerTime,
     fetchMmTickers,
     fetchMmAccountTransactionHistory,
-    fetchMmTradeHistory
+    fetchMmTradeHistory,
+    fetchMmFundingHistory
 } from '../src';
 import 'dotenv/config';
 
@@ -35,6 +36,13 @@ async function main(): Promise<void> {
         console.log('serverTime : ', serverTime);
     } catch (error) {
         console.error('serverTime API error:', (error as Error).message);
+    }
+
+    try {
+        const fundingHistory = await fetchMmFundingHistory({ chainId: CHAIN_ID, symbol: SYMBOL }, authInfo);
+        console.log('fundingHistory : ', fundingHistory?.[0]);
+    } catch (error) {
+        console.error('fundingHistory API error:', (error as Error).message);
     }
 
     try {
