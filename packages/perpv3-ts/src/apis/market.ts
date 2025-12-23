@@ -316,7 +316,7 @@ export class MarketModule extends BaseApiModule {
 			limit: params.limit ?? 1000,
 		};
 		const res = await this.makeSignedRequest<{ data: KlineDataFromApi[] }>(requestUrl, requestParams);
-		const rawData = res?.data?.data;
+		const rawData = res?.data?.data ?? [];
 		return rawData.map((d) => ({
 			...d,
 			timestamp: d.openTimestamp,

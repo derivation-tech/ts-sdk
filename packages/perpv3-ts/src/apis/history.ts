@@ -205,13 +205,8 @@ export class HistoryModule extends BaseApiModule {
 
 		const result = await this.makeSignedRequest<{ data: { list: GetTransferHistoryItemResponse[] } }>(requestUrl, requestParams);
 
-		const historyList = result.data.data?.list || [];
-
-		return (
-			historyList?.map((history: GetTransferHistoryItemResponse) => ({
-				...history,
-			})) || []
-		);
+		const historyList = result?.data?.data?.list ?? [];
+		return historyList;
 	}
 
 	/**
@@ -253,7 +248,7 @@ export class HistoryModule extends BaseApiModule {
 
 		const result = await this.makeSignedRequest<{ data: { list: any[] } }>(requestUrl, requestParams);
 
-		const eventList = result.data.data.list || [];
+		const eventList = result.data?.data?.list || [];
 		return eventList;
 	}
 
@@ -293,8 +288,8 @@ export class HistoryModule extends BaseApiModule {
 
 		const result = await this.makeSignedRequest<{ data: { list: any[] } }>(requestUrl, requestParams);
 
-		const eventList = result.data.data.list || [];
-		return eventList || [];
+		const eventList = result?.data?.data?.list ?? [];
+		return eventList;
 	}
 }
 
