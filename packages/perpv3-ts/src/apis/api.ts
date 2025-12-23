@@ -75,6 +75,8 @@ import type {
     FetchMmFundingHistoryInput,
     FetchMmInstrumentInfoResponse,
     FetchMmInstrumentInfoInput,
+    FetchMmKlineResponse,
+    FetchMmKlineInput,
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
@@ -238,6 +240,14 @@ export const fetchMmInstrumentInfo = async (
 ): Promise<FetchMmInstrumentInfoResponse | null> => {
     const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchInstrumentInfo(params);
+};
+
+export const fetchMmKline = async (
+    params: FetchMmKlineInput,
+    authInfo: AuthInfo
+): Promise<FetchMmKlineResponse | null> => {
+    const mm = new MarketMakerModule(httpClient, authInfo);
+    return mm.fetchKline(params);
 };
 
 

@@ -602,6 +602,28 @@ export interface FetchMmInstrumentInfoItem {
 
 export type FetchMmInstrumentInfoResponse = FetchMmInstrumentInfoItem[];
 
+export interface FetchMmKlineInput {
+    chainId: number;
+    symbol: string;
+    interval?: KlineInterval;
+    start?: number;
+    end?: number;
+    limit?: number;
+}
+
+export interface FetchMmKlineItem {
+    baseVolume: number;
+    close: number;
+    closeTime: number;
+    high: number;
+    low: number;
+    open: number;
+    openTime: number;
+    quoteVolume: number;
+    symbol: string;
+}
+export type FetchMmKlineResponse = FetchMmKlineItem[];
+
 // mm orderbook
 export interface FetchMmOrderBookInput {
     chainId: number;

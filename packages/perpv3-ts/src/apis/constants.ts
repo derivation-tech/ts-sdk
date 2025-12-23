@@ -52,6 +52,7 @@ export const API_URLS = {
         MM_TICKERS: '/v4/public/mm/tickers',
         MM_FUNDING_HISTORY: '/v4/public/mm/funding/history',
         MM_INSTRUMENT_INFO: '/v4/public/mm/instruments-info',
+        MM_KLINE: '/v4/public/mm/kline',
     },
     TOKEN: {
         TOKEN_ALL_PRICE: '/v4/public/token/tokensWithAddress',

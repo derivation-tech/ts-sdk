@@ -11,7 +11,9 @@ import {
     fetchMmAccountTransactionHistory,
     fetchMmTradeHistory,
     fetchMmFundingHistory,
-    fetchMmInstrumentInfo
+    fetchMmInstrumentInfo,
+    fetchMmKline,
+    KlineInterval,
 } from '../src';
 import 'dotenv/config';
 
@@ -37,6 +39,13 @@ async function main(): Promise<void> {
         console.log('serverTime : ', serverTime);
     } catch (error) {
         console.error('serverTime API error:', (error as Error).message);
+    }
+
+    try {
+        const kline = await fetchMmKline({ chainId: CHAIN_ID, symbol: SYMBOL, interval: KlineInterval.HOUR }, authInfo);
+        console.log('kline : ', kline?.[0]);
+    } catch (error) {
+        console.error('kline API error:', (error as Error).message);
     }
 
     try {

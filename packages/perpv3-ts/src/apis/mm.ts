@@ -22,6 +22,8 @@ import type {
 	FetchMmFundingHistoryResponse,
 	FetchMmInstrumentInfoInput,
 	FetchMmInstrumentInfoResponse,
+	FetchMmKlineInput,
+	FetchMmKlineResponse,
 } from './interfaces';
 import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
 import { bigIntObjectCheckByKeys } from '../utils';
@@ -222,6 +224,26 @@ export class MarketMakerModule {
 			...(params.symbol !== undefined && { symbol: params.symbol }),
 		};
 		const res = await this.makeSignedRequest<{ data: FetchMmInstrumentInfoResponse }>(requestUrl, requestParams);
+		return res?.data?.data ?? null;
+	}
+
+
+	/**
+	 * Fetch MM kline
+	 * @param params FetchMmKlineInput
+	 * @returns FetchMmKlineResponse
+	 */
+	async fetchKline(params: FetchMmKlineInput): Promise<FetchMmKlineResponse | null> {
+		const requestUrl = API_URLS.MM.MM_KLINE;
+		const requestParams = {
+			chainId: params.chainId,
+			symbol: params.symbol,
+			...(params.interval !== undefined && { interval: params.interval }),
+			...(params.start !== undefined && { start: params.start }),
+			...(params.end !== undefined && { end: params.end }),
+			...(params.limit !== undefined && { limit: params.limit }),
+		};
+		const res = await this.makeSignedRequest<{ data: FetchMmKlineResponse }>(requestUrl, requestParams);
 		return res?.data?.data ?? null;
 	}
 }
