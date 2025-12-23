@@ -510,7 +510,7 @@ export interface FetchMmAccountTransactionHistoryItem {
     timestamp: number;
     tokenAddress: string;
     tokenInfo: TokenInfo;
-    txHash: string,
+    txHash: string;
     type: number;
     typeString: string;
     value: string;
