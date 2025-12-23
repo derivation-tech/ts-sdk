@@ -73,6 +73,8 @@ import type {
     FetchTradeHistoryInput,
     FetchMmFundingHistoryResponse,
     FetchMmFundingHistoryInput,
+    FetchMmInstrumentInfoResponse,
+    FetchMmInstrumentInfoInput,
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
@@ -228,6 +230,14 @@ export const fetchMmFundingHistory = async (
 ): Promise<FetchMmFundingHistoryResponse | null> => {
     const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchFundingHistory(params);
+};
+
+export const fetchMmInstrumentInfo = async (
+    params: FetchMmInstrumentInfoInput,
+    authInfo: AuthInfo
+): Promise<FetchMmInstrumentInfoResponse | null> => {
+    const mm = new MarketMakerModule(httpClient, authInfo);
+    return mm.fetchInstrumentInfo(params);
 };
 
 

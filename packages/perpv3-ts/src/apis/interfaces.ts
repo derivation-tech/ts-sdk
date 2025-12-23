@@ -571,6 +571,37 @@ export interface FetchMmFundingHistoryItem {
 }
 export type FetchMmFundingHistoryResponse = FetchMmFundingHistoryItem[];
 
+
+export interface FetchMmInstrumentInfoInput {
+    chainId: number;
+    symbol?: string;
+}
+
+export interface FetchMmInstrumentInfoItem {
+    base: {
+        symbol: string;
+    },
+    disableMakerOrderRebate: true,
+    fundingIntervalHour: number;
+    initialMarginRatio: number;
+    instrumentAddress: string;
+    instrumentCondition: string;
+    maintenanceMarginRatio: number;
+    market: {
+        address: string;
+        type: string;
+    },
+    minMarginAmount: string;
+    protocolFeeRatio: number;
+    quote: TokenInfo,
+    quoteType: string;
+    symbol: string;
+    tip: string;
+    tradingFeeRatio: number;
+}
+
+export type FetchMmInstrumentInfoResponse = FetchMmInstrumentInfoItem[];
+
 // mm orderbook
 export interface FetchMmOrderBookInput {
     chainId: number;
