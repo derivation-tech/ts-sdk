@@ -52,12 +52,11 @@ async function main(): Promise<void> {
     }
 
     try {
-        const tradeHistory = await fetchMmTradeHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
+        const tradeHistory = await fetchMmTradeHistory({ chainId: CHAIN_ID, address: USER_ADDRESS, symbol: SYMBOL }, authInfo);
         console.log('tradeHistory : ', tradeHistory);
     } catch (error) {
         console.error('tradeHistory API error:', (error as Error).message);
     }
-
 
     try {
         const orderBook = await fetchMmOrderBook(
@@ -130,7 +129,7 @@ async function main(): Promise<void> {
     } catch (error) {
         console.error('position list API error:', (error as Error).message);
     }
-    return;
+
     console.log('\n=== WebSocket streams ===');
     const ws = new PublicWebsocketClient({
         onMessage: (msg) => {

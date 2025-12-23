@@ -174,7 +174,7 @@ export class MarketMakerModule {
 	}
 
 	/**
-	 * Fetch MM ticket list
+	 * Fetch MM tickets
 	 */
 	async fetchTickers(params: FetchMmTickersInput): Promise<FetchMmTickersResponse | null> {
 		const requestUrl = API_URLS.MM.MM_TICKERS;
