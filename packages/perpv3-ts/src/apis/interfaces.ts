@@ -498,6 +498,30 @@ export interface IFuturesOrderBookAllSteps {
 }
 export type FetchFuturesPairOrderBookResponse = IFuturesOrderBookAllSteps | null;
 
+export interface FetchMmAccountTransactionHistoryInput {
+    chainId: number;
+    address: string;
+    page?: number;
+    size?: number;
+}
+
+export interface FetchMmAccountTransactionHistoryItem {
+    id: string;
+    timestamp: number;
+    tokenAddress: string;
+    tokenInfo: TokenInfo;
+    txHash: string,
+    type: number;
+    typeString: string;
+    value: string;
+    valueUsd: string;
+}
+
+export type FetchMmAccountTransactionHistoryResponse = {
+    list: FetchMmAccountTransactionHistoryItem[];
+    totalCount: number;
+};
+
 // mm orderbook
 export interface FetchMmOrderBookInput {
     chainId: number;
@@ -563,8 +587,35 @@ export interface MmPositionFromApi {
 
 export type FetchMmPositionListResponse = MmPositionFromApi[];
 
-//kline chart
+export interface FetchMmTicketListInput {
+    chainId: number;
+    symbol?: string;
+}
 
+export interface FetchMmTicketListItem {
+    closeTime24h: number;
+    expiry: number;
+    fundingRate: string;
+    highPrice24h: number;
+    instrumentAddress: Address;
+    lastPrice: string;
+    lowPrice24h: number;
+    markPrice: string;
+    openInterest: string;
+    openPrice24h: number;
+    openTime24h: number;
+    priceChange24H: string;
+    priceChangePercent24h: string;
+    quoteVolume24h: string;
+    spotPrice: string;
+    symbol: string;
+    timestamp: number;
+    volume24h: string;
+}
+
+export type FetchMmTicketListResponse = FetchMmTicketListItem[];
+
+//kline chart
 export enum KlineInterval {
     MINUTE = '1m',
     FIVE_MINUTE = '5m',

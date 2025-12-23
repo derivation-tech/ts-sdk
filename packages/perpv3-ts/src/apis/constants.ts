@@ -42,10 +42,12 @@ export const API_URLS = {
         DEPTH_CHARTS: '/v4/public/market/depth',
     },
     MM: {
+        MM_ACCOUNT_TRANSACTION_HISTORY: '/v4/public/mm/account/transaction-history',
         MM_ORDER_BOOK: '/v4/public/mm/orderBook',
         MM_WALLET_BALANCE: '/v4/public/mm/account/wallet-balance',
         MM_POSITION_LIST: '/v4/public/mm/position/list',
         MM_SERVER_TIME: '/v4/public/mm/serverTime',
+        MM_TICKET_LIST: '/v4/public/mm/ticket/list',
     },
     TOKEN: {
         TOKEN_ALL_PRICE: '/v4/public/token/tokensWithAddress',

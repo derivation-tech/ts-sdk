@@ -1,4 +1,5 @@
-import { API_URLS, ORDER_DATA_BIGINT_KEYS, MM_WALLET_PORTFOLIO_BIGINT_KEYS, MM_POSITION_BIGINT_KEYS } from './constants';
+import type { AxiosResponse } from 'axios';
+import { API_URLS, ORDER_DATA_BIGINT_KEYS, MM_WALLET_PORTFOLIO_BIGINT_KEYS, MM_POSITION_BIGINT_KEYS, DEFAULT_PAGE } from './constants';
 import type {
 	FetchMmOrderBookInput,
 	FetchMmOrderBookResponse,
@@ -11,10 +12,16 @@ import type {
 	MmWalletPortfolio,
 	MmPositionFromApi,
 	AuthInfo,
+	FetchMmTicketListResponse,
+	FetchMmTicketListItem,
+	FetchMmTicketListInput,
+	FetchMmAccountTransactionHistoryInput,
+	FetchMmAccountTransactionHistoryResponse,
 } from './interfaces';
 import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
 import { bigIntObjectCheckByKeys } from '../utils';
 import { ApiAuthSigner } from '../utils/mm';
+
 
 /**
  * MarketMakerModule - Market Maker API endpoints
@@ -34,17 +41,29 @@ export class MarketMakerModule {
 	}
 
 	/**
-	 * Fetch MM server time
+	 * Make a signed GET request using ApiAuthSigner
 	 */
-	async fetchServerTime(): Promise<number> {
-		const requestUrl = API_URLS.MM.MM_SERVER_TIME;
-		const requestPath = requestUrl; // No params for this endpoint
-		const extraHeaders = await this.signer.sign('GET', requestPath);
-		const res = await this.httpClient.get<{ data: number }>(requestUrl, {
+	private async makeSignedRequest<T>(
+		url: string,
+		params?: Record<string, any>,
+		body?: string,
+		contentType?: string
+	): Promise<AxiosResponse<T>> {
+		const urlWithQuery = getRequestUrlWithQuery(url, params ?? {});
+		const extraHeaders = await this.signer.sign('GET', urlWithQuery, body, contentType);
+		return await this.httpClient.get<T>(urlWithQuery, {
 			headers: {
 				...extraHeaders,
 			},
 		});
+	}
+
+	/**
+	 * Fetch MM server time
+	 */
+	async fetchServerTime(): Promise<number> {
+		const requestUrl = API_URLS.MM.MM_SERVER_TIME;
+		const res = await this.makeSignedRequest<{ data: number }>(requestUrl);
 		return res.data.data;
 	}
 
@@ -56,14 +75,7 @@ export class MarketMakerModule {
 	): Promise<FetchMmOrderBookResponse> {
 		const requestUrl = API_URLS.MM.MM_ORDER_BOOK;
 		const requestParams = { chainId: params.chainId, symbol: params.symbol, ...(params.depth ? { depth: params.depth } : {}) };
-		const requestPath = getRequestUrlWithQuery(requestUrl, requestParams);
-		const extraHeaders = await this.signer.sign('GET', requestPath);
-		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const res = await this.makeSignedRequest<{ data: any }>(requestUrl, requestParams);
 
 		if (res?.data?.data) {
 			const newData = Object.entries(res.data.data).reduce((acc, [key, depthData]: [string, any]) => {
@@ -92,14 +104,7 @@ export class MarketMakerModule {
 	): Promise<FetchMmWalletBalanceResponse | null> {
 		const requestUrl = API_URLS.MM.MM_WALLET_BALANCE;
 		const requestParams = { chainId: params.chainId, address: params.address };
-		const requestPath = getRequestUrlWithQuery(requestUrl, requestParams);
-		const extraHeaders = await this.signer.sign('GET', requestPath);
-		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const res = await this.makeSignedRequest<{ data: any }>(requestUrl, requestParams);
 
 		const data = res?.data?.data;
 		if (!data) {
@@ -125,14 +130,7 @@ export class MarketMakerModule {
 	): Promise<FetchMmPositionListResponse | null> {
 		const requestUrl = API_URLS.MM.MM_POSITION_LIST;
 		const requestParams = { chainId: params.chainId, address: params.address };
-		const requestPath = getRequestUrlWithQuery(requestUrl, requestParams);
-		const extraHeaders = await this.signer.sign('GET', requestPath);
-		const res = await this.httpClient.get<{ data: MmPositionFromApi[] }>(requestUrl, {
-			params: requestParams,
-			headers: {
-				...extraHeaders,
-			},
-		});
+		const res = await this.makeSignedRequest<{ data: MmPositionFromApi[] }>(requestUrl, requestParams);
 
 		const data = res?.data?.data;
 		if (!data) {
@@ -142,6 +140,37 @@ export class MarketMakerModule {
 		return (data as MmPositionFromApi[]).map((p) =>
 			bigIntObjectCheckByKeys(p, MM_POSITION_BIGINT_KEYS as unknown as string[])
 		);
+	}
+
+	/**
+	 * Fetch MM account transaction history
+	 */
+	async fetchAccountTransactionHistory(params: FetchMmAccountTransactionHistoryInput): Promise<FetchMmAccountTransactionHistoryResponse | null> {
+		const requestUrl = API_URLS.MM.MM_ACCOUNT_TRANSACTION_HISTORY;
+		const requestParams = {
+			chainId: params.chainId,
+			address: params.address,
+			page: params.page ?? DEFAULT_PAGE,
+			size: params.size ?? 100
+		};
+		const res = await this.makeSignedRequest<{ data: FetchMmAccountTransactionHistoryResponse }>(requestUrl, requestParams);
+		return res?.data?.data ?? null;
+	}
+
+	/**
+	 * Fetch MM ticket list
+	 */
+	async fetchTicketList(params: FetchMmTicketListInput): Promise<FetchMmTicketListResponse | null> {
+		const requestUrl = API_URLS.MM.MM_TICKET_LIST;
+		const requestParams = { chainId: params.chainId, symbol: params.symbol };
+		const res = await this.makeSignedRequest<{ data: FetchMmTicketListItem[] }>(requestUrl, requestParams);
+
+		const data = res?.data?.data;
+		if (!data) {
+			return null;
+		}
+
+		return res?.data?.data;
 	}
 }
 

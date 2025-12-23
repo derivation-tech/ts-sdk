@@ -6,6 +6,8 @@ import {
     PublicWebsocketClient,
     AuthInfo,
     fetchMmServerTime,
+    fetchMmTicketList,
+    fetchMmAccountTransactionHistory
 } from '../src/apis';
 import 'dotenv/config';
 import { PERP_EXPIRY } from '../src/types';
@@ -28,6 +30,13 @@ async function main(): Promise<void> {
     try {
         const serverTime = await fetchMmServerTime(authInfo);
         console.log('serverTime : ', serverTime);
+
+
+        const ticketList = await fetchMmTicketList({ chainId: CHAIN_ID, symbol: SYMBOL }, authInfo);
+        console.log('ticketList : ', ticketList);
+
+        const accountTransactionHistory = await fetchMmAccountTransactionHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
+        console.log('accountTransactionHistory : ', accountTransactionHistory);
 
         const orderBook = await fetchMmOrderBook(
             {

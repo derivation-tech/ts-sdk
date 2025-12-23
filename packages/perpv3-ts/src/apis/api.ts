@@ -65,6 +65,10 @@ import type {
     FetchMmPositionListInput,
     FetchMmPositionListResponse,
     ApiSigner,
+    FetchMmTicketListResponse,
+    FetchMmTicketListInput,
+    FetchMmAccountTransactionHistoryResponse,
+    FetchMmAccountTransactionHistoryInput,
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
@@ -188,6 +192,22 @@ export const fetchPortfolioListFromApi = async (
 export const fetchMmServerTime = async (authInfo: AuthInfo): Promise<number> => {
     const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchServerTime();
+};
+
+export const fetchMmTicketList = async (
+    params: FetchMmTicketListInput,
+    authInfo: AuthInfo
+): Promise<FetchMmTicketListResponse | null> => {
+    const mm = new MarketMakerModule(httpClient, authInfo);
+    return mm.fetchTicketList(params);
+};
+
+export const fetchMmAccountTransactionHistory = async (
+    params: FetchMmAccountTransactionHistoryInput,
+    authInfo: AuthInfo
+): Promise<FetchMmAccountTransactionHistoryResponse | null> => {
+    const mm = new MarketMakerModule(httpClient, authInfo);
+    return mm.fetchAccountTransactionHistory(params);
 };
 
 export const fetchMmOrderBook = async (
