@@ -77,6 +77,8 @@ import type {
     FetchMmInstrumentInfoInput,
     FetchMmKlineResponse,
     FetchMmKlineInput,
+    GetLiquidityListResponse,
+    GetLiquidityListInput,
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
@@ -248,6 +250,14 @@ export const fetchMmKline = async (
 ): Promise<FetchMmKlineResponse | null> => {
     const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchKline(params);
+};
+
+export const fetchMmLiquidityList = async (
+    params: GetLiquidityListInput,
+    authInfo: AuthInfo
+): Promise<GetLiquidityListResponse | null> => {
+    const mm = new MarketMakerModule(httpClient, authInfo);
+    return mm.fetchLiquidityList(params);
 };
 
 

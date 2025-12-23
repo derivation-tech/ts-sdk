@@ -24,10 +24,11 @@ import type {
 	FetchMmInstrumentInfoResponse,
 	FetchMmKlineInput,
 	FetchMmKlineResponse,
+	GetLiquidityListInput,
+	GetLiquidityListResponse,
 } from './interfaces';
 import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
-import { bigIntObjectCheckByKeys } from '../utils';
-import { ApiAuthSigner } from '../utils/mm';
+import { bigIntObjectCheckByKeys, ApiAuthSigner } from '../utils';
 
 
 /**
@@ -244,6 +245,21 @@ export class MarketMakerModule {
 			...(params.limit !== undefined && { limit: params.limit }),
 		};
 		const res = await this.makeSignedRequest<{ data: FetchMmKlineResponse }>(requestUrl, requestParams);
+		return res?.data?.data ?? null;
+	}
+
+	/**
+	 * Fetch MM kline liquidity
+	 * @param params GetLiquidityListInput
+	 * @returns GetLiquidityListResponse
+	 */
+	async fetchLiquidityList(params: GetLiquidityListInput): Promise<GetLiquidityListResponse | null> {
+		const requestUrl = API_URLS.MM.MM_LIQUIDITY_LIST;
+		const requestParams = {
+			chainId: params.chainId,
+			address: params.address,
+		};
+		const res = await this.makeSignedRequest<{ data: GetLiquidityListResponse }>(requestUrl, requestParams);
 		return res?.data?.data ?? null;
 	}
 }

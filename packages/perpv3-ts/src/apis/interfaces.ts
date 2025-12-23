@@ -624,6 +624,32 @@ export interface FetchMmKlineItem {
 }
 export type FetchMmKlineResponse = FetchMmKlineItem[];
 
+export interface GetLiquidityListInput {
+    chainId: number;
+    address: string;
+}
+
+export interface GetLiquidityListItem {
+    balance: string;
+    entryFeeIndex: string;
+    entryPrice: string;
+    expiry: number;
+    instrumentAddr: string;
+    lastUpdateTime: number;
+    lastUpdateTxHash: string;
+    liquidity: string;
+    lowerPrice: string;
+    rid: number;
+    sqrtEntryPX96: string;
+    symbol: string;
+    tickLower: number;
+    tickUpper: number;
+    traderAddr: string;
+    upperPrice: string;
+}
+
+export type GetLiquidityListResponse = GetLiquidityListItem[];
+
 // mm orderbook
 export interface FetchMmOrderBookInput {
     chainId: number;

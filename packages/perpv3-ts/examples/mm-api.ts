@@ -1,6 +1,7 @@
 import type { Address } from 'viem';
 import {
     PERP_EXPIRY,
+    KlineInterval,
     fetchMmOrderBook,
     fetchMmWalletBalance,
     fetchMmPositionList,
@@ -13,7 +14,7 @@ import {
     fetchMmFundingHistory,
     fetchMmInstrumentInfo,
     fetchMmKline,
-    KlineInterval,
+    fetchMmLiquidityList,
 } from '../src';
 import 'dotenv/config';
 
@@ -39,6 +40,13 @@ async function main(): Promise<void> {
         console.log('serverTime : ', serverTime);
     } catch (error) {
         console.error('serverTime API error:', (error as Error).message);
+    }
+
+    try {
+        const liquidityList = await fetchMmLiquidityList({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
+        console.log('liquidityList : ', liquidityList?.[0]);
+    } catch (error) {
+        console.error('liquidityList API error:', (error as Error).message);
     }
 
     try {
