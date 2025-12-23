@@ -278,7 +278,7 @@ export class MarketModule extends BaseApiModule {
 			userAddress: params.userAddress,
 		};
 		const res = await this.makeSignedRequest<{ data: { portfolios?: any } }>(requestUrl, requestParams);
-		if (res?.data?.data.portfolios?.portfolios) {
+		if (res?.data?.data.portfolios) {
 			const data = bigIntObjectCheckByKeys(res.data.data.portfolios, GATE_BALANCE_BIGINT_KEYS);
 			return data;
 		}

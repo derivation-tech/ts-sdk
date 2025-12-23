@@ -68,14 +68,14 @@ import type {
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
-const createHttpClient = () => new HttpClient();
+export const httpClient = new HttpClient();
 
 // Market functions
 export const fetchFuturesInstrument = async (
     params: FetchFuturesInstrumentInput,
     signer: ApiSigner,
 ): Promise<FetchFuturesInstrumentResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchFuturesInstrument(params);
 };
 
@@ -83,7 +83,7 @@ export const fetchMarketOnChainContext = async (
     params: FetchOnChainContextInput,
     signer: ApiSigner,
 ): Promise<FetchOnChainContextResponse | null> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchMarketOnChainContext(params);
 };
 
@@ -91,7 +91,7 @@ export const fetchMarketOnChainContextQuery = async (
     params: FetchOnChainContextQueryInput,
     signer: ApiSigner,
 ): Promise<FetchOnChainContextQueryResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchMarketOnChainContextQuery(params);
 };
 
@@ -99,7 +99,7 @@ export const fetchFuturesInstrumentInquire = async (
     params: FetchFuturesInstrumentInquireInput,
     signer: ApiSigner,
 ): Promise<FetchFuturesInstrumentInquireResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchFuturesInstrumentInquire(params);
 };
 
@@ -107,7 +107,7 @@ export const fetchFuturesInstrumentInquireByTick = async (
     params: FetchFuturesInstrumentInquireByTickInput,
     signer: ApiSigner,
 ): Promise<FetchFuturesInstrumentInquireByTickResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchFuturesInstrumentInquireByTick(params);
 };
 
@@ -115,7 +115,7 @@ export const fetchFuturesInstrumentInquireByNotional = async (
     params: FetchFuturesInstrumentInquireByNotionalInput,
     signer: ApiSigner,
 ): Promise<FetchFuturesInstrumentInquireByNotionalResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchFuturesInstrumentInquireByNotional(params);
 };
 
@@ -123,7 +123,7 @@ export const fetchFuturesPairOrderBook = async (
     params: FetchFuturesPairOrderBookInput,
     signer: ApiSigner,
 ): Promise<FetchFuturesPairOrderBookResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchFuturesPairOrderBook(params);
 };
 
@@ -131,7 +131,7 @@ export const fetchUserGateBalanceFromApi = async (
     params: FetchGateBalanceInput,
     signer: ApiSigner,
 ): Promise<FetchGateBalanceResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchUserGateBalance(params);
 };
 
@@ -139,7 +139,7 @@ export const fetchUserTotalValue = async (
     params: TotalValueRequest,
     signer: ApiSigner,
 ): Promise<TotalValueResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchUserTotalValue(params);
 };
 
@@ -147,7 +147,7 @@ export const fetchFuturesPairKlineChart = async (
     params: FetchFuturesPairKlineChartInput,
     signer: ApiSigner,
 ): Promise<FetchFuturesPairKlineChartResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchFuturesPairKlineChart(params);
 };
 
@@ -155,7 +155,7 @@ export const fetchFuturesPairDepthChart = async (
     params: FetchFuturesPairDepthChartInput,
     signer: ApiSigner,
 ): Promise<FetchFuturesPairDepthChartResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchFuturesPairDepthChart(params);
 };
 
@@ -163,7 +163,7 @@ export const fetchMarketPairInfo = async (
     params: FetchMarketPairInfoInput,
     signer: ApiSigner,
 ): Promise<FetchMarketPairInfoResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchMarketPairInfo(params);
 };
 
@@ -171,7 +171,7 @@ export const fetchMarketPairList = async (
     params: { chainId: number },
     signer: ApiSigner,
 ): Promise<FetchMarketPairListResponse> => {
-    const market = new MarketModule(createHttpClient(), signer);
+    const market = new MarketModule(httpClient, signer);
     return market.fetchMarketPairList(params);
 };
 
@@ -180,13 +180,13 @@ export const fetchPortfolioListFromApi = async (
     params: FetchPortfolioListFromApiInput,
     signer: ApiSigner
 ): Promise<FetchPortfolioListFromApiResponse | null> => {
-    const publicModule = new PublicModule(createHttpClient(), signer);
+    const publicModule = new PublicModule(httpClient, signer);
     return publicModule.fetchPortfolioList(params,);
 };
 
 // MM functions
 export const fetchMmServerTime = async (authInfo: AuthInfo): Promise<number> => {
-    const mm = new MarketMakerModule(createHttpClient(), authInfo);
+    const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchServerTime();
 };
 
@@ -194,7 +194,7 @@ export const fetchMmOrderBook = async (
     params: FetchMmOrderBookInput,
     authInfo: AuthInfo
 ): Promise<FetchMmOrderBookResponse> => {
-    const mm = new MarketMakerModule(createHttpClient(), authInfo);
+    const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchOrderBook(params);
 };
 
@@ -202,7 +202,7 @@ export const fetchMmWalletBalance = async (
     params: FetchMmWalletBalanceInput,
     authInfo: AuthInfo
 ): Promise<FetchMmWalletBalanceResponse | null> => {
-    const mm = new MarketMakerModule(createHttpClient(), authInfo);
+    const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchWalletBalance(params);
 };
 
@@ -210,7 +210,7 @@ export const fetchMmPositionList = async (
     params: FetchMmPositionListInput,
     authInfo: AuthInfo
 ): Promise<FetchMmPositionListResponse | null> => {
-    const mm = new MarketMakerModule(createHttpClient(), authInfo);
+    const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchPositionList(params);
 };
 
@@ -219,7 +219,7 @@ export const fetchTokenPriceMapFromApi = async (
     params: FetchTokenPriceMapInput,
     signer: ApiSigner
 ): Promise<FetchTokenPriceMapResponse> => {
-    const token = new TokenModule(createHttpClient(), signer);
+    const token = new TokenModule(httpClient, signer);
     return token.fetchTokenPriceMap(params);
 };
 
@@ -228,7 +228,7 @@ export const fetchTradeHistory = async (
     params: GetTradeHistoryParams,
     signer: ApiSigner
 ): Promise<GetTradeHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(), signer);
+    const history = new HistoryModule(httpClient, signer);
     return history.fetchTradeHistory(params);
 };
 
@@ -236,7 +236,7 @@ export const fetchOrdersHistory = async (
     params: GetOrdersHistoryParams,
     signer: ApiSigner
 ): Promise<GetOrdersHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(), signer);
+    const history = new HistoryModule(httpClient, signer);
     return history.fetchOrdersHistory(params);
 };
 
@@ -244,7 +244,7 @@ export const fetchFundingHistory = async (
     params: GetFundingHistoryParams,
     signer: ApiSigner
 ): Promise<GetFundingHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(), signer);
+    const history = new HistoryModule(httpClient, signer);
     return history.fetchFundingHistory(params);
 };
 
@@ -252,7 +252,7 @@ export const fetchTransferHistory = async (
     params: GetTransferHistoryParams,
     signer: ApiSigner
 ): Promise<GetTransferHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(), signer);
+    const history = new HistoryModule(httpClient, signer);
     return history.fetchTransferHistory(params);
 };
 
@@ -260,7 +260,7 @@ export const fetchLiquidityHistory = async (
     params: GetLiquidityHistoryParams,
     signer: ApiSigner
 ): Promise<GetLiquidityHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(), signer);
+    const history = new HistoryModule(httpClient, signer);
     return history.fetchLiquidityHistory(params);
 };
 
@@ -268,6 +268,6 @@ export const fetchAccountBalanceHistory = async (
     params: GetAccountBalanceHistoryParams,
     signer: ApiSigner
 ): Promise<GetAccountBalanceHistoryResponse> => {
-    const history = new HistoryModule(createHttpClient(), signer);
+    const history = new HistoryModule(httpClient, signer);
     return history.fetchAccountBalanceHistory(params);
 };
