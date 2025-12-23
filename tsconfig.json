@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "target": "es2020",
+        "target": "es2022",
         "module": "commonjs",
         "declaration": true,
         "declarationMap": true,
@@ -13,7 +13,7 @@
         "strictNullChecks": true,
         "noImplicitReturns": true,
         "noUnusedLocals": true,
-        "preserveSymlinks": true,
+        "preserveSymlinks": false,
         "preserveWatchOutput": true,
         "sourceMap": true,
         "skipLibCheck": true,

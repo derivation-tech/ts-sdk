@@ -1,11 +1,12 @@
 import type { Account } from 'viem';
 import { getAddress } from 'viem';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
+import type { LedgerToAccountOptions } from '@synfutures/viem-ledger';
 import type { ChainKit } from '../chain-kit';
 
 type LedgerModule = {
-    deriveLedgerPath: (options: { signerId: string }) => { path: string };
-    ledgerToAccount: (options: { signerId: string }) => Promise<Account>;
+    deriveLedgerPath: (options: LedgerToAccountOptions) => { path: string };
+    ledgerToAccount: (options: LedgerToAccountOptions) => Promise<Account>;
 };
 
 const LEDGER_MODULE_ID = '@synfutures/viem-ledger';

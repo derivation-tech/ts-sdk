@@ -1,0 +1,6 @@
+{
+    "rules": {
+        "optionalPeerDependencies": "off"
+    }
+}
+

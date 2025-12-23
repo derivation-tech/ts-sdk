@@ -15,15 +15,16 @@
     },
     "dependencies": {
         "@ledgerhq/hw-app-eth": "^6.32.0",
+        "@ledgerhq/hw-transport": "^6.31.14",
         "@ledgerhq/hw-transport-node-hid": "^6.27.12"
     },
     "devDependencies": {
-        "viem": "^2.38.3",
+        "viem": "catalog:",
         "@types/node": "^20.0.0",
         "typescript": "^5.9.3"
     },
     "peerDependencies": {
-        "viem": "^2.38.3"
+        "viem": "^2.43.3"
     },
     "engines": {
         "node": ">=18"

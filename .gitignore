@@ -139,3 +139,6 @@ dist
 
 .vscode/
 .DS_Store
+
+# Local git worktrees (avoid Nx/knip scanning duplicates)
+.worktrees/
