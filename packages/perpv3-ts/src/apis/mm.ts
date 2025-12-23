@@ -332,7 +332,7 @@ export class MarketMakerModule {
 	 */
 	async fetchTokenCoinsWithSymbol(): Promise<FetchTokenCoinsWithSymbolResponse | null> {
 		const requestUrl = API_URLS.MM.MM_TOKEN_COINS_WITH_SYMBOL;
-		const res = await this.makeSignedRequest<{ data: FetchTokenCoinsWithSymbolResponse }>(requestUrl,);
+		const res = await this.makeSignedRequest<{ data: FetchTokenCoinsWithSymbolResponse }>(requestUrl);
 		return res?.data?.data ?? null;
 	}
 }
