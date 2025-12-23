@@ -384,14 +384,23 @@ export class MarketModule {
 	async fetchFuturesPairKlineChart(
 		params: FetchFuturesPairKlineChartInput,
 	): Promise<FetchFuturesPairKlineChartResponse> {
+		const requestUrl = API_URLS.MARKET.KLINE_CHARTS;
+		const requestParams = {
+			chainId: params.chainId,
+			instrument: params.instrument,
+			expiry: params.expiry,
+			interval: params.interval,
+			...(params.endTime && { endTime: params.endTime }),
+			limit: params.limit ?? 1000,
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
 		const res = await this.httpClient.get<{ data: KlineDataFromApi[] }>(API_URLS.MARKET.KLINE_CHARTS, {
-			params: {
-				chainId: params.chainId,
-				instrument: params.instrument,
-				expiry: params.expiry,
-				interval: params.interval,
-				...(params.endTime && { endTime: params.endTime }),
-				limit: params.limit ?? 1000,
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
 		const rawData = res?.data?.data;
@@ -407,8 +416,16 @@ export class MarketModule {
 	async fetchFuturesPairDepthChart(
 		params: FetchFuturesPairDepthChartInput,
 	): Promise<FetchFuturesPairDepthChartResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.DEPTH_CHARTS, {
+		const requestUrl = API_URLS.MARKET.DEPTH_CHARTS;
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, params),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
 			params: params,
+			headers: {
+				...extraHeaders,
+			},
 		});
 		if (res?.data?.data) {
 			const data = bigIntObjectCheckByKeys(res.data.data, DEPTH_CHART_BIGINT_KEYS);
@@ -440,8 +457,21 @@ export class MarketModule {
 	async fetchMarketPairInfo(
 		params: FetchMarketPairInfoInput,
 	): Promise<FetchMarketPairInfoResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.PAIR_INFO, {
-			params: { chainId: params.chainId, address: params.address, expiry: params.expiry },
+		const requestUrl = API_URLS.MARKET.PAIR_INFO;
+		const requestParams = {
+			chainId: params.chainId,
+			address: params.address,
+			expiry: params.expiry,
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
 		});
 		if (res?.data?.data) {
 			const p = res?.data?.data;
@@ -459,8 +489,19 @@ export class MarketModule {
 	async fetchMarketPairList(
 		params: { chainId: number },
 	): Promise<FetchMarketPairListResponse> {
-		const res = await this.httpClient.get<{ data: IMarketPair[] }>(API_URLS.MARKET.PAIR_LIST, {
-			params: { chainId: params.chainId },
+		const requestUrl = API_URLS.MARKET.PAIR_LIST;
+		const requestParams = {
+			chainId: params.chainId,
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: IMarketPair[] }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
 		});
 		if (res?.data?.data) {
 			return res?.data?.data.map((p: IMarketPair) => {
