@@ -25,11 +25,39 @@ export interface AuthInfo {
     passphrase: string;
     secretKey: string;
 }
+
+export interface SignParams {
+    uri: string;
+    ts: number;
+    body?: object;
+}
+
+export interface SignResult {
+    'X-Api-Nonce': string;
+    'X-Api-Sign': string;
+    'X-Api-Ts': number;
+}
+
+/**
+ * ApiSigner is a function that signs the request parameters
+ * @param params - The parameters to sign
+ * @returns The signed parameters
+ */
+export interface ApiSigner {
+    sign(params: SignParams): SignResult;
+}
+
+/**
+ * ApiSignerFunc is a function that signs the request parameters
+ */
+export type ApiSignerFunc = (params: SignParams) => SignResult;
+
 // Types for the fetchFuturesInstrument function
 export interface FetchFuturesInstrumentInput {
     chainId: number;
     address: string;
 }
+
 // AmmFromApi extends Amm with API-specific fields and overrides status to be number instead of Status enum
 export type AmmFromApi = Omit<Amm, 'status'> & {
     status: number; // API returns number, not Status enum
@@ -704,7 +732,7 @@ export interface HistoryRequestBase {
     /** Number of items per page (optional, defaults to DEFAULT_HISTORY_PAGE_SIZE) */
     size?: number;
     /** Time range filter for historical data */
-    timeRange: HISTORY_RANGE;
+    timeRange?: HISTORY_RANGE;
     /** Whether to fetch all data without pagination (optional, defaults to false) */
     download?: boolean;
 }
@@ -751,18 +779,20 @@ export type GetFundingHistoryResponse = FundingHistory[];
  */
 export interface GetTransferHistoryParams extends HistoryRequestBase, HistoryRequestPairInfo {}
 
-/**
- * Response type for getTransferHistory function
- * @interface GetTransferHistoryResponse
- */
-export type GetTransferHistoryResponse = (TransferHistory & {
+export interface GetTransferHistoryItemResponse extends TransferHistory {
     timestamp: number;
     instrumentAddress: string;
     expiry: number;
     isTransferIn: boolean;
     txHash: string;
     logIndex: number;
-})[];
+}
+
+/**
+ * Response type for getTransferHistory function
+ * @interface GetTransferHistoryResponse
+ */
+export type GetTransferHistoryResponse = GetTransferHistoryItemResponse[];
 
 /**
  * Parameters for getLiquidityHistory function

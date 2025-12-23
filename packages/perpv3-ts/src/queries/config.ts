@@ -1,5 +1,5 @@
 import type { Address, PublicClient } from 'viem';
-import { AuthInfo } from '../apis/interfaces';
+import { ApiSigner, AuthInfo } from '../apis/interfaces';
 
 export type BlockTag = 'latest' | 'earliest' | 'pending';
 
@@ -12,6 +12,7 @@ export interface ReadOptions {
 export interface ApiConfig {
     chainId: number;
     authInfo?: AuthInfo;
+    signer?: ApiSigner;
 }
 
 export interface RpcConfig {

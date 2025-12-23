@@ -1,5 +1,11 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+interface AuthInfo {
+    apiKey: string;
+    passphrase: string;
+    secretKey: string;
+}
+
 export interface APIHeaders {
     'X-ACCESS-KEY': string;
     'X-ACCESS-SIGN': string;
@@ -173,4 +179,37 @@ export async function getHeaders({
     }
 
     return headers;
+}
+
+/**
+ * ApiAuthSigner - Market Maker API signer
+ * This class handles signing for MM API requests
+ */
+export class ApiAuthSigner {
+    constructor(private readonly authInfo: AuthInfo) {}
+
+    /**
+     * Sign a request and return headers
+     * @param method - HTTP method
+     * @param requestPath - Request path (e.g., '/v4/public/mm/orderBook?chainId=1&symbol=BTC')
+     * @param body - Optional request body
+     * @param contentType - Optional content type
+     * @returns Promise that resolves to API headers
+     */
+    async sign(
+        method: HttpMethod | Lowercase<HttpMethod> | (string & {}),
+        requestPath: string,
+        body?: string,
+        contentType?: string
+    ): Promise<APIHeaders> {
+        return await getHeaders({
+            method,
+            requestPath,
+            body,
+            contentType,
+            apiKey: this.authInfo.apiKey,
+            passphrase: this.authInfo.passphrase,
+            secretKey: this.authInfo.secretKey,
+        });
+    }
 }
