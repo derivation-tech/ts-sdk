@@ -2,7 +2,6 @@ import type { Chain } from 'viem';
 import * as chains from 'viem/chains';
 import type { Chain as ViemChain } from 'viem';
 import { abctest } from './chains/abctest';
-import { monad } from './chains/monad';
 import { ChainKit } from './chain-kit';
 import { getWrappedNativeToken } from './tokens/wrapped';
 
@@ -26,8 +25,7 @@ export class ChainKitRegistry {
         let chainId: number;
         let chain: Chain;
         const localChains: Record<string, ViemChain> = {
-            abctest,
-            monad
+            abctest
         };
 
         // If it's already a Chain object
