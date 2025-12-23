@@ -660,6 +660,46 @@ export type FetchMmLiquidityHistoryResponse = {
     totalCount: number;
 }
 
+export interface FetchMmOrderHistoryInput {
+    chainId: number;
+    address: string;
+    symbol?: string;
+    startTime?: number;
+    endTime?: number;
+    page?: number;
+    size?: number;
+}
+
+export interface FetchMmOrderHistoryItem {
+    balance: string;
+    baseToken: TokenInfo;
+    cancelTimestamp: number;
+    cancelTxHash: string;
+    expiry: number;
+    feeRebate: string;
+    fillTimestamp: number;
+    fillTxHash: string;
+    id: string;
+    instrumentAddress: string;
+    orderPrice: string;
+    placeTimestamp: number;
+    placeTxHash: string;
+    quoteToken: TokenInfo;
+    side: string;
+    size: string;
+    symbol: string;
+    takenBalance: string;
+    takenSize: string;
+    tradeValue: string;
+    type: number;
+    typeString: string;
+}
+
+export interface FetchMmOrderHistoryResponse {
+    list: FetchMmOrderHistoryItem[];
+    totalCount: number;
+}
+
 export interface FetchMmLiquidityListInput {
     chainId: number;
     address: string;

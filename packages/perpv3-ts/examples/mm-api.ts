@@ -16,6 +16,7 @@ import {
     fetchMmKline,
     fetchMmLiquidityList,
     fetchMmLiquidityHistory,
+    fetchMmOrderHistory,
 } from '../src';
 import 'dotenv/config';
 
@@ -23,6 +24,7 @@ import 'dotenv/config';
 const CHAIN_ID = 143;
 const SYMBOL = 'BTCUSDC';
 const USER_ADDRESS = '0xB0B81c2c7686c63acAE28F9778ca8Fa80f0C004b' as Address;
+const TRADE_ADDRESS = '0x8bcef483f1c9226c192430b8f5191ee801601480' as Address;
 const INSTRUMENT = '0x73ada1ea346cc3908f41cf67a040f0acd7808be0' as Address;
 const DURATION_MS = 30_000;
 const DEPTH = 20;
@@ -41,6 +43,13 @@ async function main(): Promise<void> {
         console.log('serverTime : ', serverTime);
     } catch (error) {
         console.error('serverTime API error:', (error as Error).message);
+    }
+
+    try {
+        const orderHistory = await fetchMmOrderHistory({ chainId: CHAIN_ID, address: TRADE_ADDRESS }, authInfo);
+        console.log('orderHistory : ', orderHistory?.totalCount, 'list : ', orderHistory?.list?.[0]);
+    } catch (error) {
+        console.error('orderHistory API error:', (error as Error).message);
     }
 
     try {
