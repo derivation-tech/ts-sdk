@@ -77,8 +77,10 @@ import type {
     FetchMmInstrumentInfoInput,
     FetchMmKlineResponse,
     FetchMmKlineInput,
-    GetLiquidityListResponse,
-    GetLiquidityListInput,
+    FetchMmLiquidityListResponse,
+    FetchMmLiquidityListInput,
+    FetchMmLiquidityHistoryInput,
+    FetchMmLiquidityHistoryResponse,
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
@@ -252,10 +254,18 @@ export const fetchMmKline = async (
     return mm.fetchKline(params);
 };
 
-export const fetchMmLiquidityList = async (
-    params: GetLiquidityListInput,
+export const fetchMmLiquidityHistory = async (
+    params: FetchMmLiquidityHistoryInput,
     authInfo: AuthInfo
-): Promise<GetLiquidityListResponse | null> => {
+): Promise<FetchMmLiquidityHistoryResponse | null> => {
+    const mm = new MarketMakerModule(httpClient, authInfo);
+    return mm.fetchLiquidityHistory(params);
+};
+
+export const fetchMmLiquidityList = async (
+    params: FetchMmLiquidityListInput,
+    authInfo: AuthInfo
+): Promise<FetchMmLiquidityListResponse | null> => {
     const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchLiquidityList(params);
 };

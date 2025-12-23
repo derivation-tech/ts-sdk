@@ -24,8 +24,10 @@ import type {
 	FetchMmInstrumentInfoResponse,
 	FetchMmKlineInput,
 	FetchMmKlineResponse,
-	GetLiquidityListInput,
-	GetLiquidityListResponse,
+	FetchMmLiquidityListInput,
+	FetchMmLiquidityListResponse,
+	FetchMmLiquidityHistoryInput,
+	FetchMmLiquidityHistoryResponse,
 } from './interfaces';
 import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
 import { bigIntObjectCheckByKeys, ApiAuthSigner } from '../utils';
@@ -249,17 +251,37 @@ export class MarketMakerModule {
 	}
 
 	/**
-	 * Fetch MM kline liquidity
+	 * Fetch MM liquidity history
+	 * @param params GetLiquidityListInput
+	 * @returns GetLiquidityHistoryResponse
+	 */
+	async fetchLiquidityHistory(params: FetchMmLiquidityHistoryInput): Promise<FetchMmLiquidityHistoryResponse | null> {
+		const requestUrl = API_URLS.MM.MM_LIQUIDITY_HISTORY;
+		const requestParams = {
+			chainId: params.chainId,
+			address: params.address,
+			...(params.symbol !== undefined && { symbol: params.symbol }),
+			...(params.startTime !== undefined && { startTime: params.startTime }),
+			...(params.endTime !== undefined && { endTime: params.endTime }),
+			page: params.page ?? DEFAULT_PAGE,
+			size: params.size ?? DEFAULT_PAGE_SIZE,
+		};
+		const res = await this.makeSignedRequest<{ data: FetchMmLiquidityHistoryResponse }>(requestUrl, requestParams);
+		return res?.data?.data ?? null;
+	}
+
+	/**
+	 * Fetch MM liquidity list
 	 * @param params GetLiquidityListInput
 	 * @returns GetLiquidityListResponse
 	 */
-	async fetchLiquidityList(params: GetLiquidityListInput): Promise<GetLiquidityListResponse | null> {
+	async fetchLiquidityList(params: FetchMmLiquidityListInput): Promise<FetchMmLiquidityListResponse | null> {
 		const requestUrl = API_URLS.MM.MM_LIQUIDITY_LIST;
 		const requestParams = {
 			chainId: params.chainId,
 			address: params.address,
 		};
-		const res = await this.makeSignedRequest<{ data: GetLiquidityListResponse }>(requestUrl, requestParams);
+		const res = await this.makeSignedRequest<{ data: FetchMmLiquidityListResponse }>(requestUrl, requestParams);
 		return res?.data?.data ?? null;
 	}
 }

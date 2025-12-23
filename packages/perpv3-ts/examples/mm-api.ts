@@ -15,6 +15,7 @@ import {
     fetchMmInstrumentInfo,
     fetchMmKline,
     fetchMmLiquidityList,
+    fetchMmLiquidityHistory,
 } from '../src';
 import 'dotenv/config';
 
@@ -40,6 +41,13 @@ async function main(): Promise<void> {
         console.log('serverTime : ', serverTime);
     } catch (error) {
         console.error('serverTime API error:', (error as Error).message);
+    }
+
+    try {
+        const liquidityHistory = await fetchMmLiquidityHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
+        console.log('liquidityHistory : ', liquidityHistory?.totalCount, 'list : ', liquidityHistory?.list?.[0]);
+    } catch (error) {
+        console.error('liquidityHistory API error:', (error as Error).message);
     }
 
     try {
