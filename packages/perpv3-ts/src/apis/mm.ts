@@ -32,6 +32,7 @@ import type {
 	FetchMmOrderHistoryResponse,
 	FetchMmOrderRealtimeInput,
 	FetchMmOrderRealtimeResponse,
+	FetchTokenCoinsWithSymbolResponse,
 } from './interfaces';
 import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
 import { bigIntObjectCheckByKeys, ApiAuthSigner } from '../utils';
@@ -322,6 +323,12 @@ export class MarketMakerModule {
 			address: params.address,
 		};
 		const res = await this.makeSignedRequest<{ data: FetchMmOrderRealtimeResponse }>(requestUrl, requestParams);
+		return res?.data?.data ?? null;
+	}
+
+	async fetchTokenCoinsWithSymbol(): Promise<FetchTokenCoinsWithSymbolResponse | null> {
+		const requestUrl = API_URLS.MM.MM_TOKEN_COINS_WITH_SYMBOL;
+		const res = await this.makeSignedRequest<{ data: FetchTokenCoinsWithSymbolResponse }>(requestUrl,);
 		return res?.data?.data ?? null;
 	}
 }

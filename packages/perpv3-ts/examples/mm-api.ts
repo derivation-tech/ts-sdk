@@ -18,6 +18,7 @@ import {
     fetchMmLiquidityHistory,
     fetchMmOrderHistory,
     fetchMmOrderRealtime,
+    fetchTokenCoinsWithSymbol,
 } from '../src';
 import 'dotenv/config';
 
@@ -58,6 +59,13 @@ async function main(): Promise<void> {
         console.log('orderRealtime : ', orderRealtime?.length, 'list : ', orderRealtime?.[0]);
     } catch (error) {
         console.error('orderRealtime API error:', (error as Error).message);
+    }
+
+    try {
+        const tokenCoinsWithSymbol = await fetchTokenCoinsWithSymbol(authInfo);
+        console.log('tokenCoinsWithSymbol : ', tokenCoinsWithSymbol?.length, 'list : ', tokenCoinsWithSymbol?.[0]);
+    } catch (error) {
+        console.error('tokenCoinsWithSymbol API error:', (error as Error).message);
     }
 
     try {

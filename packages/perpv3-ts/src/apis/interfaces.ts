@@ -719,6 +719,17 @@ export interface FetchMmOrderRealtimeItem {
 }
 export type FetchMmOrderRealtimeResponse = FetchMmOrderRealtimeItem[];
 
+export interface FetchTokenCoinsWithSymbolItem {
+    currentPrice: number;
+    high24h: number;
+    imageUrl: string;
+    low24h: number;
+    priceChangePercentage24H: number;
+    symbol: string;
+    updateTime: number;
+}
+export type FetchTokenCoinsWithSymbolResponse = FetchTokenCoinsWithSymbolItem[];
+
 export interface FetchMmLiquidityListInput {
     chainId: number;
     address: string;

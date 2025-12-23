@@ -85,6 +85,7 @@ import type {
     FetchMmOrderHistoryInput,
     FetchMmOrderRealtimeResponse,
     FetchMmOrderRealtimeInput,
+    FetchTokenCoinsWithSymbolResponse,
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
@@ -289,6 +290,13 @@ export const fetchMmOrderRealtime = async (
 ): Promise<FetchMmOrderRealtimeResponse | null> => {
     const mm = new MarketMakerModule(httpClient, authInfo);
     return mm.fetchOrderRealtime(params);
+};
+
+export const fetchTokenCoinsWithSymbol = async (
+    authInfo: AuthInfo
+): Promise<FetchTokenCoinsWithSymbolResponse | null> => {
+    const mm = new MarketMakerModule(httpClient, authInfo);
+    return mm.fetchTokenCoinsWithSymbol();
 };
 
 export const fetchMmOrderBook = async (
