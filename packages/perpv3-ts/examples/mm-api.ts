@@ -1,5 +1,6 @@
 import type { Address } from 'viem';
 import {
+    PERP_EXPIRY,
     fetchMmOrderBook,
     fetchMmWalletBalance,
     fetchMmPositionList,
@@ -7,10 +8,11 @@ import {
     AuthInfo,
     fetchMmServerTime,
     fetchMmTicketList,
-    fetchMmAccountTransactionHistory
-} from '../src/apis';
+    fetchMmAccountTransactionHistory,
+    fetchMmTradeHistory
+} from '../src';
 import 'dotenv/config';
-import { PERP_EXPIRY } from '../src/types';
+
 
 const CHAIN_ID = 143;
 const SYMBOL = 'BTCUSDC';
@@ -27,17 +29,36 @@ async function main(): Promise<void> {
         passphrase: process.env.SYNF_PARITY_PASSPHRASE!,
         secretKey: process.env.SYNF_PARITY_SECRET_KEY!,
     };
+
     try {
         const serverTime = await fetchMmServerTime(authInfo);
         console.log('serverTime : ', serverTime);
+    } catch (error) {
+        console.error('serverTime API error:', (error as Error).message);
+    }
 
-
+    try {
         const ticketList = await fetchMmTicketList({ chainId: CHAIN_ID, symbol: SYMBOL }, authInfo);
         console.log('ticketList : ', ticketList);
+    } catch (error) {
+        console.error('ticketList API error:', (error as Error).message);
+    }
 
-        const accountTransactionHistory = await fetchMmAccountTransactionHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
-        console.log('accountTransactionHistory : ', accountTransactionHistory);
+    try {
+        const accountTxHistory = await fetchMmAccountTransactionHistory({ chainId: CHAIN_ID, address: USER_ADDRESS }, authInfo);
+        console.log('accountTxHistory : ', accountTxHistory);
+    } catch (error) {
+        console.error('accountTxHistory API error:', (error as Error).message);
+    }
 
+    try {
+        const tradeHistory = await fetchMmTradeHistory({ chainId: CHAIN_ID, address: USER_ADDRESS, symbol: SYMBOL }, authInfo);
+        console.log('tradeHistory : ', tradeHistory);
+    } catch (error) {
+        console.error('tradeHistory API error:', (error as Error).message);
+    }
+
+    try {
         const orderBook = await fetchMmOrderBook(
             {
                 chainId: CHAIN_ID,

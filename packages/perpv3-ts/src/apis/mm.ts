@@ -17,6 +17,8 @@ import type {
 	FetchMmTicketListInput,
 	FetchMmAccountTransactionHistoryInput,
 	FetchMmAccountTransactionHistoryResponse,
+	FetchTradeHistoryInput,
+	FetchTradeHistoryResponse,
 } from './interfaces';
 import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
 import { bigIntObjectCheckByKeys } from '../utils';
@@ -154,6 +156,22 @@ export class MarketMakerModule {
 			size: params.size ?? 100
 		};
 		const res = await this.makeSignedRequest<{ data: FetchMmAccountTransactionHistoryResponse }>(requestUrl, requestParams);
+		return res?.data?.data ?? null;
+	}
+
+
+	async fetchTradeHistory(params: FetchTradeHistoryInput): Promise<FetchTradeHistoryResponse> {
+		const requestUrl = API_URLS.MM.MM_TRADE_HISTORY;
+		const requestParams = {
+			chainId: params.chainId,
+			address: params.address,
+			...(params.symbol !== undefined && { symbol: params.symbol }),
+			...(params.startTime !== undefined && { startTime: params.startTime }),
+			...(params.endTime !== undefined && { endTime: params.endTime }),
+			page: params.page ?? DEFAULT_PAGE,
+			size: params.size ?? 100
+		};
+		const res = await this.makeSignedRequest<{ data: FetchTradeHistoryResponse }>(requestUrl, requestParams);
 		return res?.data?.data ?? null;
 	}
 

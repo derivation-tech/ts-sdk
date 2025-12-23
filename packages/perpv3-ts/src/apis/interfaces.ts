@@ -516,6 +516,40 @@ export interface FetchMmAccountTransactionHistoryItem {
     value: string;
     valueUsd: string;
 }
+export interface FetchTradeHistoryResponse {
+    list: FetchTradeHistoryItem[];
+    totalCount: number;
+}
+
+export interface FetchTradeHistoryInput {
+    chainId: number;
+    address: string;
+    symbol?: string;
+    startTime?: number;
+    endTime?: number;
+    page?: number;
+    size?: number;
+}
+
+export interface FetchTradeHistoryItem {
+    balance: string,
+    baseToken: TokenInfoFromApi,
+    event: string,
+    expiry: number,
+    id: string,
+    instrumentAddress: string,
+    price: string,
+    protocolFee: string,
+    quoteToken: TokenInfoFromApi,
+    side: string,
+    size: string,
+    symbol: string,
+    timestamp: number,
+    tradeFee: string,
+    txHash: string,
+    type: string,
+    typeString: string
+}
 
 export type FetchMmAccountTransactionHistoryResponse = {
     list: FetchMmAccountTransactionHistoryItem[];
