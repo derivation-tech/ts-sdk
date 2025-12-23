@@ -178,13 +178,10 @@ export const fetchMarketPairList = async (
 // Public functions
 export const fetchPortfolioListFromApi = async (
     params: FetchPortfolioListFromApiInput,
-    authInfo?: AuthInfo
+    signer: ApiSigner
 ): Promise<FetchPortfolioListFromApiResponse | null> => {
-    if (!authInfo) {
-        throw new Error('authInfo is required for fetchPortfolioListFromApi');
-    }
-    const publicModule = new PublicModule(createHttpClient(),);
-    return publicModule.fetchPortfolioList(params);
+    const publicModule = new PublicModule(createHttpClient(), signer);
+    return publicModule.fetchPortfolioList(params,);
 };
 
 // MM functions

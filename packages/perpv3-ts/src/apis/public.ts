@@ -2,14 +2,15 @@ import { PORTFOLIO_BIG_INT_KEYS, API_URLS } from './constants';
 import type {
 	FetchPortfolioListFromApiInput,
 	FetchPortfolioListFromApiResponse,
+	ApiSigner,
 } from './interfaces';
-import { HttpClient, bigIntObjectCheckByKeys } from '../utils';
+import { HttpClient, bigIntObjectCheckByKeys, getRequestUrlWithQuery } from '../utils';
 
 /**
  * PublicModule - Public API endpoints
  */
 export class PublicModule {
-	constructor(private readonly httpClient: HttpClient) {}
+	constructor(private readonly httpClient: HttpClient, private readonly signer: ApiSigner) {}
 
 	/**
 	 * Fetch portfolio list from API
@@ -17,12 +18,21 @@ export class PublicModule {
 	async fetchPortfolioList(
 		params: FetchPortfolioListFromApiInput,
 	): Promise<FetchPortfolioListFromApiResponse | null> {
+		const requestUrl = API_URLS.PUBLIC.PORTFOLIO;
+		const requestParams = {
+			chainId: params.chainId,
+			userAddress: params.userAddress,
+			...(params.instrumentAddress && { instrumentAddress: params.instrumentAddress }),
+			...(params.expiry && { expiry: params.expiry }),
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, params),
+			ts: Date.now(),
+		});
 		const res = await this.httpClient.get<{ data: any }>(API_URLS.PUBLIC.PORTFOLIO, {
-			params: {
-				chainId: params.chainId,
-				userAddress: params.userAddress,
-				...(params.instrumentAddress && { instrumentAddress: params.instrumentAddress }),
-				...(params.expiry && { expiry: params.expiry }),
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
 

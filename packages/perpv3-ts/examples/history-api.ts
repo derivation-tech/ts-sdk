@@ -1,6 +1,7 @@
 import type { Address } from 'viem';
 import { randomUUID } from 'crypto';
 import {
+	fetchPortfolioListFromApi,
 	fetchFundingHistory,
 	fetchLiquidityHistory,
 	fetchOrdersHistory,
@@ -22,6 +23,9 @@ async function main(): Promise<void> {
 	const nonce = randomUUID();
 	const signer = new ApiSign(nonce);
 	try {
+		const portfolioList = await fetchPortfolioListFromApi({ chainId: CHAIN_ID, userAddress: USER_ADDRESS }, signer);
+		console.log('portfolioList: ', portfolioList);
+		return;
 		const tradingHistory = await fetchTradeHistory({ chainId: CHAIN_ID, userAddress: USER_ADDRESS, instrumentAddress: INSTRUMENT, expiry: PERP_EXPIRY, timeRange: HISTORY_RANGE.ALL }, signer);
 		console.log('tradingHistory with instrument: ', tradingHistory);
 
