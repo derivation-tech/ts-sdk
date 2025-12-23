@@ -700,6 +700,25 @@ export interface FetchMmOrderHistoryResponse {
     totalCount: number;
 }
 
+export interface FetchMmOrderRealtimeInput {
+    chainId: number;
+    address: string;
+}
+
+export interface FetchMmOrderRealtimeItem {
+    balance: string;
+    lastUpdateTime: number;
+    lastUpdateTxHash: string;
+    limitPrice: string;
+    nonce: number;
+    oid: number;
+    side: number;
+    size: string;
+    taken: string;
+    tick: number;
+}
+export type FetchMmOrderRealtimeResponse = FetchMmOrderRealtimeItem[];
+
 export interface FetchMmLiquidityListInput {
     chainId: number;
     address: string;

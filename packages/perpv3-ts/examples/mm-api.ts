@@ -17,6 +17,7 @@ import {
     fetchMmLiquidityList,
     fetchMmLiquidityHistory,
     fetchMmOrderHistory,
+    fetchMmOrderRealtime,
 } from '../src';
 import 'dotenv/config';
 
@@ -50,6 +51,13 @@ async function main(): Promise<void> {
         console.log('orderHistory : ', orderHistory?.totalCount, 'list : ', orderHistory?.list?.[0]);
     } catch (error) {
         console.error('orderHistory API error:', (error as Error).message);
+    }
+
+    try {
+        const orderRealtime = await fetchMmOrderRealtime({ chainId: CHAIN_ID, address: TRADE_ADDRESS }, authInfo);
+        console.log('orderRealtime : ', orderRealtime?.length, 'list : ', orderRealtime?.[0]);
+    } catch (error) {
+        console.error('orderRealtime API error:', (error as Error).message);
     }
 
     try {

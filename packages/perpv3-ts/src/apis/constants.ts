@@ -56,6 +56,7 @@ export const API_URLS = {
         MM_LIQUIDITY_LIST: '/v4/public/mm/liquidity/list',
         MM_LIQUIDITY_HISTORY: '/v4/public/mm/liquidity/history',
         MM_ORDER_HISTORY: '/v4/public/mm/order/history',
+        MM_ORDER_REALTIME: '/v4/public/mm/order/realtime',
     },
     TOKEN: {
         TOKEN_ALL_PRICE: '/v4/public/token/tokensWithAddress',

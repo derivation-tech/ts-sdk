@@ -30,6 +30,8 @@ import type {
 	FetchMmLiquidityHistoryResponse,
 	FetchMmOrderHistoryInput,
 	FetchMmOrderHistoryResponse,
+	FetchMmOrderRealtimeInput,
+	FetchMmOrderRealtimeResponse,
 } from './interfaces';
 import { HttpClient, getRequestUrlWithQuery } from '../utils/axios';
 import { bigIntObjectCheckByKeys, ApiAuthSigner } from '../utils';
@@ -305,6 +307,21 @@ export class MarketMakerModule {
 			size: params.size ?? DEFAULT_PAGE_SIZE,
 		};
 		const res = await this.makeSignedRequest<{ data: FetchMmOrderHistoryResponse }>(requestUrl, requestParams);
+		return res?.data?.data ?? null;
+	}
+
+	/**
+	 * Fetch MM order realtime
+	 * @param params FetchMmOrderRealtimeInput
+	 * @returns FetchMmOrderRealtimeResponse
+	 */
+	async fetchOrderRealtime(params: FetchMmOrderRealtimeInput): Promise<FetchMmOrderRealtimeResponse | null> {
+		const requestUrl = API_URLS.MM.MM_ORDER_REALTIME;
+		const requestParams = {
+			chainId: params.chainId,
+			address: params.address,
+		};
+		const res = await this.makeSignedRequest<{ data: FetchMmOrderRealtimeResponse }>(requestUrl, requestParams);
 		return res?.data?.data ?? null;
 	}
 }
