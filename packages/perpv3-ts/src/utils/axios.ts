@@ -5,26 +5,53 @@ import type { AuthInfo } from '../apis/interfaces';
 import { ErrorCode, SynfError } from '../types/error';
 
 /**
+ * Get the sorted query string from the parameters
+ * @param params - The parameters to get the sorted query string from
+ * @returns The sorted query string
+ */
+export function getSortedQueryString(params: Record<string, string>): string {
+    if (Object.keys(params).length === 0) {
+        return '';
+    }
+    const pa = new URLSearchParams(params);
+    pa.sort();
+    return pa.toString();
+}
+
+/**
  * Get the request path from the URL
+ * @param url - The Full URL to get the request path from
+ * @returns The request path from the URL
+ */
+export function getRequestUrlFromSortedQuery(url: string, sortedQuery: string): string {
+    if (!sortedQuery) {
+        return url;
+    }
+    return url + (url.includes('?') ? '&' : '?') + sortedQuery;
+}
+
+
+/**
+ * 
+ * @param url - The base URL to get the request URL from
+ * @param params - The parameters to get the request URL from
+ * @returns 
+ */
+
+export function getRequestUrlWithQuery(url: string, params: Record<string, any>): string {
+    const sortedQuery = getSortedQueryString(params);
+    return getRequestUrlFromSortedQuery(url, sortedQuery);
+}
+
+
+/**
+ * Get the request path from the full URL
  * @param url - The Full URL to get the request path from
  * @returns The request path from the URL
  */
 export function getRequestPathFromUrl(url: string): string {
     const urlObj = new URL(url);
     return urlObj.pathname + urlObj.search;
-}
-
-/**
- * Get the request URL from the base URL and parameters
- * @param url - The base URL to get the request URL from
- * @param params - The parameters to get the request URL from
- * @returns The request URL from the base URL and parameters
- */
-export function getRequestUrl(url: string, params: string): string {
-    const pa = new URLSearchParams(params);
-    pa.sort();
-    url += (url.includes('?') ? '&' : '?') + pa.toString();
-    return url;
 }
 
 // ============================================================================
@@ -45,7 +72,6 @@ export async function axiosGet<T = any>({
         authInfo,
         jwtToken,
     });
-
     return await httpClient.get<T>(url, config);
 }
 
@@ -207,10 +233,9 @@ export class HttpClient {
     ): Promise<AxiosResponse<T>> {
         const { params, ...extraConfig } = config || {};
         if (params) {
-            const pa = new URLSearchParams(params);
-            pa.sort();
-            const sortedParams = pa.toString();
+            const sortedParams = getSortedQueryString(params);
             url += (url.includes('?') ? '&' : '?') + sortedParams;
+
         }
         const requestConfig = await this.buildRequestConfig(extraConfig, url, 'GET');
         return await this.client.get(url, requestConfig);

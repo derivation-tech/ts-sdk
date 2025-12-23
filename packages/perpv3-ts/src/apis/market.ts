@@ -40,17 +40,17 @@ import type {
 	IMarketPair,
 	FetchOnChainContextQueryInput,
 	FetchOnChainContextQueryResponse,
+	ApiSigner,
 } from './interfaces';
-import { HttpClient } from '../utils/axios';
-import { bigIntObjectCheckByKeys } from '../utils';
-import { getDepthRangeDataByLiquidityDetails } from '../frontend/chart';
+import { bigIntObjectCheckByKeys, getRequestUrlWithQuery, HttpClient } from '../utils';
 import { buildOnChainContextFromQuery, normalizeMinimalPearlTuple } from './utils';
+import { getDepthRangeDataByLiquidityDetails } from '../frontend/chart';
 
 /**
  * MarketModule - Market API endpoints
  */
 export class MarketModule {
-	constructor(private readonly httpClient: HttpClient) {}
+	constructor(private readonly httpClient: HttpClient, private readonly signer: ApiSigner) {}
 
 	/**
 	 * Fetch futures instrument
@@ -58,8 +58,16 @@ export class MarketModule {
 	async fetchFuturesInstrument(
 		params: FetchFuturesInstrumentInput,
 	): Promise<FetchFuturesInstrumentResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.INSTRUMENT, {
-			params: { chainId: params.chainId, address: params.address },
+		const requestUrl = API_URLS.MARKET.INSTRUMENT;
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, params),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params: params,
+			headers: {
+				...extraHeaders,
+			},
 		});
 
 		if (res?.data?.data) {
@@ -74,16 +82,24 @@ export class MarketModule {
 	async fetchMarketOnChainContext(
 		params: FetchOnChainContextInput,
 	): Promise<FetchOnChainContextResponse | null> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.ONCHAIN_CONTEXT, {
-			params: {
-				chainId: params.chainId,
-				instrument: params.instrument,
-				expiry: params.expiry,
-				...(params.userAddress ? { userAddress: params.userAddress } : {}),
-				...(params.signedSize !== undefined ? { signedSize: params.signedSize } : {}),
-			},
+		const requestUrl = API_URLS.MARKET.ONCHAIN_CONTEXT;
+		const requestParams = {
+			chainId: params.chainId,
+			instrument: params.instrument,
+			expiry: params.expiry,
+			...(params.userAddress ? { userAddress: params.userAddress } : {}),
+			...(params.signedSize !== undefined ? { signedSize: params.signedSize } : {}),
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
 		});
-
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders
+			}
+		});
 		if (!res?.data?.data) {
 			return null;
 		}
@@ -128,13 +144,22 @@ export class MarketModule {
 	async fetchMarketOnChainContextQuery(
 		params: FetchOnChainContextQueryInput,
 	): Promise<FetchOnChainContextQueryResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.ONCHAIN_CONTEXT_QUERY, {
-			params: {
-				chainId: params.chainId,
-				instrument: params.instrument,
-				expiry: params.expiry,
-				...(params.userAddress ? { userAddress: params.userAddress } : {}),
-				...(params.signedSize !== undefined ? { signedSize: params.signedSize } : {}),
+		const requestUrl = API_URLS.MARKET.ONCHAIN_CONTEXT_QUERY;
+		const requestParams = {
+			chainId: params.chainId,
+			instrument: params.instrument,
+			expiry: params.expiry,
+			...(params.userAddress ? { userAddress: params.userAddress } : {}),
+			...(params.signedSize !== undefined ? { signedSize: params.signedSize } : {}),
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
 			},
 		});
 
@@ -157,8 +182,22 @@ export class MarketModule {
 	async fetchFuturesInstrumentInquire(
 		params: FetchFuturesInstrumentInquireInput,
 	): Promise<FetchFuturesInstrumentInquireResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.INQUIRE, {
-			params: { chainId: params.chainId, instrument: params.instrument, expiry: params.expiry, size: params.size },
+		const requestUrl = API_URLS.MARKET.INQUIRE;
+		const requestParams = {
+			chainId: params.chainId,
+			instrument: params.instrument,
+			expiry: params.expiry,
+			size: params.size,
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
 		});
 		if (res?.data?.data) {
 			const data = bigIntObjectCheckByKeys(res.data.data, INQUIRE_BIGINT_KEYS);
@@ -178,8 +217,22 @@ export class MarketModule {
 	async fetchFuturesInstrumentInquireByTick(
 		params: FetchFuturesInstrumentInquireByTickInput,
 	): Promise<FetchFuturesInstrumentInquireByTickResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.INQUIRE_BY_TICK, {
-			params: { chainId: params.chainId, instrument: params.instrument, expiry: params.expiry, tick: params.tick },
+		const requestUrl = API_URLS.MARKET.INQUIRE_BY_TICK;
+		const requestParams = {
+			chainId: params.chainId,
+			instrument: params.instrument,
+			expiry: params.expiry,
+			tick: params.tick,
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
 		});
 		if (res?.data?.data) {
 			const data = bigIntObjectCheckByKeys(res.data.data, INQUIRE_BY_TICK_BIGINT_KEYS);
@@ -206,8 +259,16 @@ export class MarketModule {
 	async fetchFuturesInstrumentInquireByNotional(
 		params: FetchFuturesInstrumentInquireByNotionalInput,
 	): Promise<FetchFuturesInstrumentInquireByNotionalResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.INQUIRE_BY_NOTIONAL, {
-			params: { chainId: params.chainId, instrument: params.instrument, expiry: params.expiry, notional: params.notional, long: params.long },
+		const requestUrl = API_URLS.MARKET.INQUIRE_BY_NOTIONAL;
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, params),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params,
+			headers: {
+				...extraHeaders,
+			},
 		});
 		if (res?.data?.data) {
 			const data = bigIntObjectCheckByKeys(res.data.data, INQUIRE_BY_TICK_BIGINT_KEYS);
@@ -234,8 +295,16 @@ export class MarketModule {
 	async fetchFuturesPairOrderBook(
 		params: FetchFuturesPairOrderBookInput,
 	): Promise<FetchFuturesPairOrderBookResponse> {
-		const res = await this.httpClient.get<{ data: any }>(API_URLS.MARKET.ORDER_BOOK, {
-			params: { chainId: params.chainId, address: params.address, expiry: params.expiry },
+		const requestUrl = API_URLS.MARKET.ORDER_BOOK;
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, params),
+			ts: Date.now(),
+		});
+		const res = await this.httpClient.get<{ data: any }>(requestUrl, {
+			params,
+			headers: {
+				...extraHeaders,
+			},
 		});
 
 		if (res?.data?.data) {
@@ -263,8 +332,20 @@ export class MarketModule {
 	async fetchUserGateBalance(
 		params: FetchGateBalanceInput,
 	): Promise<FetchGateBalanceResponse> {
+		const requestUrl = API_URLS.MARKET.GATE_BALANCE;
+		const requestParams = {
+			chainId: params.chainId,
+			userAddress: params.userAddress,
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
+		});
 		const res = await this.httpClient.get<{ data: { data: { portfolios?: any } } }>(API_URLS.MARKET.GATE_BALANCE, {
-			params: { chainId: params.chainId, userAddress: params.userAddress },
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
 		});
 		if (res?.data?.data?.data?.portfolios) {
 			const data = bigIntObjectCheckByKeys(res.data.data.data.portfolios, GATE_BALANCE_BIGINT_KEYS);
@@ -279,10 +360,22 @@ export class MarketModule {
 	async fetchUserTotalValue(
 		params: TotalValueRequest,
 	): Promise<TotalValueResponse> {
-		const result = await this.httpClient.get<{ data: TotalValueResponse }>(API_URLS.MARKET.USER_VOLUME, {
-			params: params,
+		const requestUrl = API_URLS.MARKET.USER_VOLUME;
+		const requestParams = {
+			chainId: params.chainId,
+			userAddress: params.userAddress,
+		};
+		const extraHeaders = this.signer.sign({
+			uri: getRequestUrlWithQuery(requestUrl, requestParams),
+			ts: Date.now(),
 		});
-		return result?.data?.data;
+		const res = await this.httpClient.get<{ data: TotalValueResponse }>(requestUrl, {
+			params: requestParams,
+			headers: {
+				...extraHeaders,
+			},
+		});
+		return res?.data?.data;
 	}
 
 	/**

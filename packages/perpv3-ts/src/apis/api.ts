@@ -64,114 +64,114 @@ import type {
     FetchMmWalletBalanceResponse,
     FetchMmPositionListInput,
     FetchMmPositionListResponse,
+    ApiSigner,
 } from './interfaces';
 
 // Create a HttpClient instance for backward compatibility
-// Note: This requires authInfo to be passed to each function
-const createHttpClient = (authInfo: AuthInfo) => new HttpClient({ authInfo });
+const createHttpClient = (authInfo?: AuthInfo) => new HttpClient({ authInfo });
 
 // Market functions
 export const fetchFuturesInstrument = async (
     params: FetchFuturesInstrumentInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchFuturesInstrumentResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchFuturesInstrument(params);
 };
 
 export const fetchMarketOnChainContext = async (
     params: FetchOnChainContextInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchOnChainContextResponse | null> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchMarketOnChainContext(params);
 };
 
 export const fetchMarketOnChainContextQuery = async (
     params: FetchOnChainContextQueryInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchOnChainContextQueryResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchMarketOnChainContextQuery(params);
 };
 
 export const fetchFuturesInstrumentInquire = async (
     params: FetchFuturesInstrumentInquireInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchFuturesInstrumentInquireResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchFuturesInstrumentInquire(params);
 };
 
 export const fetchFuturesInstrumentInquireByTick = async (
     params: FetchFuturesInstrumentInquireByTickInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchFuturesInstrumentInquireByTickResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchFuturesInstrumentInquireByTick(params);
 };
 
 export const fetchFuturesInstrumentInquireByNotional = async (
     params: FetchFuturesInstrumentInquireByNotionalInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchFuturesInstrumentInquireByNotionalResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchFuturesInstrumentInquireByNotional(params);
 };
 
 export const fetchFuturesPairOrderBook = async (
     params: FetchFuturesPairOrderBookInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchFuturesPairOrderBookResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchFuturesPairOrderBook(params);
 };
 
 export const fetchUserGateBalanceFromApi = async (
     params: FetchGateBalanceInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchGateBalanceResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchUserGateBalance(params);
 };
 
 export const fetchUserTotalValue = async (
     params: TotalValueRequest,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<TotalValueResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchUserTotalValue(params);
 };
 
 export const fetchFuturesPairKlineChart = async (
     params: FetchFuturesPairKlineChartInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchFuturesPairKlineChartResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchFuturesPairKlineChart(params);
 };
 
 export const fetchFuturesPairDepthChart = async (
     params: FetchFuturesPairDepthChartInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchFuturesPairDepthChartResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchFuturesPairDepthChart(params);
 };
 
 export const fetchMarketPairInfo = async (
     params: FetchMarketPairInfoInput,
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchMarketPairInfoResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchMarketPairInfo(params);
 };
 
 export const fetchMarketPairList = async (
     params: { chainId: number },
-    authInfo: AuthInfo
+    signer: ApiSigner,
 ): Promise<FetchMarketPairListResponse> => {
-    const market = new MarketModule(createHttpClient(authInfo));
+    const market = new MarketModule(createHttpClient(), signer);
     return market.fetchMarketPairList(params);
 };
 

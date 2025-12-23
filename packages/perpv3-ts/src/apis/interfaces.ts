@@ -25,11 +25,41 @@ export interface AuthInfo {
     passphrase: string;
     secretKey: string;
 }
+
+export interface SignParams {
+    uri: string;
+    ts: number;
+    body?: object;
+}
+
+export interface SignResult {
+    'X-Api-Nonce': string;
+    'X-Api-Sign': string;
+    'X-Api-Ts': number;
+}
+
+/**
+ * ApiSigner is a function that signs the request parameters
+ * @param params - The parameters to sign
+ * @returns The signed parameters
+ */
+export interface ApiSigner {
+    sign(params: SignParams): SignResult;
+}
+
+/**
+ * ApiSignerFunc is a function that signs the request parameters
+ * @param params - The parameters to sign
+ * @returns The signed parameters
+ */
+export type ApiSignerFunc = (params: SignParams) => SignResult;
+
 // Types for the fetchFuturesInstrument function
 export interface FetchFuturesInstrumentInput {
     chainId: number;
     address: string;
 }
+
 // AmmFromApi extends Amm with API-specific fields and overrides status to be number instead of Status enum
 export type AmmFromApi = Omit<Amm, 'status'> & {
     status: number; // API returns number, not Status enum
