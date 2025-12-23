@@ -58,7 +58,7 @@ export async function fetchOnchainContext(
 
     const onChainContextResponse = await fetchMarketOnChainContext(
         { chainId, instrument: instrumentAddress, expiry, userAddress: userAddressParam, signedSize: signedSizeParam },
-        config.authInfo
+        config.authInfo!
     );
 
     if (!onChainContextResponse?.instrument) {
@@ -105,10 +105,10 @@ export async function fetchOnchainContext(
     const quoteState: QuoteState = onChainContextResponse.quoteState
         ? buildQuoteStateFromApi(onChainContextResponse.quoteState)
         : PairSnapshot.emptyQuoteState(
-              instrumentFromApi.quote.address as Address,
-              instrumentFromApi.quote.decimals,
-              instrumentFromApi.quote.symbol
-          );
+            instrumentFromApi.quote.address as Address,
+            instrumentFromApi.quote.decimals,
+            instrumentFromApi.quote.symbol
+        );
 
     return new PairSnapshot({
         setting,
@@ -136,7 +136,8 @@ export async function inquireByTick(
             expiry,
             tick,
         },
-        config.authInfo
+        //TODO remove it
+        config.authInfo!
     );
 
     if (!result || result.size === undefined) {
@@ -300,12 +301,12 @@ function buildPortfolioInternal(portfolioFromApi: PortfolioFromApi): Portfolio {
     const positionFromApi = portfolioFromApi.position[0];
     const position: Position = positionFromApi
         ? new Position(
-              positionFromApi.balance,
-              positionFromApi.size,
-              positionFromApi.entryNotional,
-              positionFromApi.entrySocialLossIndex,
-              positionFromApi.entryFundingIndex
-          )
+            positionFromApi.balance,
+            positionFromApi.size,
+            positionFromApi.entryNotional,
+            positionFromApi.entrySocialLossIndex,
+            positionFromApi.entryFundingIndex
+        )
         : Position.empty();
 
     // Create Portfolio from PortfolioFromApi

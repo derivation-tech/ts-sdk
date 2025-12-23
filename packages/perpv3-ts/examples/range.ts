@@ -1,10 +1,10 @@
 import { parseUnits } from 'viem';
-import { ratioToWad, sqrtX96ToWad, wadToTick, wmul } from '../math';
-import { RATIO_BASE } from '../constants';
-import { CURRENT_INSTRUMENT_ABI } from '../abis';
-import { AddInput, RemoveInput } from '../actions/range';
-import { encodeAddParam, encodeRemoveParam } from '../utils/encode';
-import { formatTick, formatTokenAmount, formatWad } from '../utils/format';
+import { ratioToWad, sqrtX96ToWad, wadToTick, wmul } from '../src/math';
+import { RATIO_BASE } from '../src/constants';
+import { CURRENT_INSTRUMENT_ABI } from '../src/abis';
+import { AddInput, RemoveInput } from '../src/actions/range';
+import { encodeAddParam, encodeRemoveParam } from '../src/utils/encode';
+import { formatTick, formatTokenAmount, formatWad } from '../src/utils/format';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
 import { ensureMarginAndAllowance } from './utils';

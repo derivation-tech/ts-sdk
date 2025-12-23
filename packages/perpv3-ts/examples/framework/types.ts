@@ -1,6 +1,6 @@
 import type { Address, PublicClient, WalletClient } from 'viem';
 import { ChainKit } from '@synfutures/viem-kit';
-import type { PerpClient } from '../../client';
+import type { PerpClient } from '../../src/client';
 
 /**
  * Demo context containing all necessary setup for running demos.

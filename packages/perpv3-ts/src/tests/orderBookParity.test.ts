@@ -7,7 +7,7 @@ import type { AuthInfo, IFuturesOrderBookAllSteps, OrderDataFromApi } from '../a
 import { getPerpInfo } from '../info';
 import { fetchOrderBook } from '../queries';
 import type { RpcConfig } from '../queries/config';
-import { axiosGet, bigInitObjectCheckByKeys } from '../utils/axios';
+import { axiosGet, bigIntObjectCheckByKeys } from '../utils';
 
 const CHAIN_ID = 20250903;
 const INSTRUMENTS: Address[] = [
@@ -112,7 +112,7 @@ function normalizeOrderBook(data: Record<string, OrderBookDepthFromApi>): IFutur
 
 function convertAndSort(items: OrderDataFromApi[]): OrderDataFromApi[] {
     return (items ?? [])
-        .map((item) => bigInitObjectCheckByKeys(item, ORDER_DATA_BIGINT_KEYS))
+        .map((item) => bigIntObjectCheckByKeys(item, ORDER_DATA_BIGINT_KEYS))
         .sort((a, b) => b.tick - a.tick);
 }
 

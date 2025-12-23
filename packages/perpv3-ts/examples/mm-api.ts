@@ -6,9 +6,9 @@ import {
     PublicWebsocketClient,
     AuthInfo,
     fetchMmServerTime,
-} from '../apis';
+} from '../src/apis';
 import 'dotenv/config';
-import { PERP_EXPIRY } from '../types';
+import { PERP_EXPIRY } from '../src/types';
 
 const CHAIN_ID = 143;
 const SYMBOL = 'BTCUSDC';
@@ -137,10 +137,10 @@ async function main(): Promise<void> {
 
     const portfolioSub = USER_ADDRESS
         ? ws.subscribePortfolio({ chainId: CHAIN_ID, userAddress: USER_ADDRESS, type: 'portfolio' }, (payload) => {
-              console.log(
-                  `[portfolio] type=${payload.type} instrument=${payload.instrument ?? '-'} expiry=${payload.expiry ?? '-'}`
-              );
-          })
+            console.log(
+                `[portfolio] type=${payload.type} instrument=${payload.instrument ?? '-'} expiry=${payload.expiry ?? '-'}`
+            );
+        })
         : null;
 
     console.log(`listening for ${DURATION_MS}ms...`);
