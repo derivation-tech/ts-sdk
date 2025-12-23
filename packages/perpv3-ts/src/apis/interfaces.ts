@@ -581,7 +581,7 @@ export interface FetchMmInstrumentInfoItem {
     base: {
         symbol: string;
     },
-    disableMakerOrderRebate: boolean,
+    disableMakerOrderRebate: boolean;
     fundingIntervalHour: number;
     initialMarginRatio: number;
     instrumentAddress: string;
