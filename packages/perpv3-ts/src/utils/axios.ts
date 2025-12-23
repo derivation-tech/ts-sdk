@@ -54,6 +54,15 @@ export function getRequestPathFromUrl(url: string): string {
     return urlObj.pathname + urlObj.search;
 }
 
+function isMarketMakerEndpoint(url: string): boolean {
+    try {
+        const urlObj = new URL(url, API_DOMAIN);
+        return urlObj.pathname.startsWith('/v4/public/mm');
+    } catch {
+        return url.startsWith('/v4/public/mm');
+    }
+}
+
 // ============================================================================
 // Axios Functions
 // ============================================================================
@@ -77,7 +86,7 @@ export async function axiosGet<T = any>({
         url = API_DOMAIN + url;
     }
     let extraHeaders: APIHeaders | undefined;
-    if (authInfo) {
+    if (authInfo && isMarketMakerEndpoint(url)) {
         const requestPath = getRequestPathFromUrl(url);
         extraHeaders = await getHeaders({
             method: 'GET',
