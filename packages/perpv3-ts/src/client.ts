@@ -22,7 +22,7 @@ import {
     type Quotation,
 } from './types';
 import { WebSocketManager } from './wss';
-import { httpClient, MarketMakerModule } from './apis';
+import { httpClient, MarketMakerModule, MarketModule } from './apis';
 
 /**
  * PerpClient is a scoped client for interacting with a specific trading pair (instrument + expiry).
@@ -42,6 +42,7 @@ export class PerpClient {
     private readonly wsOptions?: PublicWebsocketClientOptions;
 
     private readonly _mm?: MarketMakerModule;
+    private readonly _market?: MarketModule;
 
     /**
      * Create a new PerpClient instance.
@@ -71,6 +72,9 @@ export class PerpClient {
         this.wsOptions = options?.wsOptions;
         if (isApiConfig(this._config) && this._config.authInfo) {
             this._mm = new MarketMakerModule(httpClient, this._config.authInfo);
+        }
+        if (isApiConfig(this._config) && this._config.signer) {
+            this._market = new MarketModule(httpClient, this._config.signer);
         }
     }
 
@@ -110,6 +114,16 @@ export class PerpClient {
             throw new Error('MarketMaker module is not initialized. Please check if the config is an API config and has authInfo.');
         }
         return this._mm;
+    }
+
+    /**
+     * Gets the Market module. Throws an error if not initialized.
+     */
+    get market(): MarketModule {
+        if (!this._market) {
+            throw new Error('Market module is not initialized. Please check if the config is an API config and has signer.');
+        }
+        return this._market;
     }
 
     /**

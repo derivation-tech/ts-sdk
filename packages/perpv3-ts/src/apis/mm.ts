@@ -1,5 +1,5 @@
 import type { AxiosResponse } from 'axios';
-import { API_URLS, ORDER_DATA_BIGINT_KEYS, MM_WALLET_PORTFOLIO_BIGINT_KEYS, MM_POSITION_BIGINT_KEYS, DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from './constants';
+import { API_URLS, ORDER_DATA_BIGINT_KEYS, MM_WALLET_PORTFOLIO_BIGINT_KEYS, MM_POSITION_BIGINT_KEYS, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MM_INSTRUMENT_INFO_BIGINT_KEYS } from './constants';
 import type {
 	FetchMmOrderBookInput,
 	FetchMmOrderBookResponse,
@@ -232,7 +232,11 @@ export class MarketMakerModule {
 			...(params.symbol !== undefined && { symbol: params.symbol }),
 		};
 		const res = await this.makeSignedRequest<{ data: FetchMmInstrumentInfoResponse }>(requestUrl, requestParams);
-		return res?.data?.data ?? null;
+		const data = res?.data?.data;
+		if (!data) {
+			return null;
+		}
+		return bigIntObjectCheckByKeys(data, MM_INSTRUMENT_INFO_BIGINT_KEYS);
 	}
 
 
