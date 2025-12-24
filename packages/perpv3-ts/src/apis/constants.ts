@@ -218,3 +218,12 @@ export const MM_POSITION_BIGINT_KEYS = [
     'entryFundingIndex',
     'entryPrice',
 ] as const;
+
+export const MM_INSTRUMENT_INFO_BIGINT_KEYS: string[] = [
+    'spotPrice',
+    'minTradeValue',
+    'minOrderValue',
+    'minRangeValue',
+    'minMarginAmount',
+    'tip',
+] as const;
