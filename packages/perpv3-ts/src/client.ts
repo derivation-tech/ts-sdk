@@ -107,7 +107,7 @@ export class PerpClient {
      */
     get mm(): MarketMakerModule {
         if (!this._mm) {
-            throw new Error('mm module is not initialized, please check if the config is an API config and has authInfo');
+            throw new Error('MarketMaker module is not initialized. Please check if the config is an API config and has authInfo.');
         }
         return this._mm;
     }
