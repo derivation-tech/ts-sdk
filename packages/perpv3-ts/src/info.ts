@@ -56,10 +56,10 @@ const PerpInfoMap: Record<number, PerpInfo> = {
         pearlSpacing: 1,
         orderSpacing: 1,
         rangeSpacing: 50,
-        config: '0x0Fc6a51a091E90d0055322D7E23De4dB735f2021',
-        observer: '0x138d60aDdB5046B7bb45f81ad5554fA436CAbAB5',
-        gate: '0x28282D7fb7F2f40703365F00F0ecF50322A7Df86',
-        guardian: '0x544d56774E7cD11CD1986Dc00831DB567B7Eabb9',
+        config: "0x0506087b6b9A514E924E8d262DF1D50f987635C0",
+        observer: "0x486F01dbd17F3EF4A3C889Abca7E22c2f4498e3f",
+        gate: "0xD016AEd1584f3Ec2A09c722797989F64dA605c7e",
+        guardian: "0x206f0a544C3e0861f7D1AfBA02d627BA8fE2759c",
     },
 };
 
