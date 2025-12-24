@@ -70,7 +70,7 @@ export class PerpClient {
         this.wsUrl = options?.wsUrl ?? DEFAULT_PUBLIC_WS_URL;
         this.wsOptions = options?.wsOptions;
         if (isApiConfig(this._config) && this._config.authInfo) {
-            this._mm = new MarketMakerModule(httpClient, (this._config as ApiConfig).authInfo!);
+            this._mm = new MarketMakerModule(httpClient, this._config.authInfo);
         }
     }
 
@@ -103,7 +103,7 @@ export class PerpClient {
     }
 
     /**
-     * get mm module, if not initialized, throw an error
+     * Gets the Market Maker module. Throws an error if not initialized.
      */
     get mm(): MarketMakerModule {
         if (!this._mm) {
