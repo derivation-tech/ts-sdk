@@ -1,5 +1,11 @@
 # @synfutures/perpv3-ts
 
+## 0.1.15
+
+### Patch Changes
+
+- Add moand testnet perp info
+
 ## 0.1.14
 
 ### Patch Changes
