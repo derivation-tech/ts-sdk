@@ -1,6 +1,6 @@
 {
     "name": "@synfutures/perpv3-ts",
-    "version": "0.1.13",
+    "version": "0.1.14",
     "description": "TypeScript SDK for SynFutures V3 Perpetual Contracts",
     "author": "SynFutures",
     "license": "MIT",
@@ -96,7 +96,7 @@
         "build:check": "tsc --noEmit",
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
         "prepack": "npm run build && npm run build:check",
-        "lint": "npx eslint",
+        "lint": "eslint",
         "format": "prettier --write \"**/*.{ts,json,md}\"",
         "test": "jest",
         "test:watch": "jest --watch",
@@ -114,11 +114,12 @@
         "sdk"
     ],
     "dependencies": {
+        "@noble/curves": "^1.9.1",
         "@synfutures/viem-kit": "workspace:*",
+        "viem": "catalog:",
         "axios": "^1.12.2",
         "date-fns": "^4.1.0",
-        "date-fns-tz": "^3.2.0",
-        "viem": "^2.38.3"
+        "date-fns-tz": "^3.2.0"
     },
     "peerDependencies": {
         "ws": "^8.0.0"
@@ -129,16 +130,15 @@
         }
     },
     "devDependencies": {
+        "@jest/globals": "^30.2.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^20.0.0",
-        "@types/ws": "^8.5.10",
         "eslint": "^9.0.0",
         "jest": "^30.2.0",
         "prettier": "^3.0.0",
         "ts-jest": "^29.4.6",
         "ts-node": "^10.9.2",
         "tsup": "^8.5.1",
-        "typescript": "^5.9.3",
-        "typescript-eslint": "^8.46.1"
+        "typescript": "^5.9.3"
     }
 }

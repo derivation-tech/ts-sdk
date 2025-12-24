@@ -1,16 +1,17 @@
 /**
- * Example: Using Custom ABC Testnet Chain
- * Shows how to work with internal test chain
+ * Example: Using the viem Monad chain
+ * Shows how to work with Monad via viem's built-in chain definitions.
  */
 
 import { createPublicClient, http } from 'viem';
-import { ChainKitRegistry, monad } from '../src/index';
+import { monad } from 'viem/chains';
+import { ChainKitRegistry } from '../src/index';
 
 async function monadExample() {
     console.log('\n🧪 Monad Mainnet Beta Example\n');
 
     // ==========================================
-    // METHOD 1: Use custom chain directly
+    // METHOD 1: Use viem chain directly
     // ==========================================
     const publicClient = createPublicClient({
         chain: monad,
@@ -29,7 +30,7 @@ async function monadExample() {
     // ==========================================
     // METHOD 2: Use with ChainKit (singleton)
     // ==========================================
-    const kit = ChainKitRegistry.for(monad); // Pass custom chain object
+    const kit = ChainKitRegistry.for(monad);
 
     // Register USDM token (auto-creates ERC20 parser!)
     kit.registerErc20Token({

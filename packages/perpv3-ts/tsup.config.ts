@@ -20,6 +20,8 @@ export default defineConfig({
     // Dual format output
     format: ['cjs', 'esm'],
 
+    target: 'es2022',
+
     // Type definitions
     dts: true,
 

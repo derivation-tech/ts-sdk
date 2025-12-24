@@ -1,6 +1,6 @@
 {
     "name": "@synfutures/viem-kit",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Viem-based web3 kit with address book, contract parsers, and tx handling",
     "main": "dist/index.cjs",
     "module": "dist/index.mjs",
@@ -59,8 +59,8 @@
     ],
     "scripts": {
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-        "build": "npm run build:bundle && npm run build:types",
-        "build:clean": "npm run clean && npm run build:bundle && npm run build:types",
+        "build": "tsup --config tsup.config.ts && tsc -p tsconfig.types.json",
+        "build:clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsup --config tsup.config.ts && tsc -p tsconfig.types.json",
         "build:bundle": "tsup --config tsup.config.ts",
         "build:types": "tsc -p tsconfig.types.json",
         "build:check": "tsc --noEmit -p tsconfig.json",
@@ -77,23 +77,21 @@
     },
     "dependencies": {
         "chalk": "^4.1.2",
-        "viem": "^2.38.3"
+        "viem": "catalog:"
     },
     "devDependencies": {
         "@synfutures/viem-ledger": "workspace:*",
+        "@jest/globals": "^29.7.0",
         "@types/jest": "^29.5.12",
         "@types/node": "^20.0.0",
-        "dotenv": "^17.2.3",
         "jest": "^29.7.0",
         "prettier": "^3.6.2",
-        "ts-node": "^10.9.2",
         "ts-jest": "^29.2.2",
-        "tsx": "^4.20.6",
         "tsup": "^8.5.0",
         "typescript": "^5.9.3"
     },
     "peerDependencies": {
-        "@synfutures/viem-ledger": "^0.0.1"
+        "@synfutures/viem-ledger": "^0.0.2"
     },
     "peerDependenciesMeta": {
         "@synfutures/viem-ledger": {
