@@ -532,22 +532,22 @@ export interface FetchTradeHistoryInput {
 }
 
 export interface FetchTradeHistoryItem {
-    balance: string,
-    baseToken: TokenInfoFromApi,
-    event: string,
-    expiry: number,
-    id: string,
-    instrumentAddress: string,
-    price: string,
-    protocolFee: string,
-    quoteToken: TokenInfoFromApi,
-    side: string,
-    size: string,
-    symbol: string,
-    timestamp: number,
-    tradeFee: string,
-    txHash: string,
-    type: string,
+    balance: string;
+    baseToken: TokenInfoFromApi;
+    event: string;
+    expiry: number;
+    id: string;
+    instrumentAddress: string;
+    price: string;
+    protocolFee: string;
+    quoteToken: TokenInfoFromApi;
+    side: string;
+    size: string;
+    symbol: string;
+    timestamp: number;
+    tradeFee: string;
+    txHash: string;
+    type: string;
     typeString: string
 }
 
@@ -555,6 +555,206 @@ export type FetchMmAccountTransactionHistoryResponse = {
     list: FetchMmAccountTransactionHistoryItem[];
     totalCount: number;
 };
+
+export interface FetchMmFundingHistoryInput {
+    chainId: number;
+    symbol: string;
+    startTime?: number;
+    endTime?: number;
+    limit?: number;
+}
+
+export interface FetchMmFundingHistoryItem {
+    long: string;
+    short: string;
+    timestamp: number;
+}
+export type FetchMmFundingHistoryResponse = FetchMmFundingHistoryItem[];
+
+
+export interface FetchMmInstrumentInfoInput {
+    chainId: number;
+    symbol?: string;
+}
+
+export interface FetchMmInstrumentInfoItem {
+    base: {
+        symbol: string;
+    },
+    disableMakerOrderRebate: boolean;
+    fundingIntervalHour: number;
+    initialMarginRatio: number;
+    instrumentAddress: string;
+    instrumentCondition: string;
+    maintenanceMarginRatio: number;
+    market: {
+        address: string;
+        type: string;
+    },
+    minMarginAmount: string;
+    protocolFeeRatio: number;
+    quote: TokenInfo,
+    quoteType: string;
+    symbol: string;
+    tip: string;
+    tradingFeeRatio: number;
+}
+
+export type FetchMmInstrumentInfoResponse = FetchMmInstrumentInfoItem[];
+
+export interface FetchMmKlineInput {
+    chainId: number;
+    symbol: string;
+    interval?: KlineInterval;
+    start?: number;
+    end?: number;
+    limit?: number;
+}
+
+export interface FetchMmKlineItem {
+    baseVolume: number;
+    close: number;
+    closeTime: number;
+    high: number;
+    low: number;
+    open: number;
+    openTime: number;
+    quoteVolume: number;
+    symbol: string;
+}
+export type FetchMmKlineResponse = FetchMmKlineItem[];
+
+
+export interface FetchMmLiquidityHistoryInput {
+    chainId: number;
+    address: string;
+    symbol?: string;
+    startTime?: number;
+    endTime?: number;
+    page?: number;
+    size?: number;
+}
+
+export interface FetchMmLiquidityHistoryItem {
+    amount: string;
+    baseToken: TokenInfo;
+    expiry: number;
+    fairPrice: string;
+    feeEarned: string;
+    id: string;
+    instrumentAddress: string;
+    lowerPrice: string;
+    lowerTick: number;
+    quoteToken: TokenInfo;
+    symbol: string;
+    timestamp: number;
+    txHash: string;
+    type: number;
+    typeString: string;
+    upperPrice: string;
+    upperTick: number;
+}
+
+export type FetchMmLiquidityHistoryResponse = {
+    list: FetchMmLiquidityHistoryItem[];
+    totalCount: number;
+}
+
+export interface FetchMmOrderHistoryInput {
+    chainId: number;
+    address: string;
+    symbol?: string;
+    startTime?: number;
+    endTime?: number;
+    page?: number;
+    size?: number;
+}
+
+export interface FetchMmOrderHistoryItem {
+    balance: string;
+    baseToken: TokenInfo;
+    cancelTimestamp: number;
+    cancelTxHash: string;
+    expiry: number;
+    feeRebate: string;
+    fillTimestamp: number;
+    fillTxHash: string;
+    id: string;
+    instrumentAddress: string;
+    orderPrice: string;
+    placeTimestamp: number;
+    placeTxHash: string;
+    quoteToken: TokenInfo;
+    side: string;
+    size: string;
+    symbol: string;
+    takenBalance: string;
+    takenSize: string;
+    tradeValue: string;
+    type: number;
+    typeString: string;
+}
+
+export interface FetchMmOrderHistoryResponse {
+    list: FetchMmOrderHistoryItem[];
+    totalCount: number;
+}
+
+export interface FetchMmOrderRealtimeInput {
+    chainId: number;
+    address: string;
+}
+
+export interface FetchMmOrderRealtimeItem {
+    balance: string;
+    lastUpdateTime: number;
+    lastUpdateTxHash: string;
+    limitPrice: string;
+    nonce: number;
+    oid: number;
+    side: number;
+    size: string;
+    taken: string;
+    tick: number;
+}
+export type FetchMmOrderRealtimeResponse = FetchMmOrderRealtimeItem[];
+
+export interface FetchTokenCoinsWithSymbolItem {
+    currentPrice: number;
+    high24h: number;
+    imageUrl: string;
+    low24h: number;
+    priceChangePercentage24H: number;
+    symbol: string;
+    updateTime: number;
+}
+export type FetchTokenCoinsWithSymbolResponse = FetchTokenCoinsWithSymbolItem[];
+
+export interface FetchMmLiquidityListInput {
+    chainId: number;
+    address: string;
+}
+
+export interface FetchMmLiquidityListItem {
+    balance: string;
+    entryFeeIndex: string;
+    entryPrice: string;
+    expiry: number;
+    instrumentAddr: string;
+    lastUpdateTime: number;
+    lastUpdateTxHash: string;
+    liquidity: string;
+    lowerPrice: string;
+    rid: number;
+    sqrtEntryPX96: string;
+    symbol: string;
+    tickLower: number;
+    tickUpper: number;
+    traderAddr: string;
+    upperPrice: string;
+}
+
+export type FetchMmLiquidityListResponse = FetchMmLiquidityListItem[];
 
 // mm orderbook
 export interface FetchMmOrderBookInput {
@@ -621,12 +821,12 @@ export interface MmPositionFromApi {
 
 export type FetchMmPositionListResponse = MmPositionFromApi[];
 
-export interface FetchMmTicketListInput {
+export interface FetchMmTickersInput {
     chainId: number;
     symbol?: string;
 }
 
-export interface FetchMmTicketListItem {
+export interface FetchMmTicker {
     closeTime24h: number;
     expiry: number;
     fundingRate: string;
@@ -647,7 +847,7 @@ export interface FetchMmTicketListItem {
     volume24h: string;
 }
 
-export type FetchMmTicketListResponse = FetchMmTicketListItem[];
+export type FetchMmTickersResponse = FetchMmTicker[];
 
 //kline chart
 export enum KlineInterval {
