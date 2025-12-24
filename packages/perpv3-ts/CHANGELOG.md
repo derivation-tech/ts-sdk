@@ -1,5 +1,11 @@
 # @synfutures/perpv3-ts
 
+## 0.1.16
+
+### Patch Changes
+
+- Update perp info
+
 ## 0.1.15
 
 ### Patch Changes
