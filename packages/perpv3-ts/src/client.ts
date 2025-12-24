@@ -11,6 +11,7 @@ import {
     fetchOnchainContext,
     fetchOrderBook,
     inquireByTick,
+    isApiConfig,
     type ApiConfig,
     type ReadOptions,
     type RpcConfig,
@@ -21,6 +22,7 @@ import {
     type Quotation,
 } from './types';
 import { WebSocketManager } from './wss';
+import { httpClient, MarketMakerModule } from './apis';
 
 /**
  * PerpClient is a scoped client for interacting with a specific trading pair (instrument + expiry).
@@ -38,6 +40,8 @@ export class PerpClient {
     private readonly wsManager: WebSocketManager;
     private readonly wsUrl: string;
     private readonly wsOptions?: PublicWebsocketClientOptions;
+
+    private readonly _mm?: MarketMakerModule;
 
     /**
      * Create a new PerpClient instance.
@@ -65,6 +69,9 @@ export class PerpClient {
         this.wsManager = options?.wsManager ?? WebSocketManager.getInstance();
         this.wsUrl = options?.wsUrl ?? DEFAULT_PUBLIC_WS_URL;
         this.wsOptions = options?.wsOptions;
+        if (isApiConfig(this._config) && this._config.authInfo) {
+            this._mm = new MarketMakerModule(httpClient, (this._config as ApiConfig).authInfo!);
+        }
     }
 
     /**
@@ -93,6 +100,16 @@ export class PerpClient {
      */
     get config(): ApiConfig | RpcConfig {
         return this._config;
+    }
+
+    /**
+     * get mm module, if not initialized, throw an error
+     */
+    get mm(): MarketMakerModule {
+        if (!this._mm) {
+            throw new Error('mm module is not initialized, please check if the config is an API config and has authInfo');
+        }
+        return this._mm;
     }
 
     /**
