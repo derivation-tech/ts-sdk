@@ -236,7 +236,7 @@ export class MarketMakerModule {
 		if (!data) {
 			return null;
 		}
-		return bigIntObjectCheckByKeys(data, MM_INSTRUMENT_INFO_BIGINT_KEYS);
+		return data.map((item) => bigIntObjectCheckByKeys(item, MM_INSTRUMENT_INFO_BIGINT_KEYS));
 	}
 
 

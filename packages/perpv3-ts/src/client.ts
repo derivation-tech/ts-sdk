@@ -70,11 +70,13 @@ export class PerpClient {
         this.wsManager = options?.wsManager ?? WebSocketManager.getInstance();
         this.wsUrl = options?.wsUrl ?? DEFAULT_PUBLIC_WS_URL;
         this.wsOptions = options?.wsOptions;
-        if (isApiConfig(this._config) && this._config.authInfo) {
-            this._mm = new MarketMakerModule(httpClient, this._config.authInfo);
-        }
-        if (isApiConfig(this._config) && this._config.signer) {
-            this._market = new MarketModule(httpClient, this._config.signer);
+        if (isApiConfig(this._config)) {
+            if (this._config.authInfo) {
+                this._mm = new MarketMakerModule(httpClient, this._config.authInfo);
+            }
+            if (this._config.signer) {
+                this._market = new MarketModule(httpClient, this._config.signer);
+            }
         }
     }
 

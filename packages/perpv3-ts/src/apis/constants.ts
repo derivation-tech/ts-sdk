@@ -226,4 +226,4 @@ export const MM_INSTRUMENT_INFO_BIGINT_KEYS: string[] = [
     'minRangeValue',
     'minMarginAmount',
     'tip',
-];
+] as const;
