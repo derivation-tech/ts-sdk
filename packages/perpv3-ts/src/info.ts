@@ -51,6 +51,16 @@ const PerpInfoMap: Record<number, PerpInfo> = {
         gate: '0x2E32345Bf0592bFf19313831B99900C530D37d90',
         guardian: '0x5FE49fb8770A8009335B1d76496c3e07Ca04FC9F',
     },
+    10143: {
+        // Monad Testnet
+        pearlSpacing: 1,
+        orderSpacing: 1,
+        rangeSpacing: 50,
+        config: '0x0Fc6a51a091E90d0055322D7E23De4dB735f2021',
+        observer: '0x138d60aDdB5046B7bb45f81ad5554fA436CAbAB5',
+        gate: '0x28282D7fb7F2f40703365F00F0ecF50322A7Df86',
+        guardian: '0x544d56774E7cD11CD1986Dc00831DB567B7Eabb9',
+    },
 };
 
 // ============================================================================
