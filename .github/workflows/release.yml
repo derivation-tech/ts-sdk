@@ -44,9 +44,12 @@ jobs:
 
       - name: Creating .npmrc
         run: |
+          REGISTRY_URL="${{ secrets.NPM_REGISTRY_URL }}"
+          # Remove protocol and path, extract hostname
+          REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -E 's|^https?://||' | sed -E 's|/.*||')
           cat << EOF > "$HOME/.npmrc"
-            @synfutures:registry=${{ secrets.NPM_REGISTRY_URL }}
-            //${{ secrets.NPM_REGISTRY_URL }}/:_authToken=${{ secrets.NPM_TOKEN }}
+          @synfutures:registry=$REGISTRY_URL
+          //$REGISTRY_HOST/:_authToken=${{ secrets.NPM_TOKEN }}
           EOF
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
