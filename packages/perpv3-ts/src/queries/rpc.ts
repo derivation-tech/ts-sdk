@@ -166,6 +166,26 @@ export async function inquireByTick(
     };
 }
 
+export async function inquireByBaseSize(
+    instrumentAddress: Address,
+    expiry: number,
+    signedSize: bigint,
+    config: RpcConfig,
+    options?: ReadOptions
+): Promise<Quotation> {
+    const { blockNumber, blockTag } = options ?? {};
+    const [quotation] = (await config.publicClient.readContract({
+        address: config.observerAddress,
+        abi: CURRENT_OBSERVER_ABI,
+        functionName: 'inquireByBase',
+        args: [instrumentAddress, expiry, signedSize],
+        blockNumber,
+        blockTag,
+    })) as [Quotation, { timestamp: number; height: number }];
+
+    return quotation;
+}
+
 export async function fetchLiquidityDetails(
     instrumentAddress: Address,
     expiry: number,
@@ -255,12 +275,16 @@ export async function fetchOrderBookFromObserver(
         }
         const orderbookForRatio = calcOrderBookFromLiquidityDetails(details, size, tickDelta, length);
         orderBook[ratio.toString()] = {
-            asks: sortByTickDesc(orderbookForRatio.asks),
+            asks: sortByTickAsc(orderbookForRatio.asks),
             bids: sortByTickDesc(orderbookForRatio.bids),
         };
     });
 
     return Object.keys(orderBook).length > 0 ? orderBook : null;
+}
+
+function sortByTickAsc(side: OrderDataFromApi[]): OrderDataFromApi[] {
+    return [...side].sort((a, b) => a.tick - b.tick);
 }
 
 function sortByTickDesc(side: OrderDataFromApi[]): OrderDataFromApi[] {

@@ -103,17 +103,17 @@ function normalizeOrderBook(data: Record<string, OrderBookDepthFromApi>): IFutur
     const orderBook: IFuturesOrderBookAllSteps = {};
     for (const [ratio, depth] of Object.entries(data)) {
         if (!depth) continue;
-        const asks = convertAndSort(depth.asks ?? []);
-        const bids = convertAndSort(depth.bids ?? []);
+        const asks = convertAndSort(depth.asks ?? [], 'asc');
+        const bids = convertAndSort(depth.bids ?? [], 'desc');
         orderBook[ratio] = { asks, bids };
     }
     return Object.keys(orderBook).length ? orderBook : null;
 }
 
-function convertAndSort(items: OrderDataFromApi[]): OrderDataFromApi[] {
+function convertAndSort(items: OrderDataFromApi[], order: 'asc' | 'desc'): OrderDataFromApi[] {
     return (items ?? [])
         .map((item) => bigIntObjectCheckByKeys(item, ORDER_DATA_BIGINT_KEYS))
-        .sort((a, b) => b.tick - a.tick);
+        .sort((a, b) => (order === 'asc' ? a.tick - b.tick : b.tick - a.tick));
 }
 
 function sanitizeOrderBook(instrument: Address, orderBook: IFuturesOrderBookAllSteps): IFuturesOrderBookAllSteps {

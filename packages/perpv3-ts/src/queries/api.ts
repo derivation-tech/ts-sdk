@@ -133,8 +133,9 @@ export async function inquireByTick(
     config: ApiConfig
 ): Promise<{ size: bigint; quotation: Quotation }> {
     if (!config.signer) {
-        throw Errors.apiRequestFailed('Signer is required for fetchOnchainContext');
+        throw Errors.apiRequestFailed('Signer is required for inquireByTick');
     }
+
     const result = await fetchFuturesInstrumentInquireByTick(
         {
             chainId: config.chainId,
