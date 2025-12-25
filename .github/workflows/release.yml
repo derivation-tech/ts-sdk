@@ -1,0 +1,64 @@
+name: Changesets
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 18
+          cache: pnpm
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v5
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Creating .npmrc
+        run: |
+          REGISTRY_URL="${{ secrets.NPM_REGISTRY_URL }}"
+          # Remove protocol and path, extract hostname
+          REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -E 's|^https?://||' | sed -E 's|/.*||')
+          cat << EOF > "$HOME/.npmrc"
+          @synfutures:registry=$REGISTRY_URL
+          //$REGISTRY_HOST/:_authToken=${{ secrets.NPM_TOKEN }}
+          EOF
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm run build
+      - name: Create Release Pull Request or Publish to npm
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: pnpm run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
