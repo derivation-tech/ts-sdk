@@ -275,12 +275,16 @@ export async function fetchOrderBookFromObserver(
         }
         const orderbookForRatio = calcOrderBookFromLiquidityDetails(details, size, tickDelta, length);
         orderBook[ratio.toString()] = {
-            asks: sortByTickDesc(orderbookForRatio.asks),
+            asks: sortByTickAsc(orderbookForRatio.asks),
             bids: sortByTickDesc(orderbookForRatio.bids),
         };
     });
 
     return Object.keys(orderBook).length > 0 ? orderBook : null;
+}
+
+function sortByTickAsc(side: OrderDataFromApi[]): OrderDataFromApi[] {
+    return [...side].sort((a, b) => a.tick - b.tick);
 }
 
 function sortByTickDesc(side: OrderDataFromApi[]): OrderDataFromApi[] {
