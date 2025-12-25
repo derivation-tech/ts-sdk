@@ -13,10 +13,7 @@
         "prepare": "husky",
         "lint": "eslint",
         "format": "prettier --write packages/**/*.ts apps/**/*.ts",
-        "clean": "pnpm -r clean",
-        "release": "changeset publish --no-git-tag",
-        "release:public": "changeset publish --access public --no-git-tag",
-        "release:prepare-and-dry-run": "changeset version && changeset publish --dry-run"
+        "clean": "pnpm -r clean"
     },
     "devDependencies": {
         "@changesets/cli": "^2.28.1",
