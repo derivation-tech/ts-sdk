@@ -1,10 +1,14 @@
 import type { Address } from 'viem';
-import { fetchFuturesPairOrderBook } from '../apis/api';
 import type { IFuturesOrderBookAllSteps } from '../apis/interfaces';
 import { Errors, type PairSnapshot, type Quotation } from '../types';
-import { fetchOnchainContext as fetchOnchainContextFromApi, inquireByTick as inquireByTickFromApi } from './api';
+import { fetchFuturesInstrumentInquire, fetchFuturesPairOrderBook } from '../apis/api';
+import {
+    fetchOnchainContext as fetchOnchainContextFromApi,
+    inquireByTick as inquireByTickFromApi,
+} from './api';
 import {
     fetchOnchainContext as fetchOnchainContextFromRpc,
+    inquireByBaseSize as inquireByBaseSizeFromRpc,
     fetchOrderBookFromObserver as fetchOrderBookFromObserverRpc,
     inquireByTick as inquireByTickFromRpc,
     type FetchOrderBookOptions,
@@ -68,6 +72,39 @@ export async function inquireByTick(
 }
 
 /**
+ * Unified inquire by signed base size function.
+ * Routes to API or RPC based on config type.
+ */
+export async function inquireByBaseSize(
+    instrumentAddress: Address,
+    expiry: number,
+    signedSize: bigint,
+    config: ApiConfig | RpcConfig,
+    options?: ReadOptions
+): Promise<Quotation> {
+    if (isApiConfig(config)) {
+        if (!config.signer) {
+            throw Errors.apiRequestFailed('Signer is required for inquireByBaseSize');
+        }
+        // API doesn't support options parameter
+        const quotation = await fetchFuturesInstrumentInquire(
+            {
+                chainId: config.chainId,
+                instrument: instrumentAddress,
+                expiry,
+                size: signedSize.toString(),
+            },
+            config.signer
+        );
+        if (!quotation) {
+            throw Errors.missingQuotation();
+        }
+        return quotation;
+    }
+    return inquireByBaseSizeFromRpc(instrumentAddress, expiry, signedSize, config, options);
+}
+
+/**
  * Unified order book fetcher that routes to API or RPC based on config type.
  * Returns the same IFuturesOrderBookAllSteps structure as /market/orderBook.
  *
@@ -93,7 +130,7 @@ export async function fetchOrderBook(
             {
                 chainId: config.chainId,
                 address: instrument,
-                expiry: expiry,
+                expiry,
             },
             config.signer
         );
