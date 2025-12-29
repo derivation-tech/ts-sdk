@@ -1,10 +1,9 @@
 import type { Address, PublicClient, WalletClient } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { ChainKit, ChainKitRegistry, ERC20, sendTxWithLog } from '@synfutures/viem-kit';
-import { abs, wdiv } from '../src/math';
-import { WAD, ZERO } from '../src/constants';
-import { PlaceInput } from '../src/actions/order';
-import { RemoveInput } from '../src/actions/range';
+import { abs, wdiv } from '@synfutures/perpv3-ts/math';
+import { WAD, ZERO } from '@synfutures/perpv3-ts/constants';
+import { PlaceInput, RemoveInput } from '@synfutures/perpv3-ts/actions';
 import {
     Condition,
     Errors,
@@ -20,14 +19,12 @@ import {
     type Setting,
     type SpacingConfig,
     type TradeParam,
-} from '../src/types';
-import { getPerpInfo, type PerpInfo } from '../src/info';
-import { CURRENT_OBSERVER_ABI, CURRENT_INSTRUMENT_ABI } from '../src/abis';
-import { createInstrumentParser, createGateParser } from '../src/parsers';
-import { fetchOnchainContext } from '../src/queries';
-import type { RpcConfig } from '../src/queries/config';
-import { encodeCancelParam, encodeTradeParam, encodeRemoveParam } from '../src/utils/encode';
-import { formatTick, formatWad } from '../src/utils/format';
+} from '@synfutures/perpv3-ts/types';
+import { getPerpInfo, type PerpInfo } from '@synfutures/perpv3-ts';
+import { CURRENT_OBSERVER_ABI, CURRENT_INSTRUMENT_ABI } from '@synfutures/perpv3-ts/abis';
+import { createInstrumentParser, createGateParser } from '@synfutures/perpv3-ts/parsers';
+import { fetchOnchainContext, type RpcConfig } from '@synfutures/perpv3-ts/queries';
+import { encodeCancelParam, encodeTradeParam, encodeRemoveParam, formatTick, formatWad } from '@synfutures/perpv3-ts/utils';
 
 export const DefaultUserSetting = new UserSetting(10, 10, 3n * WAD, 1); // 10 seconds deadline, 0.1% slippage tolerance, 3x leverage, 1bps margin buffer
 

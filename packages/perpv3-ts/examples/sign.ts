@@ -1,4 +1,4 @@
-import type { ApiSigner, SignParams, SignResult } from '../src/apis/interfaces';
+import type { ApiSigner, SignParams, SignResult } from '@synfutures/perpv3-ts/apis';
 
 /**
  * this is a mock signer for the API examples

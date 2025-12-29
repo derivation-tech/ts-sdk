@@ -36,30 +36,18 @@ Both ESM (`import`) and CJS (`require`) are supported via conditional exports.
 
 ## Environment Variables
 
-The CLI supports custom RPC endpoints via environment variables:
+This package does not read RPC URLs from environment variables. If you need a custom RPC, pass your own `transport` (or overwrite `kit.publicClient`) when creating a `PublicClient`.
+
+The following env vars are used by the optional account helpers and examples:
 
 ```bash
-# Network-specific RPC endpoints (optional)
-export BASE_RPC=https://bot-rpc.synfutures.com/base/YOUR_API_KEY
-export MAINNET_RPC=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
-export ARBITRUM_RPC=https://arb-mainnet.g.alchemy.com/v2/YOUR_API_KEY
-export OPTIMISM_RPC=https://opt-mainnet.g.alchemy.com/v2/YOUR_API_KEY
-export POLYGON_RPC=https://polygon-mainnet.g.alchemy.com/v2/YOUR_API_KEY
+# getAccount('alice') prefers ALICE_MNEMONIC (addressIndex 0), then ALICE_PRIVATE_KEY
+export ALICE_MNEMONIC="your twelve word mnemonic phrase here..."
+export ALICE_PRIVATE_KEY=0x...
 
-# Mnemonic for address derivation
-export NEO_MNEMONIC="your twelve word mnemonic phrase here..."
-export ALICE_MNEMONIC="another twelve word mnemonic phrase..."
+# getAccount('neo:0-10') requires NEO_MNEMONIC and derives multiple addressIndex values
+export NEO_MNEMONIC="another twelve word mnemonic phrase here..."
 ```
-
-### Default RPC Endpoints
-
-If no environment variable is set, the CLI uses these default endpoints:
-
-- **Base**: `https://mainnet.base.org`
-- **Mainnet**: `https://eth.llamarpc.com`
-- **Arbitrum**: `https://arb1.arbitrum.io/rpc`
-- **Optimism**: `https://mainnet.optimism.io`
-- **Polygon**: `https://polygon-rpc.com`
 
 ## Quick Start
 
@@ -236,36 +224,6 @@ const commonTokens = getCommonErc20Tokens(8453); // Base
 console.log(commonTokens); // Array of Erc20TokenInfo
 ```
 
-## CLI Usage
-
-The CLI lives in workspace `packages/cli` and can be run directly with tsx:
-
-```bash
-# Set up environment variables
-export BASE_RPC=https://bot-rpc.synfutures.com/base/YOUR_API_KEY
-export NEO_MNEMONIC="your twelve word mnemonic phrase here..."
-
-# Query balances
-pnpm tsx packages/cli/src/asset.ts balance usdc -n base --id neo:0-10
-
-# Transfer tokens
-pnpm tsx packages/cli/src/asset.ts transfer usdc -n base --from neo:0 --to neo:1 --amount 100
-
-# Batch transfers
-pnpm tsx packages/cli/src/asset.ts transfer usdc -n base --from neo:0-5 --to neo:6-11 --amount 10 --batch
-```
-
-### CLI Commands
-
-- `balance <token>` - Query token balances for specified addresses
-- `transfer <token>` - Transfer tokens between addresses
-- `--network, -n` - Network name (base, mainnet, arbitrum, etc.)
-- `--id` - Address specification (neo:0-100, alice:0, 0x...)
-- `--from` - Sender addresses
-- `--to` - Recipient addresses
-- `--amount` - Transfer amount
-- `--batch` - Enable batch mode for multiple transfers
-
 ## Examples
 
 See the `examples/` directory for complete examples:
@@ -274,24 +232,24 @@ See the `examples/` directory for complete examples:
 - `abc-transfer.ts` - ERC20 transfer on custom chain
 - `batch-transfer.ts` - Batch ERC20 transfers
 - `erc20-transfer.ts` - Standard ERC20 operations
+- `monad.ts` - Monad chain example
 - `singleton.ts` - Singleton pattern usage
-- `weth-deposit-withdraw.ts` - WETH operations
 
 ## API Reference
 
 ### ChainKitRegistry
 
-- `for(chain: Chain): ChainKit` - Get or create ChainKit for chain
+- `for(chainIdOrNameOrChain: number | string | Chain): ChainKit` - Get or create a ChainKit singleton
 
 ### ChainKit
 
 - `addressBook: AddressBook` - Address-to-name mappings
-- `tokens: Map<Address, Erc20TokenInfo>` - Token registry
+- `tokens: Map<string, Erc20TokenInfo>` - Token registry
 - `parsers: Map<Address, ContractParser>` - Contract parsers
 - `registerErc20Token(tokenInfo: Erc20TokenInfo): void` - Register token
-- `getErc20TokenInfo(address: Address): Erc20TokenInfo | undefined` - Get token info
-- `formatErc20Amount(amount: bigint, address: Address): string` - Format amount
-- `parseErc20Amount(amount: string, address: Address): bigint` - Parse amount
+- `getErc20TokenInfo(symbolOrAddress: string): Erc20TokenInfo | undefined` - Get token info
+- `formatErc20Amount(amount: bigint, tokenSymbolOrAddress: string): string` - Format amount
+- `parseErc20Amount(amount: string, tokenSymbolOrAddress: string): bigint` - Parse amount
 - `isNativeToken(address: Address): boolean` - Check if native token
 - `isWrappedNativeToken(address: Address): boolean` - Check if wrapped native token
 

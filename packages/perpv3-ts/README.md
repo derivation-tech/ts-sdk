@@ -27,17 +27,15 @@ npm install @synfutures/perpv3-ts
 src/
 ├── abis/           # Contract ABIs (latest and legacy)
 ├── actions/        # Simulation action classes
-│   ├── trade.ts    # Trade simulation (TradeInput, etc.)
-│   ├── order.ts    # Order simulation (PlaceInput, CrossMarketOrderInput, etc.)
-│   ├── range.ts    # Range liquidity simulation (AddInput, RemoveInput)
-│   └── validation.ts # Common validation utilities
+│   ├── trade.ts           # Market trade simulation (TradeInput)
+│   ├── adjust.ts          # Margin/leverage adjustment (AdjustInput)
+│   ├── order.ts           # Limit order simulation (PlaceInput)
+│   ├── crossLimitOrder.ts # Cross limit order simulation (CrossLimitOrderInput)
+│   ├── scaledLimitOrder.ts # Batch/scaled limit orders (ScaledLimitOrderInput, BatchOrderSizeDistribution)
+│   └── range.ts           # Range liquidity simulation (AddInput, RemoveInput)
 ├── apis/           # API-specific implementations
+├── client.ts       # PerpClient
 ├── constants.ts    # Shared constants
-├── demos/          # Demo framework and examples
-│   ├── framework/  # Demo framework (runner, registry, context)
-│   ├── trade.ts    # Trade demos
-│   ├── order.ts    # Order demos
-│   └── range.ts    # Range demos
 ├── frontend/       # Frontend utilities (calldata encoding, parsers)
 ├── info.ts         # Chain configuration (PerpInfo)
 ├── math.ts         # Math utilities
@@ -49,12 +47,22 @@ src/
 ├── tests/          # Test files and fixtures
 ├── types/          # Type definitions
 │   ├── contract.ts  # Core domain types (1:1 Solidity mirror)
+│   ├── snapshot.ts # PairSnapshot (context + validations)
 │   ├── position.ts # Position class
 │   ├── order.ts    # Order class
 │   ├── range.ts    # Range class
 │   ├── quotation.ts # QuotationWithSize class
-│   └── setting.ts  # UserSetting and InstrumentSetting classes
-└── utils/          # Utility functions
+│   ├── setting.ts  # UserSetting and InstrumentSetting classes
+│   └── error.ts    # Typed Errors and error codes
+├── utils/          # Utility functions
+└── wss.ts          # WebSocketManager
+
+examples/
+├── framework/      # Demo framework (runner, registry, context)
+├── trade.ts        # Trade demos
+├── order.ts        # Order demos
+├── range.ts        # Range demos
+└── index.ts        # Demo runner entry
 ```
 
 ### Type Organization
@@ -73,6 +81,7 @@ src/
 - `QuotationWithSize` - Quotation with size calculations
 - `UserSetting` - User settings with helper methods
 - `InstrumentSetting` - Instrument settings factory
+- `PairSnapshot` - Snapshot class with validation helpers and context
 
 **Action Classes** (`actions/*.ts`):
 
@@ -117,11 +126,14 @@ const [param, sim] = tradeInput.simulate(snapshot, quotationWithSize, client.use
 
 ```typescript
 import { createPublicClient, http, parseUnits } from 'viem';
+import { mainnet } from 'viem/chains';
 import { getPerpInfo } from '@synfutures/perpv3-ts';
 import { fetchOnchainContext } from '@synfutures/perpv3-ts/queries';
 import { TradeInput, QuotationWithSize } from '@synfutures/perpv3-ts/actions';
-import { UserSetting, Side } from '@synfutures/perpv3-ts/types';
+import { PERP_EXPIRY, UserSetting, Side } from '@synfutures/perpv3-ts/types';
 import { WAD } from '@synfutures/perpv3-ts/constants';
+
+const chainId = mainnet.id;
 
 // Create a public client
 const publicClient = createPublicClient({
@@ -133,17 +145,23 @@ const userSetting = new UserSetting(
     10, // deadline seconds offset
     10, // slippage tolerance in bps (0.1%)
     3n * WAD, // leverage in WAD (3x)
-    1 // limit order margin buffer in bps (optional)
+    1 // mark price buffer in bps (optional)
 );
 
 // Get perp info for the chain
 const perpInfo = getPerpInfo(chainId);
+const rpcConfig = { chainId, publicClient, observerAddress: perpInfo.observer };
+const expiry = PERP_EXPIRY;
+
+const side = Side.LONG;
+const baseQuantity = parseUnits('1', 18);
+const signedSize = side === Side.LONG ? baseQuantity : -baseQuantity;
 
 // Fetch onchain context
 const onchainContext = await fetchOnchainContext(
     instrumentAddress,
     expiry,
-    { chainId, publicClient, observerAddress: perpInfo.observer },
+    rpcConfig,
     traderAddress
 );
 
@@ -153,14 +171,14 @@ const onchainContextWithQuotation = await fetchOnchainContext(
     expiry,
     rpcConfig,
     traderAddress,
-    signedSize // e.g., parseUnits('1', 18) for LONG
+    signedSize
 );
 
 // Create trade input and simulate
 const tradeInput = new TradeInput(
     traderAddress,
-    parseUnits('1', 18), // baseQuantity in WAD
-    Side.LONG,
+    baseQuantity, // baseQuantity in WAD
+    side,
     parseUnits('100', 18) // margin in WAD (optional)
 );
 
@@ -266,7 +284,7 @@ const placeOrder = new PlaceInput(
 );
 const [placeParam, simulation] = placeOrder.simulate(onchainContext, userSetting);
 
-// Cross market order
+// Cross limit order (market leg + limit leg)
 const crossMarketOrder = new CrossLimitOrderInput(
     traderAddress,
     Side.LONG,
@@ -289,7 +307,7 @@ const simulation = scaledOrder.simulate(onchainContext, userSetting);
 **Notes:**
 
 - `PlaceInput` validates `baseQuantity` in the constructor (must be positive), so invalid inputs may throw before calling `simulate()`.
-- `ScaledLimitOrderSimulation` is flattened: use `totalBase`, `totalQuote`, `totalMargin`, `minBase`, and `orders[].minOrderSize` (instead of nested `totals`/`constraints`).
+- `ScaledLimitOrderSimulation` contains `{ orders, minBase }`. Each `orders[i]` is either `{ ratio, param, simulation }` or `null` if that slot failed to simulate; you can derive totals by reducing over `orders`.
 
 #### Range Liquidity
 
@@ -413,7 +431,7 @@ _InstrumentSetting (pure validation):_
 
 _Position:_
 
-- `canAdjustToLeverage(targetLeverage, amm, markPrice, imr)` - Check leverage adjustment
+- `canAdjustToLeverage(targetLeverage, amm, markPrice, initialMarginRatio)` - Check leverage adjustment
 
 See method JSDoc comments in source code for detailed documentation.
 
@@ -422,6 +440,7 @@ See method JSDoc comments in source code for detailed documentation.
 The SDK provides unified functions that work with both API and RPC configurations:
 
 ```typescript
+import type { ApiSigner } from '@synfutures/perpv3-ts';
 import { fetchOnchainContext, inquireByTick, fetchOrderBook } from '@synfutures/perpv3-ts/queries';
 
 // Using RPC config
@@ -431,25 +450,30 @@ const rpcConfig = {
     observerAddress: perpInfo.observer,
 };
 
-const onchainContext = await fetchOnchainContext(
+const onchainContextFromRpc = await fetchOnchainContext(
     instrumentAddress,
     expiry,
     rpcConfig,
     traderAddress, // optional
     signedSize, // optional
-    { blockNumber: 12345678 } // optional
+    { blockNumber: 12345678n } // optional
 );
 
 // Using API config
-const apiConfig = {
-    baseURL: 'https://api.synfutures.com',
-    apiKey: 'your-api-key', // optional
+// Note: API reads require an ApiSigner. If you don't have one, use RpcConfig instead.
+const signer: ApiSigner = {
+    sign: ({ ts }) => ({
+        'X-Api-Nonce': '...',
+        'X-Api-Sign': '...',
+        'X-Api-Ts': ts,
+    }),
 };
 
-const onchainContext = await fetchOnchainContext(instrumentAddress, expiry, apiConfig, traderAddress, signedSize);
+const apiConfig = { chainId: 143, signer };
+const onchainContextFromApi = await fetchOnchainContext(instrumentAddress, expiry, apiConfig, traderAddress, signedSize);
 
 // Inquire by tick
-const quotation = await inquireByTick(instrumentAddress, expiry, tick, rpcConfig);
+const { size, quotation } = await inquireByTick(instrumentAddress, expiry, tick, rpcConfig);
 
 // Fetch order book
 const orderBook = await fetchOrderBook(
@@ -470,17 +494,28 @@ Use the API helpers for snapshots and the lightweight `PublicWebsocketClient` fo
 ```typescript
 import { PERP_EXPIRY } from '@synfutures/perpv3-ts';
 import { fetchOrderBook } from '@synfutures/perpv3-ts/queries';
+import type { ApiSigner } from '@synfutures/perpv3-ts';
 import { fetchPortfolioListFromApi, PublicWebsocketClient } from '@synfutures/perpv3-ts';
 
 // API snapshots
-const apiConfig = { chainId: 143 };
+const signer: ApiSigner = {
+    sign: ({ ts }) => ({
+        'X-Api-Nonce': '...',
+        'X-Api-Sign': '...',
+        'X-Api-Ts': ts,
+    }),
+};
+const apiConfig = { chainId: 143, signer };
 const orderBook = await fetchOrderBook(instrumentAddress, PERP_EXPIRY, apiConfig);
-const portfolio = await fetchPortfolioListFromApi({
-    chainId: 143,
-    userAddress,
-    instrumentAddress,
-    expiry: PERP_EXPIRY,
-});
+const portfolio = await fetchPortfolioListFromApi(
+    {
+        chainId: 143,
+        userAddress,
+        instrumentAddress,
+        expiry: PERP_EXPIRY,
+    },
+    signer
+);
 
 // Real-time updates
 const ws = new PublicWebsocketClient();
@@ -534,6 +569,8 @@ const rawSub = ws.subscribeRaw(
 ### Running Demos
 
 The SDK includes a demo framework for testing and examples:
+
+> Note: The `examples/` folder (and `npm run demo`) are only available in this repository and are not included in the published npm package.
 
 ```bash
 # List all available demos

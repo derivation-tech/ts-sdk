@@ -104,7 +104,8 @@
         "test:trade": "node --loader ts-node/esm src/tests/simulator/trade/runTradeParity.ts",
         "fixtures:capture:abc": "ts-node --transpile-only scripts/captureAbcFixture.ts",
         "fixtures:capture:trade": "ts-node --transpile-only scripts/captureAbcTradeScenarios.ts",
-        "demo": "ts-node --transpile-only src/demos/index.ts"
+        "predemo": "pnpm -C ../viem-ledger run build && pnpm -C ../viem-kit run build && pnpm run build",
+        "demo": "tsx examples/index.ts"
     },
     "keywords": [
         "synfutures",
@@ -116,10 +117,10 @@
     "dependencies": {
         "@noble/curves": "^1.9.1",
         "@synfutures/viem-kit": "workspace:*",
-        "viem": "catalog:",
         "axios": "^1.12.2",
         "date-fns": "^4.1.0",
-        "date-fns-tz": "^3.2.0"
+        "date-fns-tz": "^3.2.0",
+        "viem": "catalog:"
     },
     "peerDependencies": {
         "ws": "^8.0.0"
@@ -133,11 +134,13 @@
         "@jest/globals": "^30.2.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^20.0.0",
+        "dotenv": "^17.2.3",
         "eslint": "^9.0.0",
         "jest": "^30.2.0",
         "prettier": "^3.0.0",
         "ts-jest": "^29.4.6",
         "ts-node": "^10.9.2",
+        "tsx": "^4.20.6",
         "tsup": "^8.5.1",
         "typescript": "^5.9.3"
     }

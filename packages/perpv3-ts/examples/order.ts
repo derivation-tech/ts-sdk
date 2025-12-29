@@ -1,13 +1,24 @@
 import { parseUnits } from 'viem';
-import { abs, wmul } from '../src/math';
-import { WAD_DECIMALS } from '../src/constants';
-import { CrossLimitOrderInput } from '../src/actions/crossLimitOrder';
-import { PlaceInput } from '../src/actions/order';
-import { BatchOrderSizeDistribution, ScaledLimitOrderInput } from '../src/actions/scaledLimitOrder';
-import { CURRENT_INSTRUMENT_ABI } from '../src/abis';
-import { Order, Side, buildInquireByTickResult } from '../src/types';
-import { isRpcConfig } from '../src/queries/config';
-import { encodeBatchPlaceParam, encodeCancelParam, encodePlaceParam, encodeTradeParam, formatTick, formatTokenAmount, formatWad } from '../src/utils';
+import { abs, wmul } from '@synfutures/perpv3-ts/math';
+import { WAD_DECIMALS } from '@synfutures/perpv3-ts/constants';
+import {
+    BatchOrderSizeDistribution,
+    CrossLimitOrderInput,
+    PlaceInput,
+    ScaledLimitOrderInput,
+} from '@synfutures/perpv3-ts/actions';
+import { CURRENT_INSTRUMENT_ABI } from '@synfutures/perpv3-ts/abis';
+import { Order, Side, buildInquireByTickResult } from '@synfutures/perpv3-ts/types';
+import { isRpcConfig } from '@synfutures/perpv3-ts/queries';
+import {
+    encodeBatchPlaceParam,
+    encodeCancelParam,
+    encodePlaceParam,
+    encodeTradeParam,
+    formatTick,
+    formatTokenAmount,
+    formatWad,
+} from '@synfutures/perpv3-ts/utils';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
 import {

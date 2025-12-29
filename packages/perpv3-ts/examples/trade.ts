@@ -1,12 +1,10 @@
 import { parseUnits } from 'viem';
-import { abs, sqrtX96ToWad, wmul } from '../src/math';
-import { WAD_DECIMALS, ZERO } from '../src/constants';
-import { CURRENT_INSTRUMENT_ABI } from '../src/abis';
-import { AdjustInput } from '../src/actions/adjust';
-import { TradeInput } from '../src/actions/trade';
-import { QuotationWithSize, Side, UserSetting } from '../src/types';
-import { encodeAdjustParam, encodeTradeParam } from '../src/utils/encode';
-import { formatTick, formatTokenAmount, formatWad } from '../src/utils/format';
+import { abs, sqrtX96ToWad, wmul } from '@synfutures/perpv3-ts/math';
+import { WAD_DECIMALS, ZERO } from '@synfutures/perpv3-ts/constants';
+import { CURRENT_INSTRUMENT_ABI } from '@synfutures/perpv3-ts/abis';
+import { AdjustInput, TradeInput, QuotationWithSize } from '@synfutures/perpv3-ts/actions';
+import { Side, UserSetting } from '@synfutures/perpv3-ts/types';
+import { encodeAdjustParam, encodeTradeParam, formatTick, formatTokenAmount, formatWad } from '@synfutures/perpv3-ts/utils';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
 import { DefaultUserSetting, ensureMarginAndAllowance } from './utils';

@@ -106,10 +106,9 @@ LEDGER_PATH="m/44'/60'/5'/0/0"  # → m/44'/60'/5'/0/0
 - Only `LEDGER_PATH=m/44'/60'/10'/0/0` set → uses that path as-is
 - Both set → `LEDGER_INDEX` wins
 
-## Pattern examples (for batch operations)
+## Batch Usage
 
-- `ledger:0-2` → `["ledger:0", "ledger:1", "ledger:2"]` → accounts 0, 1, 2
-- `ledger:m/44'/60'/5'/0/0` → treated as explicit path, not expanded
+`ledgerToAccount` accepts a single `signerId`/`path`/`index` per call. If you need range expansion (e.g. `ledger:0-2`), expand it in your app (or use `expandSignerIdPattern` from `@synfutures/viem-kit`) and call `ledgerToAccount` for each entry.
 
 ## Migration Notes
 
