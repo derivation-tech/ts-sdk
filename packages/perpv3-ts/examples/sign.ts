@@ -7,7 +7,7 @@ export class ApiSign implements ApiSigner {
 	constructor(private readonly nonce: string) {}
 
 	sign(params: SignParams): SignResult {
-		// NOTE: This is a mock signature generation. 
+		// NOTE: This is a mock signature generation.
 		// In a real-world scenario, you would use the params and a secret key to generate a valid signature.
 		return {
 			'X-Api-Nonce': this.nonce,
