@@ -9,10 +9,10 @@ import {
 	fetchTransferHistory,
 	fetchAccountBalanceHistory,
 	HISTORY_RANGE,
-} from '../src/apis';
+} from '@synfutures/perpv3-ts/apis';
 import 'dotenv/config';
 import { ApiSign } from './sign';
-import { PERP_EXPIRY } from '../src';
+import { PERP_EXPIRY } from '@synfutures/perpv3-ts';
 
 const CHAIN_ID = 143;
 const INSTRUMENT = '0x73ada1ea346cc3908f41cf67a040f0acd7808be0' as Address;

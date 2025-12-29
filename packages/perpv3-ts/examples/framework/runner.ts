@@ -1,10 +1,7 @@
-import * as dotenv from 'dotenv';
 import { createDemoContext, refreshDemoContext } from './context';
 import { getDemo, listDemos, getDemoNames } from './registry';
 import { closePositionIfExists, removeAllRanges } from '../utils';
-import { isRpcConfig } from '../../src/queries/config';
-
-dotenv.config();
+import { isRpcConfig } from '@synfutures/perpv3-ts/queries';
 
 /**
  * Options for running demos.

@@ -1,10 +1,9 @@
 import { parseUnits } from 'viem';
-import { ratioToWad, sqrtX96ToWad, wadToTick, wmul } from '../src/math';
-import { RATIO_BASE } from '../src/constants';
-import { CURRENT_INSTRUMENT_ABI } from '../src/abis';
-import { AddInput, RemoveInput } from '../src/actions/range';
-import { encodeAddParam, encodeRemoveParam } from '../src/utils/encode';
-import { formatTick, formatTokenAmount, formatWad } from '../src/utils/format';
+import { ratioToWad, sqrtX96ToWad, wadToTick, wmul } from '@synfutures/perpv3-ts/math';
+import { RATIO_BASE } from '@synfutures/perpv3-ts/constants';
+import { CURRENT_INSTRUMENT_ABI } from '@synfutures/perpv3-ts/abis';
+import { AddInput, RemoveInput } from '@synfutures/perpv3-ts/actions';
+import { encodeAddParam, encodeRemoveParam, formatTick, formatTokenAmount, formatWad } from '@synfutures/perpv3-ts/utils';
 import type { DemoContext } from './framework/types';
 import { registerDemo } from './framework/registry';
 import { ensureMarginAndAllowance } from './utils';

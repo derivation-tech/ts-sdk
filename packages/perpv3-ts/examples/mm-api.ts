@@ -19,7 +19,7 @@ import {
     fetchMmOrderHistory,
     fetchMmOrderRealtime,
     fetchTokenCoinsWithSymbol,
-} from '../src';
+} from '@synfutures/perpv3-ts';
 import 'dotenv/config';
 
 
