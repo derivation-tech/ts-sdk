@@ -234,10 +234,7 @@ export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
 
     // monadTestnet (Chain ID: 10143)
     10143: [
-        { symbol: "DAK", name: "Molandak", address: "0x0F0BDEbF0F83cD1EE3974779Bcb7315f9808c714", decimals: 18 },
-        { symbol: "YAKI", name: "Moyaki", address: "0xfe140e1dCe99Be9F4F15d657CD9b7BF622270C50", decimals: 18 },
-        { symbol: "CHOG", name: "Chog", address: "0xe0590015a873bf326bd645c3e1266d4db41c4e6b", decimals: 18 },
-        { symbol: "USDC", name: "USD Coin", address: "0xf817257fed379853cDe0fa4F97AB987181B1E5Ea", decimals: 6 },
+        { symbol: "USDM", name: "USD Mock", address: "0x618102779b8564B7EFa49B26D70d941896222B55", decimals: 6 },
     ],
 
     // optimism (Chain ID: 10)
