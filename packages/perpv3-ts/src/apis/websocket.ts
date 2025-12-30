@@ -155,7 +155,7 @@ export type TradesStreamData = {
     typeString: string;
     side: string;
     event: string;
-    chainId: number
+    chainId: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +250,10 @@ export interface MmTradesSubscribeParams {
      */
     pairs: string[];
     type: 'trades';
+}
+
+export interface MmTradesSubscribeParamsWithSet extends MmTradesSubscribeParams {
+    pairSet: Set<string>;
 }
 
 export interface MmOrderBookSubscribeParams {
@@ -390,7 +394,7 @@ export class PublicWebsocketClient {
         number,
         SubscriptionRecord<PortfolioSubscribeParams, PortfolioStreamData>
     >();
-    private readonly tradesSubscriptions = new Map<number, SubscriptionRecord<MmTradesSubscribeParams, TradesStreamData>>();
+    private readonly tradesSubscriptions = new Map<number, SubscriptionRecord<MmTradesSubscribeParamsWithSet, TradesStreamData>>();
     private readonly klineSubscriptions = new Map<number, SubscriptionRecord<KlineSubscribeParams, KlineStreamData>>();
     private readonly instrumentSubscriptions = new Map<
         number,
@@ -554,7 +558,12 @@ export class PublicWebsocketClient {
         handler: StreamHandler<TradesStreamData, MmTradesSubscribeParams>
     ): PublicWebsocketSubscription {
         const id = this.nextSubscriptionId++;
-        this.tradesSubscriptions.set(id, { id, params, handler });
+        const pairSet = new Set(params.pairs.map(p => p.toLowerCase()));
+        const paramsWithSet: MmTradesSubscribeParamsWithSet = {
+            ...params,
+            pairSet,
+        };
+        this.tradesSubscriptions.set(id, { id, params: paramsWithSet, handler });
         this.connect();
         this.sendSubscribeIfOpen(params);
 
@@ -667,7 +676,11 @@ export class PublicWebsocketClient {
     private resubscribeAll(): void {
         for (const { params } of this.orderBookSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.portfolioSubscriptions.values()) this.sendSubscribeIfOpen(params);
-        for (const { params } of this.tradesSubscriptions.values()) this.sendSubscribeIfOpen(params);
+        // Extract original params (without pairSet) for trades subscriptions
+        for (const { params } of this.tradesSubscriptions.values()) {
+            const { pairSet, ...originalParams } = params;
+            this.sendSubscribeIfOpen(originalParams);
+        }
         for (const { params } of this.klineSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.instrumentSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.instrumentBasicInfoSubscriptions.values()) this.sendSubscribeIfOpen(params);
@@ -957,11 +970,10 @@ export class PublicWebsocketClient {
         return typeof userAddress === 'string' && typeof type === 'string';
     }
 
-    private tradesMatches(params: MmTradesSubscribeParams, data: TradesStreamData): boolean {
-        const pairs = params.pairs.map(p => p.toLowerCase());
+    private tradesMatches(params: MmTradesSubscribeParamsWithSet, data: TradesStreamData): boolean {
         const instrumentAddress = (data?.instrumentAddress || '').toLowerCase();
         const pair = `${instrumentAddress}_${data.expiry ?? ''}`;
-        return pairs.includes(pair);
+        return params.pairSet.has(pair);
     }
 
     // -----------------------------------------------------------------------

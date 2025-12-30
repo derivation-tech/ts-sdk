@@ -9,6 +9,8 @@ import {
     type InstrumentStreamData,
     type MarketPairInfoChangedData,
     type PublicWebsocketSubscription,
+    type MmTradesSubscribeParams,
+    type TradesStreamData,
 } from './apis/websocket';
 
 type StreamHandler<TPayload, TParams> = (payload: TPayload, context: { params: TParams }) => void;
@@ -99,6 +101,25 @@ export class WebSocketManager {
     ): PublicWebsocketSubscription {
         const client = this.getClient(url, options);
         return client.subscribeInstrument(params, handler);
+    }
+
+
+    /**
+     * Subscribe to trades updates.
+     * @param url - WebSocket URL
+     * @param params - Subscription parameters
+     * @param handler - Handler function
+     * @param options - Optional WebSocket client options
+     * @returns Unsubscribe function
+     */
+    subscribeTrades(
+        url: string,
+        params: MmTradesSubscribeParams,
+        handler: StreamHandler<TradesStreamData, MmTradesSubscribeParams>,
+        options?: PublicWebsocketClientOptions
+    ): PublicWebsocketSubscription {
+        const client = this.getClient(url, options);
+        return client.subscribeTrades(params, handler);
     }
 
     /**
