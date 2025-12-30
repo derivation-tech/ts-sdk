@@ -137,6 +137,27 @@ export type BlockNumChangedData = {
     blockTime?: number;
 };
 
+export type TradesStreamData = {
+    id: string;
+    instrumentAddress: string;
+    expiry: number;
+    size: string;
+    balance: string;
+    price: string;
+    tradeFee: string;
+    protocolFee: string;
+    timestamp: number;
+    txHash: string;
+    type: string;
+    symbol: string;
+    baseToken: Record<string, unknown> | null;
+    quoteToken: Record<string, unknown> | null;
+    typeString: string;
+    side: string,
+    event: string;
+    chainId: number
+}
+
 // ---------------------------------------------------------------------------
 // Stream messages
 // ---------------------------------------------------------------------------
@@ -187,6 +208,11 @@ type BlockNumChangedStreamMessage = BaseStreamMetadata & {
     data: BlockNumChangedData;
 };
 
+type TradesStreamMessage = BaseStreamMetadata & {
+    stream: 'trades';
+    data: TradesStreamData;
+};
+
 type RawStreamMessage = BaseStreamMetadata & {
     stream: string;
     data: GenericStreamData;
@@ -200,7 +226,8 @@ type KnownStreamMessage =
     | InstrumentBasicInfoStreamMessage
     | MarketPairInfoChangedStreamMessage
     | MarketListChangedStreamMessage
-    | BlockNumChangedStreamMessage;
+    | BlockNumChangedStreamMessage
+    | TradesStreamMessage;
 
 export type PublicStreamMessage = KnownStreamMessage | RawStreamMessage;
 
@@ -213,6 +240,16 @@ export interface OrderBookSubscribeParams {
     instrument: Address;
     expiry: number;
     type: 'orderBook';
+}
+
+export interface MmTradesSubscribeParams {
+    chainId: number;
+    /**
+     * The pairs to subscribe to.
+     * Example: ['pair_expiry', 'pair2_expiry']
+     */
+    pairs: string[];
+    type: 'trades';
 }
 
 export interface MmOrderBookSubscribeParams {
@@ -267,6 +304,7 @@ export interface RawSubscribeParams {
 export type PublicWsSubscribeParams =
     | OrderBookSubscribeParams
     | MmOrderBookSubscribeParams
+    | MmTradesSubscribeParams
     | PortfolioSubscribeParams
     | KlineSubscribeParams
     | InstrumentSubscribeParams
@@ -352,6 +390,7 @@ export class PublicWebsocketClient {
         number,
         SubscriptionRecord<PortfolioSubscribeParams, PortfolioStreamData>
     >();
+    private readonly tradesSubscriptions = new Map<number, SubscriptionRecord<MmTradesSubscribeParams, GenericStreamData>>();
     private readonly klineSubscriptions = new Map<number, SubscriptionRecord<KlineSubscribeParams, KlineStreamData>>();
     private readonly instrumentSubscriptions = new Map<
         number,
@@ -382,8 +421,8 @@ export class PublicWebsocketClient {
             options?.maxReconnectAttempts !== undefined
                 ? options.maxReconnectAttempts
                 : options?.reconnectDelayMs !== undefined
-                  ? Number.POSITIVE_INFINITY
-                  : 10;
+                    ? Number.POSITIVE_INFINITY
+                    : 10;
     }
 
     // -----------------------------------------------------------------------
@@ -510,6 +549,18 @@ export class PublicWebsocketClient {
         return { unsubscribe: () => this.unsubscribeRaw(id) };
     }
 
+    public subscribeTrades(
+        params: MmTradesSubscribeParams,
+        handler: StreamHandler<GenericStreamData, MmTradesSubscribeParams>
+    ): PublicWebsocketSubscription {
+        const id = this.nextSubscriptionId++;
+        this.tradesSubscriptions.set(id, { id, params, handler });
+        this.connect();
+        this.sendSubscribeIfOpen(params);
+
+        return { unsubscribe: () => this.unsubscribeTrades(id) };
+    }
+
     // -----------------------------------------------------------------------
     // Unsubscribe helpers
     // -----------------------------------------------------------------------
@@ -525,6 +576,13 @@ export class PublicWebsocketClient {
         const record = this.portfolioSubscriptions.get(id);
         if (!record) return;
         this.portfolioSubscriptions.delete(id);
+        this.sendUnsubscribeIfOpen(record.params);
+    }
+
+    private unsubscribeTrades(id: number): void {
+        const record = this.tradesSubscriptions.get(id);
+        if (!record) return;
+        this.tradesSubscriptions.delete(id);
         this.sendUnsubscribeIfOpen(record.params);
     }
 
@@ -609,6 +667,7 @@ export class PublicWebsocketClient {
     private resubscribeAll(): void {
         for (const { params } of this.orderBookSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.portfolioSubscriptions.values()) this.sendSubscribeIfOpen(params);
+        for (const { params } of this.tradesSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.klineSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.instrumentSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.instrumentBasicInfoSubscriptions.values()) this.sendSubscribeIfOpen(params);
@@ -706,6 +765,10 @@ export class PublicWebsocketClient {
                 this.notifyCommonSubscribers(merged as BlockNumChangedData, message.stream);
                 this.notifyRawSubscribers(message.stream, merged);
                 break;
+            case 'trades':
+                this.notifyTradesSubscribers(merged as TradesStreamData);
+                this.notifyRawSubscribers(message.stream, merged);
+                break;
             default:
                 this.notifyRawSubscribers(message.stream, merged);
                 break;
@@ -763,6 +826,14 @@ export class PublicWebsocketClient {
     private notifyRawSubscribers(stream: string, data: GenericStreamData): void {
         for (const record of this.rawSubscriptions.values()) {
             if (this.rawMatches(stream, record, data)) {
+                record.handler(data, { params: record.params });
+            }
+        }
+    }
+
+    private notifyTradesSubscribers(data: TradesStreamData): void {
+        for (const record of this.tradesSubscriptions.values()) {
+            if (this.tradesMatches(record.params, data)) {
                 record.handler(data, { params: record.params });
             }
         }
@@ -886,6 +957,14 @@ export class PublicWebsocketClient {
         return typeof userAddress === 'string' && typeof type === 'string';
     }
 
+    private tradesMatches(params: MmTradesSubscribeParams, data: TradesStreamData): boolean {
+        const set = new Set(params.pairs.map(p => p.toLowerCase()));
+        const instrumentAddress = (data?.instrumentAddress || '').toLowerCase();
+        const expiry = typeof data.expiry === 'string' ? data.expiry : String(data.expiry);
+        const pair = `${instrumentAddress}_${expiry}`;
+        return set.has(pair);
+    }
+
     // -----------------------------------------------------------------------
     // Utilities
     // -----------------------------------------------------------------------
@@ -1007,8 +1086,8 @@ export class PublicWebsocketClient {
             urlObj.protocol === 'wss:'
                 ? `https://${urlObj.host}`
                 : urlObj.protocol === 'ws:'
-                  ? `http://${urlObj.host}`
-                  : `${urlObj.protocol}//${urlObj.host}`;
+                    ? `http://${urlObj.host}`
+                    : `${urlObj.protocol}//${urlObj.host}`;
         return {
             'User-Agent': DEFAULT_USER_AGENT,
             Origin: origin,

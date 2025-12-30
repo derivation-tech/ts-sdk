@@ -203,7 +203,7 @@ async function main(): Promise<void> {
             if (parsed?.id && parsed?.result) {
                 console.log(`ws ack id=${parsed.id} result=${parsed.result}`);
             }
-            if (parsed?.stream === 'orderBook' || parsed?.stream === 'portfolio') {
+            if (parsed?.stream === 'orderBook' || parsed?.stream === 'portfolio' || parsed?.stream === 'trades') {
                 console.log('ws raw:', JSON.stringify(parsed));
             }
         },
@@ -239,12 +239,29 @@ async function main(): Promise<void> {
         })
         : null;
 
+    const tradesSub = ws.subscribeTrades(
+        {
+            chainId: CHAIN_ID,
+            pairs: [
+                `0x44b60b6af9b615a5cf2d366e2143582557cff711_${PERP_EXPIRY}`,
+                `0x8c5243a6a4c6c7a82d954c8ff29e0611e25ac33e_${PERP_EXPIRY}`,
+                `0x73ada1ea346cc3908f41cf67a040f0acd7808be0_${PERP_EXPIRY}`
+            ],
+            type: 'trades'
+        },
+        (data) => {
+            console.log('[trades] data:', JSON.stringify(data, null, 2));
+        }
+    );
+
     console.log(`listening for ${DURATION_MS}ms...`);
+
 
     setTimeout(() => {
         console.log('closing WebSocket');
         obSub.unsubscribe();
         portfolioSub?.unsubscribe();
+        tradesSub?.unsubscribe();
         ws.close();
     }, DURATION_MS);
 }
