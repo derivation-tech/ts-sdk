@@ -779,7 +779,9 @@ export class PublicWebsocketClient {
                 this.notifyRawSubscribers(message.stream, merged);
                 break;
             case 'trades':
-                this.notifyTradesSubscribers(merged as TradesStreamData);
+                if (this.isTradesStreamData(merged)) {
+                    this.notifyTradesSubscribers(merged);
+                }
                 this.notifyRawSubscribers(message.stream, merged);
                 break;
             default:
@@ -970,9 +972,19 @@ export class PublicWebsocketClient {
         return typeof userAddress === 'string' && typeof type === 'string';
     }
 
+    private isTradesStreamData(data: GenericStreamData): data is TradesStreamData {
+        const d = data as TradesStreamData;
+        return (
+            typeof d.id === 'string' &&
+            typeof d.instrumentAddress === 'string' &&
+            typeof d.expiry === 'number' &&
+            d.event === 'trades'
+        );
+    }
+
     private tradesMatches(params: MmTradesSubscribeParamsWithSet, data: TradesStreamData): boolean {
-        const instrumentAddress = (data?.instrumentAddress || '').toLowerCase();
-        const pair = `${instrumentAddress}_${data.expiry ?? ''}`;
+        const instrumentAddress = data.instrumentAddress?.toLowerCase();
+        const pair = `${instrumentAddress}_${data.expiry}`;
         return params.pairSet.has(pair);
     }
 
