@@ -153,7 +153,7 @@ export type TradesStreamData = {
     baseToken: Record<string, unknown> | null;
     quoteToken: Record<string, unknown> | null;
     typeString: string;
-    side: string,
+    side: string;
     event: string;
     chainId: number
 }
@@ -390,7 +390,7 @@ export class PublicWebsocketClient {
         number,
         SubscriptionRecord<PortfolioSubscribeParams, PortfolioStreamData>
     >();
-    private readonly tradesSubscriptions = new Map<number, SubscriptionRecord<MmTradesSubscribeParams, GenericStreamData>>();
+    private readonly tradesSubscriptions = new Map<number, SubscriptionRecord<MmTradesSubscribeParams, TradesStreamData>>();
     private readonly klineSubscriptions = new Map<number, SubscriptionRecord<KlineSubscribeParams, KlineStreamData>>();
     private readonly instrumentSubscriptions = new Map<
         number,
@@ -551,7 +551,7 @@ export class PublicWebsocketClient {
 
     public subscribeTrades(
         params: MmTradesSubscribeParams,
-        handler: StreamHandler<GenericStreamData, MmTradesSubscribeParams>
+        handler: StreamHandler<TradesStreamData, MmTradesSubscribeParams>
     ): PublicWebsocketSubscription {
         const id = this.nextSubscriptionId++;
         this.tradesSubscriptions.set(id, { id, params, handler });
@@ -958,11 +958,10 @@ export class PublicWebsocketClient {
     }
 
     private tradesMatches(params: MmTradesSubscribeParams, data: TradesStreamData): boolean {
-        const set = new Set(params.pairs.map(p => p.toLowerCase()));
+        const pairs = params.pairs.map(p => p.toLowerCase());
         const instrumentAddress = (data?.instrumentAddress || '').toLowerCase();
-        const expiry = typeof data.expiry === 'string' ? data.expiry : String(data.expiry);
-        const pair = `${instrumentAddress}_${expiry}`;
-        return set.has(pair);
+        const pair = `${instrumentAddress}_${data.expiry ?? ''}`;
+        return pairs.includes(pair);
     }
 
     // -----------------------------------------------------------------------
