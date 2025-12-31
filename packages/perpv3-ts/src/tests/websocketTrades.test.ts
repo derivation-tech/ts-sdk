@@ -95,6 +95,14 @@ describe('PublicWebsocketClient trades subscription', () => {
         const sockets: FakeWebSocket[] = [];
         const handler = jest.fn<void, [TradesStreamData]>();
 
+        const tokenInfo = {
+            address: '0xToken',
+            symbol: 'TKN',
+            decimals: 18,
+            image: '',
+            price: 1,
+        };
+
         const client = new PublicWebsocketClient({
             url: 'ws://localhost',
             pingIntervalMs: 0,
@@ -115,9 +123,26 @@ describe('PublicWebsocketClient trades subscription', () => {
                 stream: 'trades',
                 data: {
                     id: 't1',
+                    instrument: '0xABC',
                     instrumentAddress: '0xABC',
                     expiry: '123',
                     chainId: '1',
+                    size: '1',
+                    balance: '0',
+                    price: '1',
+                    tradeFee: '0',
+                    protocolFee: '0',
+                    timestamp: 1,
+                    txHash: '0xTX1',
+                    type: 'Market',
+                    symbol: 'AAA/BBB',
+                    baseToken: tokenInfo,
+                    quoteToken: tokenInfo,
+                    typeString: 'Market',
+                    side: 'long',
+                    event: 'trade',
+                    markPrice: '1',
+                    fairPrice: '1',
                 },
             })
         );
@@ -131,9 +156,26 @@ describe('PublicWebsocketClient trades subscription', () => {
                 stream: 'trades',
                 data: {
                     id: 't2',
+                    instrument: '0xABC',
                     instrumentAddress: '0xABC',
                     expiry: 123,
                     chainId: 2,
+                    size: '1',
+                    balance: '0',
+                    price: '1',
+                    tradeFee: '0',
+                    protocolFee: '0',
+                    timestamp: 1,
+                    txHash: '0xTX2',
+                    type: 'Market',
+                    symbol: 'AAA/BBB',
+                    baseToken: tokenInfo,
+                    quoteToken: tokenInfo,
+                    typeString: 'Market',
+                    side: 'long',
+                    event: 'trade',
+                    markPrice: '1',
+                    fairPrice: '1',
                 },
             })
         );
@@ -144,9 +186,26 @@ describe('PublicWebsocketClient trades subscription', () => {
                 stream: 'trades',
                 data: {
                     id: 't3',
+                    instrument: '0xDEF',
                     instrumentAddress: '0xDEF',
                     expiry: 123,
                     chainId: 1,
+                    size: '1',
+                    balance: '0',
+                    price: '1',
+                    tradeFee: '0',
+                    protocolFee: '0',
+                    timestamp: 1,
+                    txHash: '0xTX3',
+                    type: 'Market',
+                    symbol: 'AAA/BBB',
+                    baseToken: tokenInfo,
+                    quoteToken: tokenInfo,
+                    typeString: 'Market',
+                    side: 'long',
+                    event: 'trade',
+                    markPrice: '1',
+                    fairPrice: '1',
                 },
             })
         );
@@ -154,5 +213,44 @@ describe('PublicWebsocketClient trades subscription', () => {
 
         client.close();
     });
-});
 
+    it('reports invalid trades payloads via onInvalidStreamData', () => {
+        const sockets: FakeWebSocket[] = [];
+        const tradesHandler = jest.fn<void, [TradesStreamData]>();
+        const invalidHandler = jest.fn<void, [{ stream: string }]>();
+
+        const client = new PublicWebsocketClient({
+            url: 'ws://localhost',
+            pingIntervalMs: 0,
+            autoReconnect: false,
+            onInvalidStreamData: (event) => invalidHandler({ stream: event.stream }),
+            wsFactory: () => {
+                const socket = new FakeWebSocket();
+                sockets.push(socket);
+                return socket;
+            },
+        });
+
+        client.subscribeTrades({ chainId: 1, pairs: ['0xabc_123'], type: 'trades' }, (data) => tradesHandler(data));
+        const socket = sockets[0];
+        socket.open();
+
+        socket.message(
+            JSON.stringify({
+                stream: 'trades',
+                data: {
+                    id: 't-invalid',
+                    instrumentAddress: '0xABC',
+                    expiry: 123,
+                    chainId: 1,
+                },
+            })
+        );
+
+        expect(tradesHandler).toHaveBeenCalledTimes(0);
+        expect(invalidHandler).toHaveBeenCalledTimes(1);
+        expect(invalidHandler.mock.calls[0][0]).toEqual({ stream: 'trades' });
+
+        client.close();
+    });
+});
