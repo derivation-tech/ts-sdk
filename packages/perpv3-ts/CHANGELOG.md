@@ -1,5 +1,11 @@
 # @synfutures/perpv3-ts
 
+## 0.2.0
+
+### Minor Changes
+
+- chore: document changes for trades subscription and OrderBookLevel updates
+
 ## 0.1.17
 
 ### Patch Changes
