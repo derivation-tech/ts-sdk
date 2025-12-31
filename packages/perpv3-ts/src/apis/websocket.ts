@@ -30,6 +30,10 @@ interface RawSubscriptionRecord extends SubscriptionRecord<RawSubscribeParams, G
     streams: string[];
 }
 
+interface TradesSubscriptionRecord extends SubscriptionRecord<MmTradesSubscribeParams, TradesStreamData> {
+    pairSet: Set<string>;
+}
+
 const DEFAULT_USER_AGENT =
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -137,26 +141,26 @@ export type BlockNumChangedData = {
     blockTime?: number;
 };
 
-export type TradesStreamData = {
+export type TradesStreamData = GenericStreamData & {
     id: string;
     instrumentAddress: string;
     expiry: number;
-    size: string;
-    balance: string;
-    price: string;
-    tradeFee: string;
-    protocolFee: string;
-    timestamp: number;
-    txHash: string;
-    type: string;
-    symbol: string;
-    baseToken: Record<string, unknown> | null;
-    quoteToken: Record<string, unknown> | null;
-    typeString: string;
-    side: string;
-    event: string;
     chainId: number;
-}
+    size?: string;
+    balance?: string;
+    price?: string;
+    tradeFee?: string;
+    protocolFee?: string;
+    timestamp?: number;
+    txHash?: string;
+    type?: string;
+    symbol?: string;
+    baseToken?: Record<string, unknown> | null;
+    quoteToken?: Record<string, unknown> | null;
+    typeString?: string;
+    side?: string;
+    event?: string;
+};
 
 // ---------------------------------------------------------------------------
 // Stream messages
@@ -250,10 +254,6 @@ export interface MmTradesSubscribeParams {
      */
     pairs: string[];
     type: 'trades';
-}
-
-export interface MmTradesSubscribeParamsWithSet extends MmTradesSubscribeParams {
-    pairSet: Set<string>;
 }
 
 export interface MmOrderBookSubscribeParams {
@@ -362,7 +362,7 @@ export interface PublicWebsocketSubscription {
 
 /**
  * Public WebSocket client for SynFutures public streams.
- * Supports orderBook, portfolio, kline, instrument (incl. marketPairInfoChanged),
+ * Supports orderBook, portfolio, trades, kline, instrument (incl. marketPairInfoChanged),
  * instrumentBasicInfo, common (blockNumChanged/marketListChanged), and raw fallback.
  */
 export class PublicWebsocketClient {
@@ -394,7 +394,7 @@ export class PublicWebsocketClient {
         number,
         SubscriptionRecord<PortfolioSubscribeParams, PortfolioStreamData>
     >();
-    private readonly tradesSubscriptions = new Map<number, SubscriptionRecord<MmTradesSubscribeParamsWithSet, TradesStreamData>>();
+    private readonly tradesSubscriptions = new Map<number, TradesSubscriptionRecord>();
     private readonly klineSubscriptions = new Map<number, SubscriptionRecord<KlineSubscribeParams, KlineStreamData>>();
     private readonly instrumentSubscriptions = new Map<
         number,
@@ -559,11 +559,7 @@ export class PublicWebsocketClient {
     ): PublicWebsocketSubscription {
         const id = this.nextSubscriptionId++;
         const pairSet = new Set(params.pairs.map(p => p.toLowerCase()));
-        const paramsWithSet: MmTradesSubscribeParamsWithSet = {
-            ...params,
-            pairSet,
-        };
-        this.tradesSubscriptions.set(id, { id, params: paramsWithSet, handler });
+        this.tradesSubscriptions.set(id, { id, params, handler, pairSet });
         this.connect();
         this.sendSubscribeIfOpen(params);
 
@@ -676,11 +672,7 @@ export class PublicWebsocketClient {
     private resubscribeAll(): void {
         for (const { params } of this.orderBookSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.portfolioSubscriptions.values()) this.sendSubscribeIfOpen(params);
-        // Extract original params (without pairSet) for trades subscriptions
-        for (const { params } of this.tradesSubscriptions.values()) {
-            const { pairSet, ...originalParams } = params;
-            this.sendSubscribeIfOpen(originalParams);
-        }
+        for (const { params } of this.tradesSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.klineSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.instrumentSubscriptions.values()) this.sendSubscribeIfOpen(params);
         for (const { params } of this.instrumentBasicInfoSubscriptions.values()) this.sendSubscribeIfOpen(params);
@@ -778,12 +770,12 @@ export class PublicWebsocketClient {
                 this.notifyCommonSubscribers(merged as BlockNumChangedData, message.stream);
                 this.notifyRawSubscribers(message.stream, merged);
                 break;
-            case 'trades':
-                if (this.isTradesStreamData(merged)) {
-                    this.notifyTradesSubscribers(merged);
-                }
+            case 'trades': {
+                const normalized = this.normalizeTradesStreamData(merged);
+                if (normalized) this.notifyTradesSubscribers(normalized);
                 this.notifyRawSubscribers(message.stream, merged);
                 break;
+            }
             default:
                 this.notifyRawSubscribers(message.stream, merged);
                 break;
@@ -848,7 +840,7 @@ export class PublicWebsocketClient {
 
     private notifyTradesSubscribers(data: TradesStreamData): void {
         for (const record of this.tradesSubscriptions.values()) {
-            if (this.tradesMatches(record.params, data)) {
+            if (this.tradesMatches(record, data)) {
                 record.handler(data, { params: record.params });
             }
         }
@@ -972,20 +964,30 @@ export class PublicWebsocketClient {
         return typeof userAddress === 'string' && typeof type === 'string';
     }
 
-    private isTradesStreamData(data: GenericStreamData): data is TradesStreamData {
-        const d = data as TradesStreamData;
-        return (
-            typeof d.id === 'string' &&
-            typeof d.instrumentAddress === 'string' &&
-            typeof d.expiry === 'number' &&
-            d.event === 'trades'
-        );
+    private normalizeTradesStreamData(data: GenericStreamData): TradesStreamData | null {
+        const id = (data as { id?: unknown }).id;
+        const instrumentAddress = (data as { instrumentAddress?: unknown }).instrumentAddress;
+        const expiry = this.normalizeOptionalNumber((data as { expiry?: unknown }).expiry);
+        const chainId = this.normalizeOptionalNumber((data as { chainId?: unknown }).chainId);
+        if (typeof id !== 'string' || typeof instrumentAddress !== 'string' || expiry === undefined || chainId === undefined) {
+            return null;
+        }
+
+        return {
+            ...data,
+            id,
+            instrumentAddress,
+            expiry,
+            chainId,
+        };
     }
 
-    private tradesMatches(params: MmTradesSubscribeParamsWithSet, data: TradesStreamData): boolean {
-        const instrumentAddress = data.instrumentAddress?.toLowerCase();
+    private tradesMatches(record: TradesSubscriptionRecord, data: TradesStreamData): boolean {
+        if (data.chainId !== record.params.chainId) return false;
+
+        const instrumentAddress = data.instrumentAddress.toLowerCase();
         const pair = `${instrumentAddress}_${data.expiry}`;
-        return params.pairSet.has(pair);
+        return record.pairSet.has(pair);
     }
 
     // -----------------------------------------------------------------------
