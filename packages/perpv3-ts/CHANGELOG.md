@@ -4,7 +4,8 @@
 
 ### Minor Changes
 
-- chore: document changes for trades subscription and OrderBookLevel updates
+- Added `trades` subscription support to the WebSocket API 
+- Renamed `OrderBookLevel.baseQuantity` to `baseSize` and `OrderBookLevel.quoteQuantity` to `quoteSize`.
 
 ## 0.1.17
 
