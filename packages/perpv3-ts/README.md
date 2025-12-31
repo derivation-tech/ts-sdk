@@ -543,6 +543,13 @@ ws.close();
 Other public streams:
 
 ```typescript
+// Trades (market maker feed)
+// Each pair is "<instrumentAddress>_<expiry>" (address lowercased, expiry as a number).
+const tradesPairs = [`${instrumentAddress.toLowerCase()}_${PERP_EXPIRY}`];
+const tradesSub = ws.subscribeTrades({ chainId: 143, pairs: tradesPairs, type: 'trades' }, (trade) => {
+    console.log('trade', trade.id, trade.instrumentAddress, trade.expiry);
+});
+
 // Kline
 const klineSub = ws.subscribeKline(
     { chainId: 143, instrument: instrumentAddress, expiry: PERP_EXPIRY, interval: '1m', type: 'kline' },
