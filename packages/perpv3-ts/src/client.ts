@@ -376,18 +376,17 @@ export class PerpClient {
     }
 
     /**
-     * Subscribe to trades updates for the specified pairs.
-     * @param pairs - Array of trading pairs in the format `['instrumentAddress_expiry', ...]`.
-     *                Example: `['0x123..._1234567890', '0x456..._1234567890']`
+     * Subscribe to trades updates for this pair.
      * @param handler - Handler function for trades updates. Receives trade data when trades occur.
      * @returns Unsubscribe function that can be called to stop receiving updates
      */
-    subscribeTrades(pairs: string[], handler: (data: TradesStreamData) => void): () => void {
+    subscribeTrades(handler: (data: TradesStreamData) => void): () => void {
+        const pair = `${this._instrumentAddress.toLowerCase()}_${this._expiry}`;
         const subscription = this.wsManager.subscribeTrades(
             this.wsUrl,
             {
                 chainId: this._config.chainId,
-                pairs,
+                pairs: [pair],
                 type: 'trades',
             },
             handler,
