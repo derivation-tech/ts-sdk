@@ -22,7 +22,6 @@ import {
 } from '@synfutures/perpv3-ts';
 import 'dotenv/config';
 
-
 const CHAIN_ID = 143;
 const SYMBOL = 'BTCUSDC';
 const USER_ADDRESS = '0xB0B81c2c7686c63acAE28F9778ca8Fa80f0C004b' as Address;
@@ -30,6 +29,16 @@ const TRADE_ADDRESS = '0x8bcef483f1c9226c192430b8f5191ee801601480' as Address;
 const INSTRUMENT = '0x73ada1ea346cc3908f41cf67a040f0acd7808be0' as Address;
 const DURATION_MS = 30_000;
 const DEPTH = 20;
+
+const toTradesPair = (instrumentAddress: Address, expiry: number): string =>
+    `${instrumentAddress.toLowerCase()}_${expiry}`;
+
+// Trades stream expects pairs in "<instrumentAddress>_<expiry>" format.
+const TRADES_PAIRS = [
+    toTradesPair('0x44b60b6af9b615a5cf2d366e2143582557cff711' as Address, PERP_EXPIRY),
+    toTradesPair('0x8c5243a6a4c6c7a82d954c8ff29e0611e25ac33e' as Address, PERP_EXPIRY),
+    toTradesPair(INSTRUMENT, PERP_EXPIRY),
+];
 
 async function main(): Promise<void> {
     console.log('=== API snapshots ===');
@@ -203,7 +212,7 @@ async function main(): Promise<void> {
             if (parsed?.id && parsed?.result) {
                 console.log(`ws ack id=${parsed.id} result=${parsed.result}`);
             }
-            if (parsed?.stream === 'orderBook' || parsed?.stream === 'portfolio') {
+            if (parsed?.stream === 'orderBook' || parsed?.stream === 'portfolio' || parsed?.stream === 'trades') {
                 console.log('ws raw:', JSON.stringify(parsed));
             }
         },
@@ -231,20 +240,32 @@ async function main(): Promise<void> {
         }
     );
 
-    const portfolioSub = USER_ADDRESS
-        ? ws.subscribePortfolio({ chainId: CHAIN_ID, userAddress: USER_ADDRESS, type: 'portfolio' }, (payload) => {
+    const portfolioSub = ws.subscribePortfolio(
+        { chainId: CHAIN_ID, userAddress: USER_ADDRESS, type: 'portfolio' },
+        (payload) => {
             console.log(
                 `[portfolio] type=${payload.type} instrument=${payload.instrument ?? '-'} expiry=${payload.expiry ?? '-'}`
             );
-        })
-        : null;
+        }
+    );
+
+    const tradesSub = ws.subscribeTrades(
+        {
+            chainId: CHAIN_ID,
+            pairs: TRADES_PAIRS,
+            type: 'trades',
+        },
+        (data) => {
+            console.log('[trades] data:', JSON.stringify(data, null, 2));
+        }
+    );
 
     console.log(`listening for ${DURATION_MS}ms...`);
-
     setTimeout(() => {
         console.log('closing WebSocket');
         obSub.unsubscribe();
-        portfolioSub?.unsubscribe();
+        portfolioSub.unsubscribe();
+        tradesSub.unsubscribe();
         ws.close();
     }, DURATION_MS);
 }

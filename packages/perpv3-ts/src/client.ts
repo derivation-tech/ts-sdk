@@ -6,6 +6,7 @@ import type {
     OrderBookStreamData,
     PortfolioStreamData,
     PublicWebsocketClientOptions,
+    TradesStreamData,
 } from './apis/websocket';
 import {
     fetchOnchainContext,
@@ -367,6 +368,26 @@ export class PerpClient {
                 instrument: this._instrumentAddress,
                 expiry: this._expiry,
                 type: 'instrument',
+            },
+            handler,
+            this.wsOptions
+        );
+        return () => subscription.unsubscribe();
+    }
+
+    /**
+     * Subscribe to trades updates for this pair.
+     * @param handler - Handler function for trades updates. Receives trade data when trades occur.
+     * @returns Unsubscribe function that can be called to stop receiving updates
+     */
+    subscribeTrades(handler: (data: TradesStreamData) => void): () => void {
+        const pair = `${this._instrumentAddress.toLowerCase()}_${this._expiry}`;
+        const subscription = this.wsManager.subscribeTrades(
+            this.wsUrl,
+            {
+                chainId: this._config.chainId,
+                pairs: [pair],
+                type: 'trades',
             },
             handler,
             this.wsOptions
