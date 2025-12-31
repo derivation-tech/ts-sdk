@@ -1,5 +1,12 @@
 # @synfutures/perpv3-ts
 
+## 0.2.0
+
+### Minor Changes
+
+- Added `trades` subscription support to the WebSocket API 
+- Renamed `OrderBookLevel.baseQuantity` to `baseSize` and `OrderBookLevel.quoteQuantity` to `quoteSize`.
+
 ## 0.1.17
 
 ### Patch Changes
