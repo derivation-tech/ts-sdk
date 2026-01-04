@@ -1,4 +1,4 @@
-# @synfutures/viem-ledger
+# @derivation-tech/viem-ledger
 
 Minimal Ledger helpers for viem, following ethers-ledger conventions:
 
@@ -16,7 +16,7 @@ Features:
 Usage:
 
 ```ts
-import { ledgerToAccount } from '@synfutures/viem-ledger';
+import { ledgerToAccount } from '@derivation-tech/viem-ledger';
 import { createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
 
@@ -108,7 +108,7 @@ LEDGER_PATH="m/44'/60'/5'/0/0"  # → m/44'/60'/5'/0/0
 
 ## Batch Usage
 
-`ledgerToAccount` accepts a single `signerId`/`path`/`index` per call. If you need range expansion (e.g. `ledger:0-2`), expand it in your app (or use `expandSignerIdPattern` from `@synfutures/viem-kit`) and call `ledgerToAccount` for each entry.
+`ledgerToAccount` accepts a single `signerId`/`path`/`index` per call. If you need range expansion (e.g. `ledger:0-2`), expand it in your app (or use `expandSignerIdPattern` from `@derivation-tech/viem-kit`) and call `ledgerToAccount` for each entry.
 
 ## Migration Notes
 

@@ -14,7 +14,7 @@ A comprehensive viem-based web3 toolkit providing chain utilities, contract inte
 
 ## 📦 Packages
 
-### `@synfutures/viem-kit`
+### `@derivation-tech/viem-kit`
 
 The core package providing:
 - Singleton chain management with `ChainKitRegistry`
@@ -65,7 +65,7 @@ pnpm run clean
 ```typescript
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
-import { ChainKitRegistry, ERC20, WETH } from '@synfutures/viem-kit';
+import { ChainKitRegistry, ERC20, WETH } from '@derivation-tech/viem-kit';
 
 // Setup clients
 const publicClient = createPublicClient({

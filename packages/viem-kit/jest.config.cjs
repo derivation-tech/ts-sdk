@@ -6,7 +6,7 @@ module.exports = {
     testMatch: ['<rootDir>/tests/**/*.test.ts'],
     moduleFileExtensions: ['ts', 'js'],
     moduleNameMapper: {
-        '^@synfutures/viem-ledger$': '<rootDir>/../viem-ledger/dist',
+        '^@derivation-tech/viem-ledger$': '<rootDir>/../viem-ledger/dist',
     },
     transform: {
         '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.test.json' }],

@@ -38,7 +38,7 @@ jobs:
           #   https://nexus.example.com/repository/npm/ -> nexus.example.com
           REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -E 's|^https?://||' | sed -E 's|/.*||')
           cat << EOF > "$HOME/.npmrc"
-          @synfutures:registry=$REGISTRY_URL
+          @derivation-tech:registry=$REGISTRY_URL
           //$REGISTRY_HOST/:_authToken=${{ secrets.NPM_TOKEN }}
           EOF
       - name: Install Dependencies

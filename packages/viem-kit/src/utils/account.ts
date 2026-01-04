@@ -1,7 +1,7 @@
 import type { Account } from 'viem';
 import { getAddress } from 'viem';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
-import type { LedgerToAccountOptions } from '@synfutures/viem-ledger';
+import type { LedgerToAccountOptions } from '@derivation-tech/viem-ledger';
 import type { ChainKit } from '../chain-kit';
 
 type LedgerModule = {
@@ -9,7 +9,7 @@ type LedgerModule = {
     ledgerToAccount: (options: LedgerToAccountOptions) => Promise<Account>;
 };
 
-const LEDGER_MODULE_ID = '@synfutures/viem-ledger';
+const LEDGER_MODULE_ID = '@derivation-tech/viem-ledger';
 
 // SECURITY NOTE: Using new Function() for dynamic import to support various bundlers and build tools.
 // The module specifier is HARDCODED (LEDGER_MODULE_ID constant) and never comes from user input,
@@ -34,7 +34,7 @@ const loadLedgerModule = async (): Promise<LedgerModule> => {
                 const err = error instanceof Error ? error : new Error(String(error));
                 if (/Cannot find module|MODULE_NOT_FOUND/.test(err.message)) {
                     throw new Error(
-                        `Ledger signer requested but ${LEDGER_MODULE_ID} is not installed. Install it alongside @synfutures/viem-kit to enable Ledger support.`
+                        `Ledger signer requested but ${LEDGER_MODULE_ID} is not installed. Install it alongside @derivation-tech/viem-kit to enable Ledger support.`
                     );
                 }
                 throw err;

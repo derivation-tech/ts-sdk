@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { deriveLedgerPath, parseLedgerPath } from '@synfutures/viem-ledger';
+import { deriveLedgerPath, parseLedgerPath } from '@derivation-tech/viem-ledger';
 import { expandSignerIdPattern } from '../src/utils/account';
 
 describe('expandSignerIdPattern', () => {

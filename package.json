@@ -1,9 +1,9 @@
 {
-    "name": "@synfutures/ts-sdk",
+    "name": "@derivation-tech/ts-sdk",
     "private": true,
     "version": "0.0.1",
-    "description": "SynFutures TypeScript SDK monorepo",
-    "author": "SynFutures",
+    "description": "Derivation-tech TypeScript SDK monorepo",
+    "author": "derivation-tech",
     "license": "MIT",
     "scripts": {
         "preinstall": "node scripts/ensure-pnpm.cjs",
@@ -15,7 +15,7 @@
         "format": "prettier --write packages/**/*.ts apps/**/*.ts",
         "clean": "pnpm -r clean",
         "release": "changeset publish",
-        "release:dry": "changeset version && changeset publish --dry-run"
+        "release:dry": "changeset status"
     },
     "devDependencies": {
         "@changesets/cli": "^2.28.1",
