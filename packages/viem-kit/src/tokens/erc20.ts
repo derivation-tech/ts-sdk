@@ -234,6 +234,7 @@ export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
 
     // monadTestnet (Chain ID: 10143)
     10143: [
+        { symbol: "USDC", name: "USD Coin", address: "0x534b2f3A21130d7a60830c2Df862319e593943A3", decimals: 6 },
         { symbol: "USDM", name: "USD Mock", address: "0x618102779b8564B7EFa49B26D70d941896222B55", decimals: 6 },
     ],
 
