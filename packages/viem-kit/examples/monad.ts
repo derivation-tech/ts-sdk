@@ -32,13 +32,9 @@ async function monadExample() {
     // ==========================================
     const kit = ChainKitRegistry.for(monad);
 
-    // Register USDM token (auto-creates ERC20 parser!)
-    kit.registerErc20Token({
-        symbol: 'USDC',
-        name: 'USDC',
-        address: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
-        decimals: 6,
-    });
+    // USDC is auto-loaded from the built-in token registry (COMMON_ERC20_TOKENS)
+    const usdc = kit.getErc20TokenInfo('USDC');
+    console.log('USDC:', usdc?.address);
 
     // Register test contracts (add your deployed addresses here)
     // kit.registerAddress('0x...' as Address, 'TestGate');

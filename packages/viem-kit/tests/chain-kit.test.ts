@@ -238,6 +238,24 @@ describe('ChainKit', () => {
                 expect(tokenInfo.symbol).toBe('USDC');
             }
         });
+
+        test('should load common tokens for Monad Testnet', () => {
+            const monadTestnet = {
+                id: 10143,
+                name: 'Monad Testnet',
+                nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
+                rpcUrls: { default: { http: ['http://localhost'] } },
+            } as any;
+
+            const monadKit = new ChainKit(monadTestnet);
+
+            const usdc = monadKit.getErc20TokenInfo('USDC');
+            expect(usdc?.address).toBe(getAddress('0x534b2f3A21130d7a60830c2Df862319e593943A3'));
+
+            expect(getAddress(monadKit.wrappedNativeTokenInfo.address)).toBe(
+                getAddress('0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541')
+            );
+        });
     });
 
     // ==========================================
