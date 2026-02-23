@@ -1,6 +1,6 @@
 {
     "name": "@derivation-tech/viem-kit",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "description": "Viem-based web3 kit with address book, contract parsers, and tx handling",
     "main": "dist/index.cjs",
     "module": "dist/index.mjs",
