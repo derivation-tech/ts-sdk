@@ -44,10 +44,17 @@ export class ChainKitRegistry {
                     `Chain ID ${chainId} not found in viem chains. Use ChainKitRegistry.for(customChain) for custom chains.`
                 );
         } else {
-            // Find chain by name
-            chain = (chains as any)[chainIdOrNameOrChain] || (localChains as any)[chainIdOrNameOrChain];
+            // Find chain by name (case-insensitive)
+            const allChains = { ...chains, ...localChains } as Record<string, ViemChain>;
+            const inputLower = chainIdOrNameOrChain.toLowerCase();
+            // Try exact match first, then case-insensitive
+            chain = allChains[chainIdOrNameOrChain];
             if (!chain) {
-                const available = Array.from(new Set([...Object.keys(chains), ...Object.keys(localChains)]))
+                const matchedKey = Object.keys(allChains).find((k) => k.toLowerCase() === inputLower);
+                if (matchedKey) chain = allChains[matchedKey];
+            }
+            if (!chain) {
+                const available = Object.keys(allChains)
                     .filter((k) => !k.includes('__'))
                     .slice(0, 20)
                     .join(', ');
