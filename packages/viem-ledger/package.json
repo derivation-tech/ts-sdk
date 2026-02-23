@@ -1,6 +1,6 @@
 {
     "name": "@derivation-tech/viem-ledger",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "Ledger helpers for viem accounts",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",

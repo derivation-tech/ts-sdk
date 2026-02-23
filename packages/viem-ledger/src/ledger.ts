@@ -199,8 +199,26 @@ export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<
                 async signTransaction(tx: TransactionSerializable) {
                     await ensureValidated();
                     const unsigned = serializeTransaction(tx).slice(2);
-                    const resolution = await ledgerService.resolveTransaction(unsigned, {}, { externalPlugins: true, erc20: true });
-                    const sig = await withRetry(() => eth.signTransaction(parsed.path, unsigned, resolution));
+                    // Try to resolve transaction for clear signing; fall back to null for unsupported chains
+                    let resolution: Awaited<ReturnType<typeof ledgerService.resolveTransaction>> | null = null;
+                    try {
+                        resolution = await ledgerService.resolveTransaction(unsigned, {}, { externalPlugins: true, erc20: true });
+                    } catch {
+                        // Resolution failed (chain not supported by Ledger backend) - use blind signing
+                    }
+                    // Try signing with resolution; if INCORRECT_DATA error, retry without resolution (blind signing)
+                    let sig: { r: string; s: string; v: string | number };
+                    try {
+                        sig = await withRetry(() => eth.signTransaction(parsed.path, unsigned, resolution));
+                    } catch (err: any) {
+                        const statusCode = err?.statusCode ?? err?.cause?.statusCode;
+                        if (statusCode === 0x6a80 && resolution !== null) {
+                            // INCORRECT_DATA - resolution incompatible with chain, retry with blind signing
+                            sig = await withRetry(() => eth.signTransaction(parsed.path, unsigned, null));
+                        } else {
+                            throw err;
+                        }
+                    }
                     return serializeTransaction(tx, {
                         r: ensure0x(sig.r),
                         s: ensure0x(sig.s),
