@@ -203,8 +203,20 @@ export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<
                     let resolution: Awaited<ReturnType<typeof ledgerService.resolveTransaction>> | null = null;
                     try {
                         resolution = await ledgerService.resolveTransaction(unsigned, {}, { externalPlugins: true, erc20: true });
-                    } catch {
-                        // Resolution failed (chain not supported by Ledger backend) - use blind signing
+                    } catch (err: any) {
+                        // Only fall back to blind signing for unsupported chains
+                        // Re-throw network, auth, and other errors so users are aware
+                        const errorMessage = err?.message?.toLowerCase() || '';
+                        const isUnsupportedChain =
+                            errorMessage.includes('not found') ||
+                            errorMessage.includes('unsupported') ||
+                            errorMessage.includes('not supported') ||
+                            err?.statusCode === 404 ||
+                            err?.status === 404;
+                        if (!isUnsupportedChain) {
+                            throw err;
+                        }
+                        // Chain not supported by Ledger backend - use blind signing
                     }
                     // Try signing with resolution; if INCORRECT_DATA error, retry without resolution (blind signing)
                     let sig: { r: string; s: string; v: string | number };
