@@ -11,34 +11,25 @@ type LedgerModule = {
 
 const LEDGER_MODULE_ID = '@derivation-tech/viem-ledger';
 
-// SECURITY NOTE: Using new Function() for dynamic import to support various bundlers and build tools.
-// The module specifier is HARDCODED (LEDGER_MODULE_ID constant) and never comes from user input,
-// so there is no code injection risk. This pattern is necessary because some bundlers don't
-// support dynamic import() at the top level or have issues with conditional imports.
-const dynamicImportLedgerModule = new Function('specifier', 'return import(specifier);') as (
-    specifier: string
-) => Promise<unknown>;
 let ledgerModulePromise: Promise<LedgerModule> | null = null;
 
 const loadLedgerModule = async (): Promise<LedgerModule> => {
     if (!ledgerModulePromise) {
-        ledgerModulePromise = dynamicImportLedgerModule(LEDGER_MODULE_ID)
+        ledgerModulePromise = import('@derivation-tech/viem-ledger')
             .then((mod) => {
-                const moduleRecord = mod as Record<string, unknown>;
-                const deriveLedgerPath = moduleRecord.deriveLedgerPath;
-                const ledgerToAccount = moduleRecord.ledgerToAccount;
+                const { deriveLedgerPath, ledgerToAccount } = mod;
                 if (typeof deriveLedgerPath !== 'function' || typeof ledgerToAccount !== 'function') {
                     throw new Error(`Invalid ${LEDGER_MODULE_ID} module: missing exports.`);
                 }
                 return {
-                    deriveLedgerPath: deriveLedgerPath as LedgerModule['deriveLedgerPath'],
-                    ledgerToAccount: ledgerToAccount as LedgerModule['ledgerToAccount'],
+                    deriveLedgerPath,
+                    ledgerToAccount,
                 };
             })
             .catch((error) => {
                 ledgerModulePromise = null;
                 const err = error instanceof Error ? error : new Error(String(error));
-                if (/Cannot find module|MODULE_NOT_FOUND/.test(err.message)) {
+                if (/Cannot find module|Cannot find package|MODULE_NOT_FOUND/.test(err.message)) {
                     throw new Error(
                         `Ledger signer requested but ${LEDGER_MODULE_ID} is not installed. Install it alongside @derivation-tech/viem-kit to enable Ledger support.`
                     );
@@ -57,8 +48,8 @@ const isLedgerSignerId = (value: string): boolean => {
     return prefix.toLowerCase() === 'ledger';
 };
 
-// In-memory cache of derived accounts for the current process
-const accountCache = new Map<string, Promise<Account>>();
+// Account derivation and address registration share the owning kit's lifetime.
+const accountCaches = new WeakMap<ChainKit, Map<string, Promise<Account>>>();
 /**
  * Derive account from a signer identifier or named private key.
  * Rules:
@@ -67,6 +58,11 @@ const accountCache = new Map<string, Promise<Account>>();
  * - Raw addresses like "0x..." are NOT accepted here
  */
 export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string): Promise<Account> {
+    let accountCache = accountCaches.get(kit);
+    if (!accountCache) {
+        accountCache = new Map();
+        accountCaches.set(kit, accountCache);
+    }
     const trimmed = signerIdOrPrivateKeyName.trim();
 
     if (isLedgerSignerId(trimmed)) {
@@ -112,9 +108,7 @@ export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string
         if (!mnemonic) {
             throw new Error(`Mnemonic not found for ${name}. Please set ${envMnemonic} environment variable.`);
         }
-        const promise = Promise.resolve(
-            mnemonicToAccount(mnemonic, { addressIndex: indexNum })
-        ).then((account) => {
+        const promise = Promise.resolve(mnemonicToAccount(mnemonic, { addressIndex: indexNum })).then((account) => {
             const derivedAddress = getAddress(account.address);
             kit.registerAddressName(derivedAddress, `${name}:${indexNum}`);
             return account;
@@ -142,9 +136,7 @@ export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string
     }
 
     if (mnemonic) {
-        const promise = Promise.resolve(
-            mnemonicToAccount(mnemonic, { addressIndex: 0 })
-        ).then((account) => {
+        const promise = Promise.resolve(mnemonicToAccount(mnemonic, { addressIndex: 0 })).then((account) => {
             const derivedAddress = getAddress(account.address);
             kit.registerAddressName(derivedAddress, `${name}:0`);
             return account;
@@ -165,8 +157,6 @@ export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string
 
     throw new Error(`No credentials found. Set ${envMnemonic} or ${envPrivateKey}.`);
 }
-
-
 
 /**
  * Expand a signerIdPattern into a list of signerIds.

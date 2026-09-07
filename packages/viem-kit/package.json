@@ -62,6 +62,17 @@
                 "default": "./dist/chains/index.cjs"
             },
             "default": "./dist/chains/index.mjs"
+        },
+        "./node": {
+            "import": {
+                "types": "./dist/node/index.d.mts",
+                "default": "./dist/node/index.mjs"
+            },
+            "require": {
+                "types": "./dist/node/index.d.ts",
+                "default": "./dist/node/index.cjs"
+            },
+            "default": "./dist/node/index.mjs"
         }
     },
     "typesVersions": {
@@ -77,6 +88,9 @@
             ],
             "chains": [
                 "dist/chains/index.d.ts"
+            ],
+            "node": [
+                "dist/node/index.d.ts"
             ]
         }
     },

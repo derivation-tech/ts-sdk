@@ -31,15 +31,7 @@ export {
     type WriteFunctionName,
     type WriteArgs,
 } from './utils/tx';
-export { getAccount, expandSignerIdPattern } from './utils/account';
 export { decodeContractError } from './utils/contract-error';
-export {
-    resolveAddress,
-    resolveAddressSimple,
-    formatResolvedAddress,
-    type ResolvedAddress,
-    type ResolveAddressOptions,
-} from './utils/address-resolver';
 export { abctest } from './chains/abctest';
 export * as ERC20 from './contracts/erc20';
 export * as WETH from './contracts/weth';

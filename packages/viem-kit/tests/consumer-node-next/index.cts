@@ -9,3 +9,7 @@ void WETH_ABI;
 void abctest;
 void contracts;
 void decodeContractError;
+
+import { getAccount, ArtifactHelper } from '@derivation-tech/viem-kit/node';
+void getAccount;
+void ArtifactHelper;
