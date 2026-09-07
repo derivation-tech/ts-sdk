@@ -1,95 +1,98 @@
 import type { Address } from 'viem';
 import { erc20Abi, formatUnits } from 'viem';
-import type { ContractParser, Erc20TokenInfo } from '../types';
+import type { DecodedContractError, Erc20TokenInfo } from '../types';
+import { createContractParser } from './types';
 
-/**
- * Create ERC20 contract parser with automatic decimal formatting
- * @param tokenInfo - Token information (symbol, decimals, etc.)
- * @param resolveAddress - Function to resolve address to name (e.g., kit.getAddressName)
- */
-export function createERC20Parser(
-    tokenInfo: Erc20TokenInfo,
-    resolveAddress: (addr: Address) => string
-): ContractParser<typeof erc20Abi> {
-    // Helper functions
-    const formatAmount = (amt: bigint) => formatUnits(amt, tokenInfo.decimals);
-    const formatAddress = (addr: Address) => {
-        const name = resolveAddress(addr);
-        return name !== 'UNKNOWN' ? `[${name}]${addr}` : addr;
-    };
+function formatNamedAddress(address: Address, resolveAddress: (addr: Address) => string): string {
+    const name = resolveAddress(address);
+    return name !== 'UNKNOWN' ? `[${name}]${address}` : address;
+}
 
-    // Transaction formatters
-    const txFormatters: Record<string, (args: readonly unknown[]) => string> = {
-        transfer: (args) => {
-            const [to, amount] = args as readonly [Address, bigint];
-            return `transfer(to: ${formatAddress(to)}, amount: ${formatAmount(amount)} ${tokenInfo.symbol})`;
-        },
-        approve: (args) => {
-            const [spender, amount] = args as readonly [Address, bigint];
-            return `approve(spender: ${formatAddress(spender)}, amount: ${formatAmount(amount)} ${tokenInfo.symbol})`;
-        },
-        transferFrom: (args) => {
-            const [from, to, amount] = args as readonly [Address, Address, bigint];
-            return `transferFrom(from: ${formatAddress(from)}, to: ${formatAddress(to)}, amount: ${formatAmount(amount)} ${tokenInfo.symbol})`;
-        },
-    };
+function formatTokenAmount(value: bigint, tokenInfo: Erc20TokenInfo): string {
+    return `${formatUnits(value, tokenInfo.decimals)} ${tokenInfo.symbol}`;
+}
 
-    // Event formatters
-    const eventFormatters: Record<string, (args: Record<string, any>) => string> = {
-        Transfer: (args) => {
-            const { from, to, value } = args as { from: Address; to: Address; value: bigint };
-            return `Transfer(from: ${formatAddress(from)}, to: ${formatAddress(to)}, amount: ${formatAmount(value)} ${tokenInfo.symbol})`;
-        },
-        Approval: (args) => {
-            const { owner, spender, value } = args as { owner: Address; spender: Address; value: bigint };
-            return `Approval(owner: ${formatAddress(owner)}, spender: ${formatAddress(spender)}, amount: ${formatAmount(value)} ${tokenInfo.symbol})`;
-        },
-    };
+function formatErc20Error(error: DecodedContractError, tokenInfo: Erc20TokenInfo): string | undefined {
+    if (error.kind === 'revertString') return error.reason;
+    if (error.kind !== 'custom') return error.message;
 
-    // Error formatters
-    const errorFormatters: Record<string, (args?: readonly unknown[]) => string> = {
-        InsufficientBalance: (args) =>
-            `Insufficient ${tokenInfo.symbol} balance: ${formatAmount((args?.[1] as bigint) || 0n)} available, ${formatAmount((args?.[0] as bigint) || 0n)} needed`,
-        ERC20InsufficientBalance: (args) =>
-            `Insufficient ${tokenInfo.symbol} balance: ${formatAmount((args?.[1] as bigint) || 0n)} available, ${formatAmount((args?.[0] as bigint) || 0n)} needed`,
-        InsufficientAllowance: (args) =>
-            `Insufficient ${tokenInfo.symbol} allowance: ${formatAmount((args?.[1] as bigint) || 0n)} approved, ${formatAmount((args?.[0] as bigint) || 0n)} needed`,
-        ERC20InsufficientAllowance: (args) =>
-            `Insufficient ${tokenInfo.symbol} allowance: ${formatAmount((args?.[1] as bigint) || 0n)} approved, ${formatAmount((args?.[0] as bigint) || 0n)} needed`,
-    };
+    switch (error.name) {
+        case 'ERC20InsufficientBalance': {
+            const [, balance, needed] = error.args as readonly [Address?, bigint?, bigint?];
+            return `Insufficient ${tokenInfo.symbol} balance: ${formatTokenAmount(
+                balance ?? 0n,
+                tokenInfo
+            )} available, ${formatTokenAmount(needed ?? 0n, tokenInfo)} needed`;
+        }
+        case 'InsufficientBalance': {
+            const [requested, available] = error.args as readonly [bigint?, bigint?];
+            return `Insufficient ${tokenInfo.symbol} balance: ${formatTokenAmount(
+                available ?? 0n,
+                tokenInfo
+            )} available, ${formatTokenAmount(requested ?? 0n, tokenInfo)} needed`;
+        }
+        case 'ERC20InsufficientAllowance': {
+            const [, allowance, needed] = error.args as readonly [Address?, bigint?, bigint?];
+            return `Insufficient ${tokenInfo.symbol} allowance: ${formatTokenAmount(
+                allowance ?? 0n,
+                tokenInfo
+            )} approved, ${formatTokenAmount(needed ?? 0n, tokenInfo)} needed`;
+        }
+        case 'InsufficientAllowance': {
+            const [requested, approved] = error.args as readonly [bigint?, bigint?];
+            return `Insufficient ${tokenInfo.symbol} allowance: ${formatTokenAmount(
+                approved ?? 0n,
+                tokenInfo
+            )} approved, ${formatTokenAmount(requested ?? 0n, tokenInfo)} needed`;
+        }
+        default:
+            return error.name;
+    }
+}
 
-    return {
+export function createERC20Parser(tokenInfo: Erc20TokenInfo, resolveAddress: (addr: Address) => string) {
+    return createContractParser({
         abi: erc20Abi,
-
-        async parseTransaction(tx) {
-            const formatter = txFormatters[tx.functionName];
-            return formatter ? formatter(tx.args as readonly unknown[]) : `${tx.functionName}(...)`;
+        transactions: {
+            transfer({ args }) {
+                const [to, amount] = args;
+                return `transfer(to: ${formatNamedAddress(to, resolveAddress)}, amount: ${formatTokenAmount(
+                    amount,
+                    tokenInfo
+                )})`;
+            },
+            approve({ args }) {
+                const [spender, amount] = args;
+                return `approve(spender: ${formatNamedAddress(spender, resolveAddress)}, amount: ${formatTokenAmount(
+                    amount,
+                    tokenInfo
+                )})`;
+            },
+            transferFrom({ args }) {
+                const [from, to, amount] = args;
+                return `transferFrom(from: ${formatNamedAddress(
+                    from,
+                    resolveAddress
+                )}, to: ${formatNamedAddress(to, resolveAddress)}, amount: ${formatTokenAmount(amount, tokenInfo)})`;
+            },
         },
-
-        async parseEvent(event) {
-            const formatter = eventFormatters[event.eventName];
-            return formatter ? formatter(event.args as Record<string, any>) : `${event.eventName}(...)`;
+        events: {
+            Transfer({ args }) {
+                return `Transfer(from: ${formatNamedAddress(args.from, resolveAddress)}, to: ${formatNamedAddress(
+                    args.to,
+                    resolveAddress
+                )}, amount: ${formatTokenAmount(args.value, tokenInfo)})`;
+            },
+            Approval({ args }) {
+                return `Approval(owner: ${formatNamedAddress(
+                    args.owner,
+                    resolveAddress
+                )}, spender: ${formatNamedAddress(args.spender, resolveAddress)}, amount: ${formatTokenAmount(
+                    args.value,
+                    tokenInfo
+                )})`;
+            },
         },
-
-        async parseError(error) {
-            if (typeof error === "string") {
-                return error;
-            }
-            // Modern custom errors (Solidity 0.8.4+)
-            if (error.name) {
-                const formatter = errorFormatters[error.name];
-                if (formatter) return formatter(error.args);
-                return error.name; // Unknown custom error
-            }
-
-            // Old-style string revert (e.g., require("ERC20: insufficient balance"))
-            // Viem automatically decodes Error(string) signature (0x08c379a0)
-            // The decoded string comes through error.args[0]
-            if (error.signature === 'Error(string)' && error.args?.[0]) {
-                return String(error.args[0]);
-            }
-
-            return error.signature || 'ERC20 error';
-        },
-    };
+        parseErrorFallback: (error) => formatErc20Error(error, tokenInfo),
+    });
 }

@@ -1,8 +1,13 @@
 import { parseEther } from 'viem';
-import type { PublicClient, WalletClient, TransactionReceipt } from 'viem';
+import type { Account, Address, PublicClient, WalletClient, TransactionReceipt } from 'viem';
 import { ChainKit } from '../chain-kit';
-import { sendTxWithLog } from '../utils/tx';
+import { sendContractTransaction } from '../utils/tx';
 import { WETH_ABI } from '../abis';
+
+function requireAccount(walletClient: WalletClient): Account | Address {
+    if (!walletClient.account) throw new Error('WalletClient must have an account configured');
+    return walletClient.account;
+}
 
 /**
  * Deposit native token to get wrapped native token (with logging)
@@ -29,12 +34,23 @@ export async function deposit(
 
     const amountWei = parseEther(amount);
 
-    return await sendTxWithLog(publicClient, walletClient, kit, {
-        address: wrappedTokenInfo.address,
-        abi: WETH_ABI,
-        functionName: 'deposit',
-        value: amountWei,
-    });
+    const sent = await sendContractTransaction(
+        {
+            publicClient,
+            walletClient,
+            chain: kit.chain,
+            resolveParser: (address) => kit.resolveParser(address),
+        },
+        {
+            address: wrappedTokenInfo.address,
+            abi: WETH_ABI,
+            functionName: 'deposit',
+            args: [],
+            value: amountWei,
+            account: requireAccount(walletClient),
+        }
+    );
+    return sent.receipt;
 }
 
 /**
@@ -62,10 +78,20 @@ export async function withdraw(
 
     const amountWei = kit.parseErc20Amount(amount, wrappedTokenInfo.address);
 
-    return await sendTxWithLog(publicClient, walletClient, kit, {
-        address: wrappedTokenInfo.address,
-        abi: WETH_ABI,
-        functionName: 'withdraw',
-        args: [amountWei],
-    });
+    const sent = await sendContractTransaction(
+        {
+            publicClient,
+            walletClient,
+            chain: kit.chain,
+            resolveParser: (address) => kit.resolveParser(address),
+        },
+        {
+            address: wrappedTokenInfo.address,
+            abi: WETH_ABI,
+            functionName: 'withdraw',
+            args: [amountWei],
+            account: requireAccount(walletClient),
+        }
+    );
+    return sent.receipt;
 }

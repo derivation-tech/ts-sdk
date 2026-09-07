@@ -1,14 +1,14 @@
-import type { Address, Chain, PublicClient, TransactionReceipt, WalletClient } from 'viem';
+import type { Abi, Address, Chain, PublicClient, TransactionReceipt, WalletClient } from 'viem';
 import { createPublicClient, formatUnits, getAddress, http, parseUnits, zeroAddress } from 'viem';
 import { AddressBook } from './utils/address-book';
 import { createERC20Parser } from './parsers/erc20';
 import { createWETHParser } from './parsers/weth';
 import { createDefaultParser } from './parsers/default';
+import { createParserRegistry, type ParserRegistry, type RegisteredParser } from './parsers/registry';
 import { getWrappedNativeToken } from './tokens/wrapped';
 import { getCommonErc20Tokens } from './tokens/erc20';
-import type { Erc20TokenInfo, ContractParser } from './types';
-import type { TxRequest } from './utils/tx';
-import { sendTxWithLog as sendTxWithLogFn } from './utils/tx';
+import type { Erc20TokenInfo, ContractParser, TypedWriteRequest, WriteFunctionName } from './types';
+import { sendContractTransaction } from './utils/tx';
 
 /**
  * ChainKit - Utilities for a single chain
@@ -21,8 +21,7 @@ export class ChainKit {
 
     public readonly tokens = new Map<string, Erc20TokenInfo>();
 
-    public readonly parsers = new Map<Address, ContractParser>();
-    private defaultParser?: ContractParser;
+    public readonly parserRegistry: ParserRegistry;
 
     public readonly nativeTokenInfo: Erc20TokenInfo;
     public readonly wrappedNativeTokenInfo: Erc20TokenInfo;
@@ -43,8 +42,7 @@ export class ChainKit {
             this.addressBook.loadAddresses(addressNames);
         }
 
-        // Set default parser with basic formatting
-        this.defaultParser = createDefaultParser((addr) => this.getAddressName(addr));
+        this.parserRegistry = createParserRegistry(createDefaultParser((addr) => this.getAddressName(addr)));
 
         // Initialize native token info
         this.nativeTokenInfo = {
@@ -246,21 +244,40 @@ export class ChainKit {
     /**
      * Register contract parser
      */
-    registerParser(address: Address, parser: ContractParser): void {
-        this.parsers.set(getAddress(address), parser);
+    registerParser<TAbi extends Abi>(address: Address, parser: ContractParser<TAbi>): void {
+        this.parserRegistry.registerParser(address, parser);
+    }
+
+    /**
+     * Resolve parser with address metadata (falls back to default parser)
+     */
+    resolveParser(address: Address): RegisteredParser | undefined {
+        return this.parserRegistry.resolveParser(address);
     }
 
     /**
      * Get parser for contract address (falls back to default parser)
      */
     getParser(address: Address): ContractParser | undefined {
-        return this.parsers.get(getAddress(address)) ?? this.defaultParser;
+        return this.resolveParser(getAddress(address))?.parser;
     }
 
     /**
      * Send a contract transaction with logging using this ChainKit's PublicClient.
      */
-    sendTx(walletClient: WalletClient, req: TxRequest): Promise<TransactionReceipt> {
-        return sendTxWithLogFn(this.publicClient, walletClient, this, req);
+    async sendTx<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
+        walletClient: WalletClient,
+        request: TypedWriteRequest<TAbi, TFunctionName>
+    ): Promise<TransactionReceipt> {
+        const sent = await sendContractTransaction(
+            {
+                publicClient: this.publicClient,
+                walletClient,
+                chain: this.chain,
+                resolveParser: (address) => this.resolveParser(address),
+            },
+            request
+        );
+        return sent.receipt;
     }
 }

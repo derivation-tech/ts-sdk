@@ -2,17 +2,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { keccak256 } from 'viem';
+import type { Abi } from 'viem';
 
 
 export interface Artifact {
-  abi: any[];
+  abi: Abi;
   bytecode: string;
   contractName?: string;
 }
 
 
 export interface RawArtifact {
-  abi: any[];
+  abi: Abi;
   bytecode: {
     object: string;
     linkReferences: Record<string, Record<string, { start: number; length: number }[]>>;
@@ -21,9 +22,33 @@ export interface RawArtifact {
   contractName?: string;
 }
 
-type JsonInput = string | object;
+type JsonInput = string | Record<string, unknown> | readonly unknown[];
 
-function parseJsonInput(input: JsonInput): any {
+type LinkReferences = Record<string, Record<string, { start: number; length: number }[]>>;
+
+type ArtifactRecord = Record<string, unknown> & {
+  abi?: Abi;
+  bytecode?: string | { object?: string; linkReferences?: LinkReferences };
+  deployedBytecode?: { object?: string; linkReferences?: LinkReferences };
+  linkReferences?: LinkReferences;
+  deployedLinkReferences?: LinkReferences;
+  contractName?: string;
+  compilationTarget?: Record<string, unknown>;
+  metadata?: { settings?: { compilationTarget?: Record<string, unknown> } };
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function asArtifactRecord(value: unknown): ArtifactRecord {
+  if (!isRecord(value)) {
+    throw new Error('Artifact JSON must be an object');
+  }
+  return value as ArtifactRecord;
+}
+
+function parseJsonInput(input: JsonInput): unknown {
   // if input is an object, return directly
   if (typeof input === 'object' && input !== null) return input;
 
@@ -32,28 +57,28 @@ function parseJsonInput(input: JsonInput): any {
     const s = input.trim();
     // quick test for JSON text
     if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
-      return JSON.parse(s);
+      return JSON.parse(s) as unknown;
     }
     // otherwise treat as file path
-    return JSON.parse(fs.readFileSync(input, 'utf-8')) as any;
+    return JSON.parse(fs.readFileSync(input, 'utf-8')) as unknown;
   }
 
   throw new Error('Unsupported JSON input');
 }
 
-export function loadABI(jsonInput: JsonInput): any[] {
-  const data = parseJsonInput(jsonInput) as any;
+export function loadABI(jsonInput: JsonInput): Abi {
+  const data = parseJsonInput(jsonInput);
 
   // If the input is an ABI array itself
-  if (Array.isArray(data)) return data as any[];
+  if (Array.isArray(data)) return data as Abi;
 
   // If the input is an artifact object with an `abi` field
-  if (data && Array.isArray(data.abi)) return data.abi as any[];
+  if (isRecord(data) && Array.isArray(data.abi)) return data.abi as Abi;
 
   throw new Error(`Unsupported ABI JSON format: expected ABI array or artifact object with 'abi' field`);
 }
 
-// Load a Foundry-generated artifact JSON file, resolve any library link references using the provided map,
+// Load a Foundry-generated artifact JSON file, resolve library link references using the provided map,
 // and return an object with abi, bytecode (with links resolved), and optional contractName.
 // linkReferenceMap maps library names to their deployed addresses (as hex strings).
 
@@ -62,29 +87,29 @@ export function loadArtifact(
   linkReferenceMap: Record<string, string> = {}
 ): Artifact {
   // ==== New clean implementation following the user's spec ====
-  const artifactAny: any = parseJsonInput(jsonInput);
+  const artifact = asArtifactRecord(parseJsonInput(jsonInput));
 
-  // 1) Extract bytecode and structured linkReferences (if any)
+  // 1) Extract bytecode and structured linkReferences when present.
   let raw: string | undefined = undefined;
   let structuredRefs: Record<string, Record<string, { start: number; length: number }[]>> | undefined = undefined;
   const jsonSourceLabel = typeof jsonInput === 'string' ? jsonInput : '<json-object>';
 
   // Foundry style
-  if (artifactAny?.bytecode && typeof artifactAny.bytecode === 'object' && artifactAny.bytecode.object) {
-    raw = artifactAny.bytecode.object;
-    structuredRefs = artifactAny.bytecode.linkReferences || {};
+  if (isRecord(artifact.bytecode) && typeof artifact.bytecode.object === 'string') {
+    raw = artifact.bytecode.object;
+    structuredRefs = artifact.bytecode.linkReferences || {};
   }
 
   // Hardhat style (top-level string). Some artifacts may also include top-level linkReferences.
-  if (!raw && typeof artifactAny?.bytecode === 'string' && artifactAny.bytecode.length > 0) {
-    raw = artifactAny.bytecode;
-    structuredRefs = artifactAny.linkReferences || artifactAny.deployedLinkReferences || undefined;
+  if (!raw && typeof artifact.bytecode === 'string' && artifact.bytecode.length > 0) {
+    raw = artifact.bytecode;
+    structuredRefs = artifact.linkReferences || artifact.deployedLinkReferences || undefined;
   }
 
   // Deployed bytecode as an alternative
-  if (!raw && artifactAny?.deployedBytecode && typeof artifactAny.deployedBytecode === 'object' && artifactAny.deployedBytecode.object) {
-    raw = artifactAny.deployedBytecode.object;
-    structuredRefs = artifactAny.deployedBytecode.linkReferences || artifactAny.deployedLinkReferences || undefined;
+  if (!raw && isRecord(artifact.deployedBytecode) && typeof artifact.deployedBytecode.object === 'string') {
+    raw = artifact.deployedBytecode.object;
+    structuredRefs = artifact.deployedBytecode.linkReferences || artifact.deployedLinkReferences || undefined;
   }
 
   if (!raw) throw new Error(`Artifact at ${jsonSourceLabel} has no bytecode`);
@@ -147,9 +172,9 @@ export function loadArtifact(
   // 1) explicit contractName field
   // 2) foundry's compilationTarget map -> if it contains a single unique value, use that
   // 3) file basename when jsonInput is a file path
-  let inferredName = artifactAny?.contractName;
+  let inferredName = artifact.contractName;
   if (!inferredName) {
-    const compTarget = artifactAny?.metadata?.settings?.compilationTarget || artifactAny?.compilationTarget;
+    const compTarget = artifact.metadata?.settings?.compilationTarget || artifact.compilationTarget;
     if (compTarget && typeof compTarget === 'object') {
       try {
         const vals = Array.from(new Set(Object.values(compTarget)));
@@ -163,7 +188,7 @@ export function loadArtifact(
     inferredName = (typeof jsonInput === 'string' && fs.existsSync(jsonInput)) ? path.basename(jsonInput, '.json') : '<unknown>';
   }
   return {
-    abi: artifactAny?.abi,
+    abi: artifact.abi ?? [],
     bytecode: `0x${bytecode}`,
     contractName: inferredName,
   };

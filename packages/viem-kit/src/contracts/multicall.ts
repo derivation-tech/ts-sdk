@@ -39,9 +39,10 @@ export async function getNativeBalances(
             multicallResults.forEach((result, index) => {
                 results[batchIndex + index] = result.status === 'success' ? (result.result as bigint) : 0n;
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
             console.log(
-                `Warning: Error querying native balances batch ${Math.floor(i / batchSize) + 1}: ${err.message}`
+                `Warning: Error querying native balances batch ${Math.floor(i / batchSize) + 1}: ${message}`
             );
             // Set all balances to 0 for this failed batch
             batch.forEach((_, index) => {
@@ -88,9 +89,10 @@ export async function getErc20Balances(
             multicallResults.forEach((result, index) => {
                 results[batchIndex + index] = result.status === 'success' ? (result.result as bigint) : 0n;
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
             console.log(
-                `Warning: Error querying ERC20 balances batch ${Math.floor(i / batchSize) + 1}: ${err.message}`
+                `Warning: Error querying ERC20 balances batch ${Math.floor(i / batchSize) + 1}: ${message}`
             );
             // Set all balances to 0 for this failed batch
             batch.forEach((_, index) => {
@@ -156,7 +158,7 @@ export async function getAllBalances(
 
 /**
  * Batch fetch ERC20 token metadata (symbol, name, decimals) for multiple addresses using multicall.
- * Returns an array aligned with input addresses; null entry if any call fails for that token.
+ * Returns an array aligned with input addresses; null entry when a call fails for that token.
  */
 export async function getErc20TokenInfos(
     publicClient: ReturnType<typeof createPublicClient>,

@@ -15,19 +15,25 @@ const LEDGER_MODULE_ID = '@derivation-tech/viem-ledger';
 // The module specifier is HARDCODED (LEDGER_MODULE_ID constant) and never comes from user input,
 // so there is no code injection risk. This pattern is necessary because some bundlers don't
 // support dynamic import() at the top level or have issues with conditional imports.
-const dynamicImportLedgerModule = new Function('specifier', 'return import(specifier);') as (specifier: string) => Promise<unknown>;
+const dynamicImportLedgerModule = new Function('specifier', 'return import(specifier);') as (
+    specifier: string
+) => Promise<unknown>;
 let ledgerModulePromise: Promise<LedgerModule> | null = null;
 
 const loadLedgerModule = async (): Promise<LedgerModule> => {
     if (!ledgerModulePromise) {
         ledgerModulePromise = dynamicImportLedgerModule(LEDGER_MODULE_ID)
             .then((mod) => {
-                const deriveLedgerPath = (mod as any).deriveLedgerPath;
-                const ledgerToAccount = (mod as any).ledgerToAccount;
+                const moduleRecord = mod as Record<string, unknown>;
+                const deriveLedgerPath = moduleRecord.deriveLedgerPath;
+                const ledgerToAccount = moduleRecord.ledgerToAccount;
                 if (typeof deriveLedgerPath !== 'function' || typeof ledgerToAccount !== 'function') {
                     throw new Error(`Invalid ${LEDGER_MODULE_ID} module: missing exports.`);
                 }
-                return { deriveLedgerPath, ledgerToAccount } as LedgerModule;
+                return {
+                    deriveLedgerPath: deriveLedgerPath as LedgerModule['deriveLedgerPath'],
+                    ledgerToAccount: ledgerToAccount as LedgerModule['ledgerToAccount'],
+                };
             })
             .catch((error) => {
                 ledgerModulePromise = null;

@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from '@jest/globals';
 import { ChainKit } from '../src/chain-kit';
 import { mainnet } from 'viem/chains';
 import type { Address } from 'viem';
-import { getAddress, zeroAddress } from 'viem';
+import { defineChain, getAddress, zeroAddress } from 'viem';
 
 describe('ChainKit', () => {
     let kit: ChainKit;
@@ -240,12 +240,12 @@ describe('ChainKit', () => {
         });
 
         test('should load common tokens for Monad Testnet', () => {
-            const monadTestnet = {
+            const monadTestnet = defineChain({
                 id: 10143,
                 name: 'Monad Testnet',
                 nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
                 rpcUrls: { default: { http: ['http://localhost'] } },
-            } as any;
+            });
 
             const monadKit = new ChainKit(monadTestnet);
 
@@ -265,12 +265,12 @@ describe('ChainKit', () => {
     describe('Error Handling', () => {
         test('should throw error when creating ChainKit without wrapped native token', () => {
             // Create a custom chain that doesn't have wrapped token in registry
-            const customChain = {
+            const customChain = defineChain({
                 id: 999999,
                 name: 'Custom Chain',
                 nativeCurrency: { name: 'Custom', symbol: 'CUSTOM', decimals: 18 },
                 rpcUrls: { default: { http: ['http://localhost'] } },
-            } as any;
+            });
 
             expect(() => {
                 new ChainKit(customChain);
@@ -278,12 +278,12 @@ describe('ChainKit', () => {
         });
 
         test('should accept wrapped token info in constructor for custom chains', () => {
-            const customChain = {
+            const customChain = defineChain({
                 id: 999999,
                 name: 'Custom Chain',
                 nativeCurrency: { name: 'Custom', symbol: 'CUSTOM', decimals: 18 },
                 rpcUrls: { default: { http: ['http://localhost'] } },
-            } as any;
+            });
 
             const wrappedToken = {
                 symbol: 'WCUSTOM',

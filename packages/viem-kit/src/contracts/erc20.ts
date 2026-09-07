@@ -4,10 +4,15 @@
  * Provides common ERC20 methods without repetitive boilerplate
  */
 
-import type { PublicClient, WalletClient, Address, TransactionReceipt } from 'viem';
+import type { Account, PublicClient, WalletClient, Address, TransactionReceipt } from 'viem';
 import type { ChainKit } from '../chain-kit';
-import { sendTxWithLog, sendTxSilent } from '../utils/tx';
+import { sendContractTransaction } from '../utils/tx';
 import { erc20Abi } from 'viem';
+
+function requireAccount(walletClient: WalletClient): Account | Address {
+    if (!walletClient.account) throw new Error('WalletClient must have an account configured');
+    return walletClient.account;
+}
 
 /**
  * Get ERC20 balance
@@ -93,12 +98,22 @@ export async function transfer(
     to: Address,
     amount: bigint
 ): Promise<TransactionReceipt> {
-    return await sendTxWithLog(publicClient, walletClient, kit, {
-        address: token,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [to, amount],
-    });
+    const sent = await sendContractTransaction(
+        {
+            publicClient,
+            walletClient,
+            chain: kit.chain,
+            resolveParser: (address) => kit.resolveParser(address),
+        },
+        {
+            address: token,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [to, amount],
+            account: requireAccount(walletClient),
+        }
+    );
+    return sent.receipt;
 }
 
 /**
@@ -111,12 +126,24 @@ export async function transferSilent(
     to: Address,
     amount: bigint
 ): Promise<TransactionReceipt> {
-    return await sendTxSilent(publicClient, walletClient, {
-        address: token,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [to, amount],
-    });
+    const sent = await sendContractTransaction(
+        {
+            publicClient,
+            walletClient,
+            chain: walletClient.chain,
+        },
+        {
+            address: token,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [to, amount],
+            account: requireAccount(walletClient),
+        },
+        { silent: true }
+    );
+    const receipt = await sent.receipt;
+    if (receipt.status === 'reverted') throw new Error(`Transaction reverted: ${sent.hash}`);
+    return receipt;
 }
 
 /**
@@ -130,12 +157,22 @@ export async function approve(
     spender: Address,
     amount: bigint
 ): Promise<TransactionReceipt> {
-    return await sendTxWithLog(publicClient, walletClient, kit, {
-        address: token,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [spender, amount],
-    });
+    const sent = await sendContractTransaction(
+        {
+            publicClient,
+            walletClient,
+            chain: kit.chain,
+            resolveParser: (address) => kit.resolveParser(address),
+        },
+        {
+            address: token,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [spender, amount],
+            account: requireAccount(walletClient),
+        }
+    );
+    return sent.receipt;
 }
 
 /**
@@ -150,12 +187,22 @@ export async function transferFrom(
     to: Address,
     amount: bigint
 ): Promise<TransactionReceipt> {
-    return await sendTxWithLog(publicClient, walletClient, kit, {
-        address: token,
-        abi: erc20Abi,
-        functionName: 'transferFrom',
-        args: [from, to, amount],
-    });
+    const sent = await sendContractTransaction(
+        {
+            publicClient,
+            walletClient,
+            chain: kit.chain,
+            resolveParser: (address) => kit.resolveParser(address),
+        },
+        {
+            address: token,
+            abi: erc20Abi,
+            functionName: 'transferFrom',
+            args: [from, to, amount],
+            account: requireAccount(walletClient),
+        }
+    );
+    return sent.receipt;
 }
 
 /**

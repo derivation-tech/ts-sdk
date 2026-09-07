@@ -4,4 +4,4 @@ packages:
   - '!**/test/**'
 
 catalog:
-    "viem": "^2.43.3"
+    "viem": "2.45.0"

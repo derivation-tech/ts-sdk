@@ -3,10 +3,16 @@
  * Send 1 USDM from neo:0-99 to neo:100-199
  */
 
-import 'dotenv/config';
-import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
+import { createPublicClient, createWalletClient, erc20Abi, http } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
-import { ChainKitRegistry, batchSendTxWithLog, LoggerFactory, LogLevel, abctest } from '../src/index';
+import {
+    ChainKitRegistry,
+    LoggerFactory,
+    LogLevel,
+    abctest,
+    batchSendLocalTransactions,
+    defineWriteRequest,
+} from '../src/index';
 
 const logger = LoggerFactory.getLogger('Batch-Transfer', LogLevel.Info);
 
@@ -70,14 +76,16 @@ async function batchTransfer() {
     // ==========================================
     const transferAmount = kit.parseErc20Amount('1', 'usdm'); // 1 USDM each
 
-    const txs = recipients.map((recipient) => ({
-        address: usdm.address,
-        abi: parseAbi(['function transfer(address to, uint256 amount) returns (bool)']),
-        functionName: 'transfer' as const,
-        args: [recipient.address, transferAmount] as const,
-    }));
+    const requests = recipients.map((recipient) =>
+        defineWriteRequest({
+            address: usdm.address,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [recipient.address, transferAmount],
+        })
+    );
 
-    logger.info(`Built ${txs.length} transfer transactions (1 USDM each)`);
+    logger.info(`Built ${requests.length} transfer transactions (1 USDM each)`);
     logger.info('');
 
     // ==========================================
@@ -85,7 +93,7 @@ async function batchTransfer() {
     // ==========================================
     const startTime = Date.now();
 
-    const receipts = await batchSendTxWithLog(publicClient, walletClients, kit, txs);
+    const results = await batchSendLocalTransactions(publicClient, walletClients, requests);
 
     const duration = Date.now() - startTime;
 
@@ -94,15 +102,16 @@ async function batchTransfer() {
     // ==========================================
     logger.info('');
     logger.info('📊 Summary:');
-    logger.info(`  Total transfers: ${receipts.length}`);
-    logger.info(`  Total gas used: ${receipts.reduce((sum: bigint, r: any) => sum + (r.gasUsed as bigint), 0n).toString()}`);
+    const totalGasUsed = results.reduce((sum, result) => sum + result.receipt.gasUsed, 0n);
+    logger.info(`  Total transfers: ${results.length}`);
+    logger.info(`  Total gas used: ${totalGasUsed}`);
     logger.info(`  Duration: ${duration}ms`);
-    logger.info(`  Average: ${(duration / receipts.length).toFixed(0)}ms per tx`);
+    logger.info(`  Average: ${(duration / results.length).toFixed(0)}ms per tx`);
     logger.info('');
     logger.info('🎉 Batch transfer complete!\n');
 }
 
 batchTransfer().catch((error) => {
-    logger.error('❌ Error:', error.message);
+    logger.error('❌ Error:', error);
     process.exit(1);
 });

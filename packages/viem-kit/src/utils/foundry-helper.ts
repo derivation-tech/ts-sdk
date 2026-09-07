@@ -1,16 +1,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import type { Abi } from 'viem';
 
 
 export interface Artifact {
-  abi: any[];
+  abi: Abi;
   bytecode: string;
   contractName?: string;
 }
 
 
 export interface RawArtifact {
-  abi: any[];
+  abi: Abi;
   bytecode: {
     object: string;
     linkReferences: Record<string, Record<string, { start: number; length: number }[]>>;
@@ -19,12 +20,12 @@ export interface RawArtifact {
   contractName?: string;
 }
 
-export function loadFoundryABI(jsonFilePath: string): any[] {
+export function loadFoundryABI(jsonFilePath: string): Abi {
   const artifact: RawArtifact = JSON.parse(fs.readFileSync(jsonFilePath, 'utf-8'));
   return artifact.abi;
 }
 
-// Load a Foundry-generated artifact JSON file, resolve any library link references using the provided map,
+// Load a Foundry-generated artifact JSON file, resolve library link references using the provided map,
 // and return an object with abi, bytecode (with links resolved), and optional contractName.
 // linkReferenceMap maps library names to their deployed addresses (as hex strings).
 
@@ -91,7 +92,7 @@ export function loadFoundryArtifact(
     }
   }
 
-  const inferredName = (artifact as any).contractName || path.basename(jsonFilePath, '.json');
+  const inferredName = artifact.contractName || path.basename(jsonFilePath, '.json');
 
   return {
     abi: artifact.abi,
@@ -99,4 +100,3 @@ export function loadFoundryArtifact(
     contractName: inferredName,
   };
 }
-

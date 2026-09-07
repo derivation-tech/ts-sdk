@@ -5,6 +5,10 @@ import { abctest } from './chains/abctest';
 import { ChainKit } from './chain-kit';
 import { getWrappedNativeToken } from './tokens/wrapped';
 
+const localChains: Record<string, ViemChain> = {
+    abctest,
+};
+
 /**
  * ChainKitRegistry - Global singleton map of chainId → ChainKit
  */
@@ -24,9 +28,6 @@ export class ChainKitRegistry {
     static for(chainIdOrNameOrChain: number | string | Chain): ChainKit {
         let chainId: number;
         let chain: Chain;
-        const localChains: Record<string, ViemChain> = {
-            abctest
-        };
 
         // If it's already a Chain object
         if (typeof chainIdOrNameOrChain === 'object' && 'id' in chainIdOrNameOrChain) {
@@ -35,9 +36,9 @@ export class ChainKitRegistry {
         } else if (typeof chainIdOrNameOrChain === 'number') {
             chainId = chainIdOrNameOrChain;
             // Find chain by ID
-            chain = (Object.values(chains) as any[]).find((c: any) => c?.id === chainId) as Chain;
+            chain = (Object.values(chains) as ViemChain[]).find((c) => c?.id === chainId) as Chain;
             if (!chain) {
-                chain = (Object.values(localChains) as any[]).find((c: any) => c?.id === chainId) as Chain;
+                chain = (Object.values(localChains) as ViemChain[]).find((c) => c?.id === chainId) as Chain;
             }
             if (!chain)
                 throw new Error(
@@ -80,7 +81,7 @@ export class ChainKitRegistry {
         if (typeof chainIdOrName === 'number') {
             return this.instances.has(chainIdOrName);
         }
-        const chain = (chains as any)[chainIdOrName];
+        const chain = (chains as Record<string, ViemChain>)[chainIdOrName] ?? localChains[chainIdOrName];
         return chain ? this.instances.has(chain.id) : false;
     }
 
@@ -105,7 +106,7 @@ export class ChainKitRegistry {
         if (typeof chainIdOrName === 'number') {
             this.instances.delete(chainIdOrName);
         } else {
-            const chain = (chains as any)[chainIdOrName];
+            const chain = (chains as Record<string, ViemChain>)[chainIdOrName] ?? localChains[chainIdOrName];
             if (chain) this.instances.delete(chain.id);
         }
     }

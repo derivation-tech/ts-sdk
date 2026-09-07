@@ -4,7 +4,7 @@ const typescript = require('typescript-eslint');
 
 module.exports = [
     {
-        ignores: ['**/dist/*', 'jest.config.js', 'eslint.config.js', 'templates', '**/*.d.ts'],
+        ignores: ['**/dist/*', '**/jest.config.*', '**/eslint.config.*', 'templates', '**/*.d.ts'],
     },
     eslint.configs.recommended,
     ...typescript.configs.recommended,
@@ -25,6 +25,25 @@ module.exports = [
             '@typescript-eslint/no-require-imports': 'off',
             // Enforce no trailing spaces - coding practice rule
             'no-trailing-spaces': 'error',
+        },
+    },
+    {
+        files: ['packages/viem-kit/src/**/*.ts'],
+        rules: {
+            '@typescript-eslint/no-explicit-any': 'error',
+        },
+    },
+    {
+        files: ['scripts/**/*.{js,cjs,mjs}'],
+        languageOptions: {
+            globals: {
+                console: 'readonly',
+                process: 'readonly',
+                require: 'readonly',
+                module: 'readonly',
+                __dirname: 'readonly',
+                Buffer: 'readonly',
+            },
         },
     },
     // prettier should be the last config because it disables all formatting rules

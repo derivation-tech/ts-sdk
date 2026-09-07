@@ -27,7 +27,7 @@ This package only supports the following import paths:
 - `@derivation-tech/viem-kit`
 - `@derivation-tech/viem-kit/abis`
 - `@derivation-tech/viem-kit/contracts`
-- `@derivation-tech/viem-kit/utils`  
+- `@derivation-tech/viem-kit/utils`
 - `@derivation-tech/viem-kit/chains`
 
 Deep imports (for example `@derivation-tech/viem-kit/dist/...` or `@derivation-tech/viem-kit/utils/account`) are intentionally unsupported and may fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
@@ -153,49 +153,95 @@ const receipt = await WETH.withdraw(publicClient, walletClient, kit, '0.05');
 
 ### Transaction Helpers
 
-Simplified transaction sending with comprehensive logging:
+Typed contract transaction sending with parser-backed logging:
 
 ```typescript
-import { sendTxWithLog, sendTxSilent, batchSendTxWithLog } from '@derivation-tech/viem-kit';
+import { erc20Abi } from 'viem';
+import { batchSendLocalTransactions, defineWriteRequest, sendContractTransaction } from '@derivation-tech/viem-kit';
 
-// Single transaction with logging (recommended)
-// Uses kit.publicClient internally (you can replace kit.publicClient if you need a custom RPC/transport)
-const receiptWithLog = await kit.sendTx(walletClient, {
+// Single transaction using ChainKit's public client and parser registry.
+const receipt = await kit.sendTx(walletClient, {
     address: tokenAddress,
-    abi: ERC20_ABI,
+    abi: erc20Abi,
     functionName: 'transfer',
     args: [to, amount],
 });
 
-// If you want to use a custom public client, call the helper directly:
-// const receiptWithLog = await sendTxWithLog(publicClient, walletClient, kit, { ... });
+// Custom context when you need a different public client or hooks.
+const sent = await sendContractTransaction(
+    {
+        publicClient,
+        walletClient,
+        chain,
+        resolveParser: (address) => kit.resolveParser(address),
+    },
+    {
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [to, amount],
+    }
+);
+const receiptWithHooks = await sent.receipt;
 
-// Silent transaction (no logging)
-const receiptSilent = await sendTxSilent(kit.publicClient, walletClient, {
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'transfer',
-    args: [to, amount],
-});
-
-// Batch transactions
-const batchReceipts = await batchSendTxWithLog(kit.publicClient, walletClients, kit, txs);
+// Batch signing is explicit and only supports WalletClients backed by local accounts.
+const batchResults = await batchSendLocalTransactions(publicClient, walletClients, [
+    defineWriteRequest({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [to, amount],
+    }),
+]);
 ```
+
+`sendContractTransaction` returns the transaction hash immediately and exposes receipt waiting through `sent.receipt`. Parser and receipt callbacks can be wired through lifecycle hooks. Successful batch entries contain `{ index, hash, receipt }`. If a batch fails after submitting one or more transactions, `BatchTransactionError.progress` retains their hashes and any receipts already collected.
+
+```typescript
+await sendContractTransaction(context, request, {
+    hooks: {
+        onSent: ({ hash, description }) => console.log(hash, description),
+        onEvent: ({ description }) => console.log(description),
+    },
+});
+```
+
+### Migrating from the legacy transaction API
+
+| Removed API                     | Replacement                                                       |
+| ------------------------------- | ----------------------------------------------------------------- |
+| `sendTxWithLog`                 | `kit.sendTx` or `sendContractTransaction`                         |
+| `batchSendTxWithLog`            | `batchSendLocalTransactions` with `defineWriteRequest`            |
+| `TxRequest`                     | `TypedWriteRequest`                                               |
+| formatter compatibility methods | `ContractParser.parseTransaction`, `parseEvent`, and `parseError` |
+| root error extraction helper    | `decodeContractError`                                             |
 
 ### Contract Parsers
 
 Custom parsers for better transaction and event logging:
 
 ```typescript
-import { createERC20Parser, createWETHParser } from '@derivation-tech/viem-kit';
+import { erc20Abi } from 'viem';
+import { createContractParser, createERC20Parser, createWETHParser } from '@derivation-tech/viem-kit';
 
 // ERC20 parser
-const erc20Parser = createERC20Parser(tokenInfo, kit.addressBook.getAddressName);
+const erc20Parser = createERC20Parser(tokenInfo, (address) => kit.getAddressName(address));
 kit.registerParser(tokenAddress, erc20Parser);
 
 // WETH parser (includes deposit/withdraw)
-const wethParser = createWETHParser(wethInfo, kit.addressBook.getAddressName);
+const wethParser = createWETHParser(wethInfo, (address) => kit.getAddressName(address));
 kit.registerParser(wethAddress, wethParser);
+
+// Custom parser maps are keyed by ABI function/event names.
+const parser = createContractParser({
+    abi: erc20Abi,
+    transactions: {
+        transfer: ({ args }) => `transfer(${args[0]}, ${args[1]})`,
+    },
+    events: {
+        Transfer: ({ args }) => `Transfer(${args.from}, ${args.to}, ${args.value})`,
+    },
+});
 ```
 
 ## Token Registry
@@ -245,8 +291,12 @@ See the `examples/` directory for complete examples:
 
 - `addressBook: AddressBook` - Address-to-name mappings
 - `tokens: Map<string, Erc20TokenInfo>` - Token registry
-- `parsers: Map<Address, ContractParser>` - Contract parsers
+- `parserRegistry: ParserRegistry` - Contract parser registry
 - `registerErc20Token(tokenInfo: Erc20TokenInfo): void` - Register token
+- `registerParser(address: Address, parser: ContractParser): void` - Register parser
+- `resolveParser(address: Address): RegisteredParser | undefined` - Resolve parser with address metadata
+- `getParser(address: Address): ContractParser | undefined` - Get parser for contract address
+- `sendTx(walletClient, request): Promise<TransactionReceipt>` - Send a typed contract transaction
 - `getErc20TokenInfo(symbolOrAddress: string): Erc20TokenInfo | undefined` - Get token info
 - `formatErc20Amount(amount: bigint, tokenSymbolOrAddress: string): string` - Format amount
 - `parseErc20Amount(amount: string, tokenSymbolOrAddress: string): bigint` - Parse amount
@@ -266,13 +316,25 @@ See the `examples/` directory for complete examples:
 - `deposit(publicClient, walletClient, kit, amount): Promise<TransactionReceipt>` - Deposit
 - `withdraw(publicClient, walletClient, kit, amount): Promise<TransactionReceipt>` - Withdraw
 
+### Transaction Helpers
+
+- `sendContractTransaction(context, request, options?): Promise<SentTransaction>` - Send a typed contract write and parse transaction/receipt context through registered parsers
+- `defineWriteRequest(request): DefinedWriteRequest` - Preserve per-request ABI inference before adding it to a heterogeneous batch
+- `batchSendLocalTransactions(publicClient, walletClients, requests): Promise<BatchTransactionResult[]>` - Sign and send defined contract writes from local-account wallet clients; each result contains `index`, `hash`, and `receipt`
+
 ## Type Safety
 
 The library provides full TypeScript support with viem types:
 
 ```typescript
 import type { Address, PublicClient, WalletClient, TransactionReceipt } from '@derivation-tech/viem-kit';
-import type { Erc20TokenInfo, ContractParser } from '@derivation-tech/viem-kit';
+import type {
+    BatchTransactionResult,
+    ContractParser,
+    DefinedWriteRequest,
+    Erc20TokenInfo,
+    TypedWriteRequest,
+} from '@derivation-tech/viem-kit';
 ```
 
 ## Error Handling

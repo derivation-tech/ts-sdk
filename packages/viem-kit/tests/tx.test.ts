@@ -1,42 +1,24 @@
-import { describe, test, expect, jest } from '@jest/globals';
-import type { PublicClient, WalletClient, Account, TransactionReceipt, Address } from 'viem';
+import { describe, expect, jest, test } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { Account, Address, Hash, PublicClient, TransactionReceipt, WalletClient } from 'viem';
 import {
-    sendTxWithLog,
-    sendTxSilent,
-    batchSendTxWithLog,
-    batchSendTxSilent,
-    handleError,
-    type TxRequest,
-} from '../src/utils/tx';
-import { ChainKit } from '../src/chain-kit';
+    createPublicClient as createViemPublicClient,
+    createWalletClient as createViemWalletClient,
+    custom,
+    encodeErrorResult,
+    encodeFunctionData,
+    parseAbi,
+} from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import { mainnet } from 'viem/chains';
+import { createParserRegistry } from '../src/parsers/registry';
+import type { ContractParser, ParseTransactionInput, TxContext } from '../src/types';
+import { batchSendLocalTransactions, defineWriteRequest, sendContractTransaction } from '../src/utils/tx';
 
-// Mock setup
-const createMockAccount = (): Account => ({
-    address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Address,
-    type: 'local',
-    source: 'privateKey',
-    publicKey: '0x04abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as `0x${string}`,
-    signMessage: jest.fn() as any,
-    signTransaction: jest.fn() as any,
-    signTypedData: jest.fn() as any,
-});
-
-const createMockPublicClient = (): Partial<PublicClient> => ({
-    waitForTransactionReceipt: jest.fn() as any,
-    call: jest.fn() as any,
-    getTransactionCount: jest.fn() as any,
-    sendRawTransaction: jest.fn() as any,
-});
-
-const createMockWalletClient = (account?: Account): Partial<WalletClient> => ({
-    account: account || createMockAccount(),
-    writeContract: jest.fn() as any,
-    deployContract: jest.fn() as any,
-    prepareTransactionRequest: jest.fn() as any,
-    signTransaction: jest.fn() as any,
-    sendRawTransaction: jest.fn() as any,
-});
+const tokenAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
+const receiverAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Address;
+const txHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as Hash;
 
 const erc20Abi = [
     {
@@ -51,613 +33,275 @@ const erc20Abi = [
     },
 ] as const;
 
-const txTarget = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
+type TestPublicClient = PublicClient & {
+    waitForTransactionReceipt: jest.Mock<() => Promise<TransactionReceipt>>;
+    call: jest.Mock<() => Promise<never>>;
+    getTransactionCount: jest.Mock<() => Promise<number>>;
+    sendRawTransaction: jest.Mock<() => Promise<Hash>>;
+};
 
-const makeReceipt = (
-    status: 'success' | 'reverted',
-    txHash: `0x${string}`,
-    from: Address,
-    to: Address
-): TransactionReceipt => ({
-    transactionHash: txHash,
-    blockNumber: 12345n,
-    status,
-    logs: [],
-    cumulativeGasUsed: 21000n,
-    effectiveGasPrice: 1000000000n,
-    gasUsed: 21000n,
-    from,
-    to,
-    contractAddress: null,
-    logsBloom: '0x' as `0x${string}`,
-    blockHash: '0xabcd' as `0x${string}`,
-    transactionIndex: 0,
-    type: 'eip1559',
+type TestWalletClient = WalletClient & {
+    sendTransaction: jest.Mock<() => Promise<Hash>>;
+    prepareTransactionRequest: jest.Mock<() => Promise<{ to: Address }>>;
+};
+
+function mockTransport() {
+    return custom({ request: async () => undefined });
+}
+
+function makeReceipt(status: 'success' | 'reverted', hash: Hash = txHash): TransactionReceipt {
+    return {
+        transactionHash: hash,
+        blockNumber: 12345n,
+        status,
+        logs: [],
+        cumulativeGasUsed: 21000n,
+        effectiveGasPrice: 1_000_000_000n,
+        gasUsed: 21000n,
+        from: receiverAddress,
+        to: tokenAddress,
+        contractAddress: null,
+        logsBloom: '0x',
+        blockHash: '0xabcd',
+        transactionIndex: 0,
+        type: 'eip1559',
+    };
+}
+
+function createTestPublicClient(): TestPublicClient {
+    const client = createViemPublicClient({
+        chain: mainnet,
+        transport: mockTransport(),
+    });
+    return Object.assign(client, {
+        waitForTransactionReceipt: jest.fn<() => Promise<TransactionReceipt>>(async () => makeReceipt('success')),
+        call: jest.fn<() => Promise<never>>(),
+        getTransactionCount: jest.fn<() => Promise<number>>(async () => 0),
+        sendRawTransaction: jest.fn<() => Promise<Hash>>(async () => txHash),
+    });
+}
+
+function createTestWalletClient(account: Account | Address | undefined = receiverAddress): TestWalletClient {
+    const client = createViemWalletClient({
+        account,
+        chain: mainnet,
+        transport: mockTransport(),
+    });
+    return Object.assign(client, {
+        sendTransaction: jest.fn(async () => txHash),
+        prepareTransactionRequest: jest.fn(async () => ({ to: tokenAddress })),
+    });
+}
+
+function createContext(parser?: ContractParser<typeof erc20Abi>): {
+    context: TxContext;
+    publicClient: TestPublicClient;
+    walletClient: TestWalletClient;
+} {
+    const publicClient = createTestPublicClient();
+    const walletClient = createTestWalletClient();
+    const registry = createParserRegistry();
+    if (parser) registry.registerParser(tokenAddress, parser);
+    const context: TxContext = {
+        publicClient,
+        walletClient,
+        chain: mainnet,
+        resolveParser: (address) => registry.resolveParser(address),
+    };
+    return { context, publicClient, walletClient };
+}
+
+describe('sendContractTransaction', () => {
+    test('does not re-narrow registry parsers to the request ABI in the write path', () => {
+        const source = readFileSync(resolve(__dirname, '../src/utils/tx/write.ts'), 'utf8');
+
+        expect(source).not.toContain('as ContractParser<TAbi>');
+        expect(source).not.toContain('context.resolveParser?.(request.address)?.parser as ContractParser<TAbi>');
+    });
+
+    test('typed write path preserves ABI args for parser invocation', async () => {
+        const parseTransaction = jest.fn(async (request: ParseTransactionInput<typeof erc20Abi>) => {
+            expect(request.functionName).toBe('transfer');
+            expect(request.args).toEqual([receiverAddress, 123n]);
+            return `transfer:${request.args[0]}:${request.args[1]}`;
+        });
+        const parser: ContractParser<typeof erc20Abi> = {
+            abi: erc20Abi,
+            parseTransaction,
+        };
+        const { context, walletClient } = createContext(parser);
+
+        const sent = await sendContractTransaction(context, {
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [receiverAddress, 123n],
+            account: receiverAddress,
+        });
+        const receipt = await sent.receipt;
+
+        expect(sent.hash).toBe(txHash);
+        expect(receipt.status).toBe('success');
+        expect(parseTransaction).toHaveBeenCalledTimes(1);
+        expect(walletClient.sendTransaction).toHaveBeenCalledWith(
+            expect.objectContaining({
+                to: tokenAddress,
+                data: encodeFunctionData({
+                    abi: erc20Abi,
+                    functionName: 'transfer',
+                    args: [receiverAddress, 123n],
+                }),
+            })
+        );
+    });
+
+    test('uses parser carried by typed write request without registry lookup', async () => {
+        const parseTransaction = jest.fn(async (request: ParseTransactionInput<typeof erc20Abi>) => {
+            expect(request.functionName).toBe('transfer');
+            expect(request.args).toEqual([receiverAddress, 123n]);
+            return `direct-parser:${request.args[1]}`;
+        });
+        const parser: ContractParser<typeof erc20Abi> = {
+            abi: erc20Abi,
+            parseTransaction,
+        };
+        const { context } = createContext();
+
+        const sent = await sendContractTransaction(context, {
+            address: tokenAddress,
+            abi: erc20Abi,
+            parser,
+            functionName: 'transfer',
+            args: [receiverAddress, 123n],
+            account: receiverAddress,
+        });
+
+        expect(sent.hash).toBe(txHash);
+        expect(parseTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not log send success or failure when silent is enabled', async () => {
+        const info = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+        const { context, walletClient } = createContext({ abi: erc20Abi });
+
+        try {
+            await sendContractTransaction(
+                context,
+                {
+                    address: tokenAddress,
+                    abi: erc20Abi,
+                    functionName: 'transfer',
+                    args: [receiverAddress, 1n],
+                    account: receiverAddress,
+                },
+                { silent: true }
+            );
+
+            walletClient.sendTransaction.mockRejectedValueOnce(new Error('send failed'));
+            await expect(
+                sendContractTransaction(
+                    context,
+                    {
+                        address: tokenAddress,
+                        abi: erc20Abi,
+                        functionName: 'transfer',
+                        args: [receiverAddress, 1n],
+                        account: receiverAddress,
+                    },
+                    { silent: true }
+                )
+            ).rejects.toThrow('send failed');
+
+            expect(info).not.toHaveBeenCalled();
+        } finally {
+            info.mockRestore();
+        }
+    });
+
+    test('decodes revert replay errors and reports hook', async () => {
+        const revertData = encodeErrorResult({
+            abi: parseAbi(['error Error(string)']),
+            errorName: 'Error',
+            args: ['bad transfer'],
+        });
+        const onReverted = jest.fn();
+        const { context, publicClient } = createContext({ abi: erc20Abi });
+        const waitForReceipt = publicClient.waitForTransactionReceipt;
+        const call = publicClient.call;
+        waitForReceipt.mockResolvedValueOnce(makeReceipt('reverted'));
+        call.mockRejectedValueOnce({ data: revertData });
+
+        const sent = await sendContractTransaction(
+            context,
+            {
+                address: tokenAddress,
+                abi: erc20Abi,
+                functionName: 'transfer',
+                args: [receiverAddress, 1n],
+                account: receiverAddress,
+            },
+            { hooks: { onReverted } }
+        );
+        const receipt = await sent.receipt;
+
+        expect(receipt.status).toBe('reverted');
+        expect(onReverted).toHaveBeenCalledWith(
+            expect.objectContaining({
+                hash: txHash,
+                message: 'bad transfer',
+            })
+        );
+    });
 });
 
-describe('Transaction Utilities', () => {
-    let kit: ChainKit;
-    let mockPublicClient: Partial<PublicClient>;
-    let mockWalletClient: Partial<WalletClient>;
-    let mockAccount: Account;
+describe('batchSendLocalTransactions', () => {
+    test('rejects non-local wallet accounts before preparing transactions', async () => {
+        const publicClient = createTestPublicClient();
+        const walletClient = createTestWalletClient('0x0000000000000000000000000000000000000001' as Address);
 
-    beforeEach(() => {
-        kit = new ChainKit(mainnet);
-        mockAccount = createMockAccount();
-        mockPublicClient = createMockPublicClient();
-        mockWalletClient = createMockWalletClient(mockAccount);
+        await expect(
+            batchSendLocalTransactions(
+                publicClient,
+                [walletClient],
+                [
+                    defineWriteRequest({
+                        address: tokenAddress,
+                        abi: erc20Abi,
+                        functionName: 'transfer',
+                        args: [receiverAddress, 1n],
+                        account: receiverAddress,
+                    }),
+                ]
+            )
+        ).rejects.toThrow('must use a local account');
     });
 
-    // ==========================================
-    // ERROR HANDLING
-    // ==========================================
+    test('signs and sends typed requests with local accounts', async () => {
+        const publicClient = createTestPublicClient();
+        const account = privateKeyToAccount('0x0000000000000000000000000000000000000000000000000000000000000001');
+        const signTransaction = jest.spyOn(account, 'signTransaction').mockResolvedValue('0xraw');
+        const walletClient = createTestWalletClient(account);
+        const prepare = walletClient.prepareTransactionRequest;
+        const sendRaw = publicClient.sendRawTransaction;
 
-    describe('handleError', () => {
-        test('should extract error message from string error', async () => {
-            const error = new Error('Transaction failed');
-            const result = await handleError(error, {} as any, []);
-
-            expect(result).toContain('Transaction failed');
-        });
-
-        test('should handle parsed contract error with name', async () => {
-            const error = {
-                data: {
-                    errorName: 'InsufficientBalance',
-                    args: [1000n],
-                },
-            };
-
-            const result = await handleError(error, {} as any, []);
-
-            expect(typeof result).toBe('object');
-            if (typeof result === 'object' && result !== null && 'name' in result) {
-                expect(result.name).toBe('InsufficientBalance');
-            }
-        });
-
-        test('should use custom parser if provided', async () => {
-            const mockParser = {
-                abi: [],
-                parseError: jest.fn(async () => 'Custom error message'),
-            };
-
-            const error = { message: 'Test error' };
-            const result = await handleError(error, mockParser as any, []);
-
-            expect(mockParser.parseError).toHaveBeenCalled();
-            expect(result).toBe('Custom error message');
-        });
-
-        test('should handle parser throwing error', async () => {
-            const mockParser = {
-                abi: [],
-                parseError: jest.fn(async () => {
-                    throw new Error('Parser failed');
+        const results = await batchSendLocalTransactions(
+            publicClient,
+            [walletClient],
+            [
+                defineWriteRequest({
+                    address: tokenAddress,
+                    abi: erc20Abi,
+                    functionName: 'transfer',
+                    args: [receiverAddress, 1n],
+                    account: account.address,
                 }),
-            };
-
-            const error = { message: 'Test error' };
-            const result = await handleError(error, mockParser as any, []);
-
-            expect(typeof result).toBe('string');
-            expect(result).toContain('Unknown contract error');
-        });
-    });
-
-    // ==========================================
-    // SEND TX WITH LOG
-    // ==========================================
-
-    describe('sendTxWithLog', () => {
-        test('should throw error if wallet client has no account', async () => {
-            const walletClientNoAccount = createMockWalletClient(undefined);
-            walletClientNoAccount.account = undefined;
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'transfer',
-                args: [],
-            };
-
-            await expect(
-                sendTxWithLog(
-                    mockPublicClient as PublicClient,
-                    walletClientNoAccount as WalletClient,
-                    kit,
-                    txRequest
-                )
-            ).rejects.toThrow('WalletClient must have an account configured');
-        });
-
-        test('should send transaction successfully', async () => {
-            const txHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`;
-            const mockReceipt: TransactionReceipt = {
-                transactionHash: txHash,
-                blockNumber: 12345n,
-                status: 'success',
-                logs: [],
-                cumulativeGasUsed: 21000n,
-                effectiveGasPrice: 1000000000n,
-                gasUsed: 21000n,
-                from: mockAccount.address,
-                to: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                contractAddress: null,
-                logsBloom: '0x' as `0x${string}`,
-                blockHash: '0xabcd' as `0x${string}`,
-                transactionIndex: 0,
-                type: 'eip1559',
-            };
-
-            (mockWalletClient.writeContract as any).mockResolvedValue(txHash);
-            (mockPublicClient.waitForTransactionReceipt as any).mockResolvedValue(mockReceipt);
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'transfer',
-                args: ['0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', 1000n],
-            };
-
-            const receipt = await sendTxWithLog(
-                mockPublicClient as PublicClient,
-                mockWalletClient as WalletClient,
-                kit,
-                txRequest
-            );
-
-            expect(receipt.status).toBe('success');
-            expect(receipt.transactionHash).toBe(txHash);
-            expect(mockWalletClient.writeContract).toHaveBeenCalled();
-            expect(mockPublicClient.waitForTransactionReceipt).toHaveBeenCalledWith({ hash: txHash });
-        });
-
-        test('should handle reverted transaction', async () => {
-            const txHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`;
-            const mockReceipt: TransactionReceipt = {
-                transactionHash: txHash,
-                blockNumber: 12345n,
-                status: 'reverted',
-                logs: [],
-                cumulativeGasUsed: 21000n,
-                effectiveGasPrice: 1000000000n,
-                gasUsed: 21000n,
-                from: mockAccount.address,
-                to: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                contractAddress: null,
-                logsBloom: '0x' as `0x${string}`,
-                blockHash: '0xabcd' as `0x${string}`,
-                transactionIndex: 0,
-                type: 'eip1559',
-            };
-
-            (mockWalletClient.writeContract as any).mockResolvedValue(txHash);
-            (mockPublicClient.waitForTransactionReceipt as any).mockResolvedValue(mockReceipt);
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'transfer',
-                args: [],
-            };
-
-            const receipt = await sendTxWithLog(
-                mockPublicClient as PublicClient,
-                mockWalletClient as WalletClient,
-                kit,
-                txRequest
-            );
-
-            // sendTxWithLog returns the receipt even if reverted
-            expect(receipt.status).toBe('reverted');
-        });
-
-        test('should throw error if writeContract fails', async () => {
-            (mockWalletClient.writeContract as any).mockRejectedValue(new Error('Insufficient funds'));
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'transfer',
-                args: [],
-            };
-
-            await expect(
-                sendTxWithLog(
-                    mockPublicClient as PublicClient,
-                    mockWalletClient as WalletClient,
-                    kit,
-                    txRequest
-                )
-            ).rejects.toThrow('Insufficient funds');
-        });
-    });
-
-    // ==========================================
-    // SEND TX SILENT
-    // ==========================================
-
-    describe('sendTxSilent', () => {
-        test('should throw error if wallet client has no account', async () => {
-            const walletClientNoAccount = createMockWalletClient(undefined);
-            walletClientNoAccount.account = undefined;
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'transfer',
-                args: [],
-            };
-
-            await expect(
-                sendTxSilent(
-                    mockPublicClient as PublicClient,
-                    walletClientNoAccount as WalletClient,
-                    txRequest
-                )
-            ).rejects.toThrow('WalletClient must have an account configured');
-        });
-
-        test('should send transaction successfully', async () => {
-            const txHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`;
-            const mockReceipt: TransactionReceipt = {
-                transactionHash: txHash,
-                blockNumber: 12345n,
-                status: 'success',
-                logs: [],
-                cumulativeGasUsed: 21000n,
-                effectiveGasPrice: 1000000000n,
-                gasUsed: 21000n,
-                from: mockAccount.address,
-                to: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                contractAddress: null,
-                logsBloom: '0x' as `0x${string}`,
-                blockHash: '0xabcd' as `0x${string}`,
-                transactionIndex: 0,
-                type: 'eip1559',
-            };
-
-            (mockWalletClient.writeContract as any).mockResolvedValue(txHash);
-            (mockPublicClient.waitForTransactionReceipt as any).mockResolvedValue(mockReceipt);
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'transfer',
-                args: [],
-            };
-
-            const receipt = await sendTxSilent(
-                mockPublicClient as PublicClient,
-                mockWalletClient as WalletClient,
-                txRequest
-            );
-
-            expect(receipt.status).toBe('success');
-            expect(receipt.transactionHash).toBe(txHash);
-        });
-
-        test('should throw error for reverted transaction', async () => {
-            const txHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`;
-            const mockReceipt: TransactionReceipt = {
-                transactionHash: txHash,
-                blockNumber: 12345n,
-                status: 'reverted',
-                logs: [],
-                cumulativeGasUsed: 21000n,
-                effectiveGasPrice: 1000000000n,
-                gasUsed: 21000n,
-                from: mockAccount.address,
-                to: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                contractAddress: null,
-                logsBloom: '0x' as `0x${string}`,
-                blockHash: '0xabcd' as `0x${string}`,
-                transactionIndex: 0,
-                type: 'eip1559',
-            };
-
-            (mockWalletClient.writeContract as any).mockResolvedValue(txHash);
-            (mockPublicClient.waitForTransactionReceipt as any).mockResolvedValue(mockReceipt);
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'transfer',
-                args: [],
-            };
-
-            // sendTxSilent should throw for reverted transactions
-            await expect(
-                sendTxSilent(
-                    mockPublicClient as PublicClient,
-                    mockWalletClient as WalletClient,
-                    txRequest
-                )
-            ).rejects.toThrow('Transaction reverted');
-        });
-    });
-
-    // ==========================================
-    // BATCH SEND TX WITH LOG
-    // ==========================================
-
-    describe('batchSendTxWithLog', () => {
-        test('should throw error if any wallet client has no account', async () => {
-            const walletClientNoAccount = createMockWalletClient(undefined);
-            walletClientNoAccount.account = undefined;
-
-            const txs: TxRequest[] = [
-                {
-                    address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                    abi: erc20Abi as unknown as any,
-                    functionName: 'transfer',
-                    args: ['0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', 1000n],
-                },
-                {
-                    address: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as Address,
-                    abi: erc20Abi as unknown as any,
-                    functionName: 'transfer',
-                    args: ['0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', 1000n],
-                },
-            ];
-
-            await expect(
-                batchSendTxWithLog(
-                    mockPublicClient as PublicClient,
-                    [mockWalletClient as WalletClient, walletClientNoAccount as WalletClient],
-                    kit,
-                    txs
-                )
-            ).rejects.toThrow(/index 1/);
-        });
-
-        test('should return receipts even when some transactions revert', async () => {
-            const secondAccount = createMockAccount();
-            secondAccount.address = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-
-            const walletClient1 = createMockWalletClient(mockAccount);
-            const walletClient2 = createMockWalletClient(secondAccount);
-            const publicClient = createMockPublicClient();
-
-            (publicClient.getTransactionCount as any).mockResolvedValueOnce(0n).mockResolvedValueOnce(5n);
-            (walletClient1.prepareTransactionRequest as any).mockResolvedValue('prepared1');
-            (walletClient2.prepareTransactionRequest as any).mockResolvedValue('prepared2');
-            (walletClient1.signTransaction as any).mockResolvedValue('0xraw1');
-            (walletClient2.signTransaction as any).mockResolvedValue('0xraw2');
-            (publicClient.sendRawTransaction as any)
-                .mockResolvedValueOnce('0xhash1' as `0x${string}`)
-                .mockResolvedValueOnce('0xhash2' as `0x${string}`);
-            (publicClient.waitForTransactionReceipt as any)
-                .mockResolvedValueOnce(makeReceipt('success', '0xhash1', mockAccount.address, txTarget))
-                .mockResolvedValueOnce(makeReceipt('reverted', '0xhash2', secondAccount.address, txTarget));
-
-            const txs: TxRequest[] = [
-                {
-                    address: txTarget,
-                    abi: erc20Abi as unknown as any,
-                    functionName: 'transfer',
-                    args: [secondAccount.address, 1000n],
-                },
-                {
-                    address: txTarget,
-                    abi: erc20Abi as unknown as any,
-                    functionName: 'transfer',
-                    args: [mockAccount.address, 2000n],
-                },
-            ];
-
-            const receipts = await batchSendTxWithLog(
-                publicClient as PublicClient,
-                [walletClient1 as WalletClient, walletClient2 as WalletClient],
-                kit,
-                txs
-            );
-
-            expect(receipts).toHaveLength(2);
-            expect(receipts[0].status).toBe('success');
-            expect(receipts[1].status).toBe('reverted');
-            expect(publicClient.getTransactionCount).toHaveBeenCalledTimes(2);
-            expect(publicClient.sendRawTransaction).toHaveBeenCalledTimes(2);
-        });
-    });
-
-    // ==========================================
-    // BATCH SEND TX SILENT
-    // ==========================================
-
-    describe('batchSendTxSilent', () => {
-        test('should throw error if any wallet client has no account', async () => {
-            const walletClientNoAccount = createMockWalletClient(undefined);
-            walletClientNoAccount.account = undefined;
-
-            const txs: TxRequest[] = [
-                {
-                    address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                    abi: erc20Abi as unknown as any,
-                    functionName: 'transfer',
-                    args: ['0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', 1000n],
-                },
-                {
-                    address: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as Address,
-                    abi: erc20Abi as unknown as any,
-                    functionName: 'transfer',
-                    args: ['0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', 1000n],
-                },
-            ];
-
-            await expect(
-                batchSendTxSilent(
-                    mockPublicClient as PublicClient,
-                    [mockWalletClient as WalletClient, walletClientNoAccount as WalletClient],
-                    txs
-                )
-            ).rejects.toThrow(/index 1/);
-        });
-
-        test('should throw error when any receipt is reverted', async () => {
-            const secondAccount = createMockAccount();
-            secondAccount.address = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-
-            const walletClient1 = createMockWalletClient(mockAccount);
-            const walletClient2 = createMockWalletClient(secondAccount);
-            const publicClient = createMockPublicClient();
-
-            (publicClient.getTransactionCount as any).mockResolvedValueOnce(0n).mockResolvedValueOnce(1n);
-            (walletClient1.prepareTransactionRequest as any).mockResolvedValue('prepared1');
-            (walletClient2.prepareTransactionRequest as any).mockResolvedValue('prepared2');
-            (walletClient1.signTransaction as any).mockResolvedValue('0xraw1');
-            (walletClient2.signTransaction as any).mockResolvedValue('0xraw2');
-            (publicClient.sendRawTransaction as any)
-                .mockResolvedValueOnce('0xhash1' as `0x${string}`)
-                .mockResolvedValueOnce('0xhash2' as `0x${string}`);
-            (publicClient.waitForTransactionReceipt as any)
-                .mockResolvedValueOnce(makeReceipt('success', '0xhash1', mockAccount.address, txTarget))
-                .mockResolvedValueOnce(makeReceipt('reverted', '0xhash2', secondAccount.address, txTarget));
-
-            const txs: TxRequest[] = [
-                {
-                    address: txTarget,
-                    abi: erc20Abi as unknown as any,
-                    functionName: 'transfer',
-                    args: [secondAccount.address, 1000n],
-                },
-                {
-                    address: txTarget,
-                    abi: erc20Abi as unknown as any,
-                    functionName: 'transfer',
-                    args: [mockAccount.address, 2000n],
-                },
-            ];
-
-            await expect(
-                batchSendTxSilent(
-                    publicClient as PublicClient,
-                    [walletClient1 as WalletClient, walletClient2 as WalletClient],
-                    txs
-                )
-            ).rejects.toThrow('Transaction reverted: 0xhash2');
-        });
-    });
-
-    // ==========================================
-    // TX REQUEST VALIDATION
-    // ==========================================
-
-    describe('TxRequest Validation', () => {
-        test('should handle tx request with value', async () => {
-            const txHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`;
-            const mockReceipt: TransactionReceipt = {
-                transactionHash: txHash,
-                blockNumber: 12345n,
-                status: 'success',
-                logs: [],
-                cumulativeGasUsed: 21000n,
-                effectiveGasPrice: 1000000000n,
-                gasUsed: 21000n,
-                from: mockAccount.address,
-                to: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                contractAddress: null,
-                logsBloom: '0x' as `0x${string}`,
-                blockHash: '0xabcd' as `0x${string}`,
-                transactionIndex: 0,
-                type: 'eip1559',
-            };
-
-            (mockWalletClient.writeContract as any).mockResolvedValue(txHash);
-            (mockPublicClient.waitForTransactionReceipt as any).mockResolvedValue(mockReceipt);
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'deposit',
-                args: [],
-                value: 1000000000000000000n, // 1 ETH
-            };
-
-            const receipt = await sendTxSilent(
-                mockPublicClient as PublicClient,
-                mockWalletClient as WalletClient,
-                txRequest
-            );
-
-            expect(receipt.status).toBe('success');
-            expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    value: 1000000000000000000n,
-                })
-            );
-        });
-
-        test('should handle tx request with custom gas', async () => {
-            const txHash = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`;
-            const mockReceipt: TransactionReceipt = {
-                transactionHash: txHash,
-                blockNumber: 12345n,
-                status: 'success',
-                logs: [],
-                cumulativeGasUsed: 100000n,
-                effectiveGasPrice: 1000000000n,
-                gasUsed: 100000n,
-                from: mockAccount.address,
-                to: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                contractAddress: null,
-                logsBloom: '0x' as `0x${string}`,
-                blockHash: '0xabcd' as `0x${string}`,
-                transactionIndex: 0,
-                type: 'eip1559',
-            };
-
-            (mockWalletClient.writeContract as any).mockResolvedValue(txHash);
-            (mockPublicClient.waitForTransactionReceipt as any).mockResolvedValue(mockReceipt);
-
-            const txRequest: TxRequest = {
-                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
-                abi: [],
-                functionName: 'complexFunction',
-                args: [],
-                gas: 100000n,
-            };
-
-            const receipt = await sendTxSilent(
-                mockPublicClient as PublicClient,
-                mockWalletClient as WalletClient,
-                txRequest
-            );
-
-            expect(receipt.status).toBe('success');
-            expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    gas: 100000n,
-                })
-            );
-        });
-    });
-
-    describe('ChainKit.sendTx', () => {
-        test('should send tx using kit public client', async () => {
-            const txHash =
-                '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`;
-            const mockReceipt = makeReceipt('success', txHash, mockAccount.address, txTarget);
-
-            const customPublicClient = createMockPublicClient();
-            kit.publicClient = customPublicClient as PublicClient;
-
-            (mockWalletClient.writeContract as any).mockResolvedValue(txHash);
-            (customPublicClient.waitForTransactionReceipt as any).mockResolvedValue(mockReceipt as any);
-
-            const txRequest: TxRequest = {
-                address: txTarget,
-                abi: [],
-                functionName: 'transfer',
-                args: ['0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', 1000n],
-            };
-
-            const receipt = await kit.sendTx(mockWalletClient as WalletClient, txRequest);
-
-            expect(receipt.transactionHash).toBe(txHash);
-            expect(mockWalletClient.writeContract).toHaveBeenCalled();
-            expect(customPublicClient.waitForTransactionReceipt).toHaveBeenCalledWith({ hash: txHash });
-        });
+            ]
+        );
+
+        expect(results).toHaveLength(1);
+        expect(results[0]).toMatchObject({ index: 0, hash: txHash, receipt: { status: 'success' } });
+        expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ nonce: 0, to: tokenAddress }));
+        expect(signTransaction).toHaveBeenCalledTimes(1);
+        expect(sendRaw).toHaveBeenCalledWith({ serializedTransaction: '0xraw' });
     });
 });

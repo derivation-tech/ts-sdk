@@ -3,7 +3,6 @@
  * Transfer from neo:0 to neo:1 with beautiful logging
  */
 
-import 'dotenv/config';
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import { ChainKitRegistry, abctest, ERC20 } from '../src/index';
@@ -94,11 +93,11 @@ async function transferUSDM() {
     const delta1 = balance1After - balance1Before;
 
     console.log(
-        `📊 After: neo:0=${kit.formatErc20Amount(balance0After as bigint, 'usdm')} (${delta0 >= 0n ? '+' : ''}${kit.formatErc20Amount(delta0, 'usdm')}), neo:1=${kit.formatErc20Amount(balance1After as bigint, 'usdm')} (${delta1 >= 0n ? '+' : ''}${kit.formatErc20Amount(delta1, 'usdm')}) | 🎉 Complete!`
+        `📊 After: neo:0=${kit.formatErc20Amount(balance0After, 'usdm')} (${delta0 >= 0n ? '+' : ''}${kit.formatErc20Amount(delta0, 'usdm')}), neo:1=${kit.formatErc20Amount(balance1After, 'usdm')} (${delta1 >= 0n ? '+' : ''}${kit.formatErc20Amount(delta1, 'usdm')}) | 🎉 Complete!`
     );
 }
 
 transferUSDM().catch((error) => {
-    console.error('❌ Error:', (error as any).shortMessage || (error as any).message);
+    console.error('❌ Error:', error);
     process.exit(1);
 });
