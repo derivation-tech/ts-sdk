@@ -1,14 +1,17 @@
-import type { Account, Address, Chain, LocalAccount, PublicClient, WalletClient } from 'viem';
-import { isAddressEqual } from 'viem';
+import type { Account, Address, Chain, Hex, LocalAccount, PublicClient, WalletClient } from 'viem';
+import { isAddressEqual, keccak256 } from 'viem';
 import { encodeRuntimeWriteRequestData } from './calldata';
 import { resolveTxExecutionContext } from './context';
 import type {
+    BatchTransactionOptions,
     BatchTransactionPhase,
     BatchTransactionProgress,
     BatchTransactionResult,
     DefinedWriteRequest,
 } from './types';
 import { BatchTransactionError } from './types';
+import { safeNotifyLifecycleHook } from './hooks';
+import { TransactionReplacementError, waitForTransactionOutcome } from './outcome';
 
 function requireLocalAccount(client: WalletClient, index: number): LocalAccount {
     const account = client.account;
@@ -58,7 +61,8 @@ async function prepareRequest(
     account: LocalAccount,
     request: DefinedWriteRequest,
     chain: Chain | undefined,
-    nonce: number
+    nonce: number,
+    data: Hex
 ) {
     const {
         address,
@@ -76,7 +80,7 @@ async function prepareRequest(
         account,
         chain,
         to: address,
-        data: encodeRuntimeWriteRequestData(request),
+        data,
         nonce,
     });
 }
@@ -88,37 +92,68 @@ function progressSnapshot(progress: readonly BatchTransactionProgress[]): BatchT
 export async function batchSendLocalTransactions(
     publicClient: PublicClient,
     walletClients: readonly WalletClient[],
-    requests: readonly DefinedWriteRequest[]
+    requests: readonly DefinedWriteRequest[],
+    options: BatchTransactionOptions = {}
 ): Promise<BatchTransactionResult[]> {
     if (walletClients.length !== requests.length) {
-        throw new Error('walletClients length must equal requests length');
+        throw new BatchTransactionError('walletClients length must equal requests length', 'prepare', 0, [], {
+            cause: new Error('Mismatched batch lengths'),
+        });
     }
 
-    const progress: BatchTransactionProgress[] = [];
-    const nextNonceByAccount = new Map<string, number>();
-
-    for (let index = 0; index < requests.length; index += 1) {
-        const client = walletClients[index];
-        const account = requireLocalAccount(client, index);
-        const request = requests[index];
-        assertRequestAccount(index, account, request.account);
-
-        let phase: BatchTransactionPhase = 'prepare';
+    // Complete static validation before any nonce allocation, signing or broadcast.
+    const calls = requests.map((input, index) => {
         try {
-            const resolved = resolveTxExecutionContext(
+            const request = { ...input };
+            const client = walletClients[index];
+            const account = requireLocalAccount(client, index);
+            assertRequestAccount(index, account, request.account);
+            const { chain } = resolveTxExecutionContext(
                 { publicClient, walletClient: client, chain: publicClient.chain },
                 request.account,
                 request.chain
             );
-            const nonce = await allocateNonce(publicClient, resolved.chain, account, nextNonceByAccount);
-            const prepared = await prepareRequest(client, account, request, resolved.chain, nonce);
+            if (options.nonceManager && !chain) throw new Error('A shared NonceManager requires an explicit chain');
+            if (
+                ('nonce' in request && request.nonce !== undefined) ||
+                ('chainId' in request && request.chainId !== undefined)
+            )
+                throw new Error('Batch nonce and chainId overrides are not supported');
+            return { request, client, account, chain, data: encodeRuntimeWriteRequestData(request) };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Invalid batch request';
+            throw new BatchTransactionError(message, 'prepare', index, [], { cause: error });
+        }
+    });
+    const progress: BatchTransactionProgress[] = [];
+    const nextNonceByAccount = new Map<string, number>();
+
+    for (const [index, { request, client, account, chain, data }] of calls.entries()) {
+        let phase: BatchTransactionPhase = 'prepare';
+        const entry: BatchTransactionProgress = { index, submission: 'not-sent' };
+        progress.push(entry);
+        try {
+            entry.nonce = options.nonceManager
+                ? await options.nonceManager.consume({
+                      address: account.address.toLowerCase() as Address,
+                      chainId: chain!.id,
+                      client: publicClient,
+                  })
+                : await allocateNonce(publicClient, chain, account, nextNonceByAccount);
+            const prepared = await prepareRequest(client, account, request, chain, entry.nonce, data);
 
             phase = 'sign';
             const raw = await account.signTransaction(prepared as Parameters<LocalAccount['signTransaction']>[0]);
+            entry.hash = keccak256(raw);
 
             phase = 'send';
-            const hash = await publicClient.sendRawTransaction({ serializedTransaction: raw });
-            progress.push({ index, hash });
+            entry.submission = 'unknown';
+            const returnedHash = await publicClient.sendRawTransaction({ serializedTransaction: raw });
+            if (returnedHash.toLowerCase() !== entry.hash)
+                throw new Error('RPC returned a hash that does not match the signed transaction');
+            entry.submission = 'submitted';
+            const hash = entry.hash;
+            safeNotifyLifecycleHook(options.hooks, 'sent', hash, () => options.hooks?.onSent?.({ hash }));
         } catch (error) {
             throw new BatchTransactionError(
                 `Batch transaction ${index} failed during ${phase}`,
@@ -132,8 +167,9 @@ export async function batchSendLocalTransactions(
 
     for (const entry of progress) {
         try {
-            entry.receipt = await publicClient.waitForTransactionReceipt({ hash: entry.hash! });
+            entry.receipt = await waitForTransactionOutcome(publicClient, entry.hash!, options);
         } catch (error) {
+            if (error instanceof TransactionReplacementError) entry.receipt = error.receipt;
             throw new BatchTransactionError(
                 `Batch transaction ${entry.index} failed during receipt`,
                 'receipt',

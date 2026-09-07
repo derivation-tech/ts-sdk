@@ -7,17 +7,19 @@ import type {
     ContractFunctionName,
     Hash,
     Hex,
+    NonceManager,
     PublicClient,
     TransactionRequest,
     TransactionReceipt,
     Transport,
     UnionOmit,
     WalletClient,
+    WaitForTransactionReceiptParameters,
     WriteContractParameters,
 } from 'viem';
 import type { ParserResolver } from '../../parsers/registry';
 import type { ContractParser } from '../../parsers/types';
-import type { DecodedContractError } from '../../types';
+import type { DecodedContractError, MaybePromise } from '../../types';
 
 export type WriteFunctionName<TAbi extends Abi> = ContractFunctionName<TAbi, 'payable' | 'nonpayable'>;
 
@@ -88,32 +90,50 @@ export type TxContext = {
     resolveParser?: ParserResolver;
 };
 
-export type TxObserverPhase = 'sent' | 'receipt' | 'reverted' | 'event' | 'parseError';
+export type TxObserverPhase = 'sent' | 'receipt' | 'reverted' | 'event' | 'parseError' | 'log' | 'replaced';
 
 export type TxObserverErrorEvent = {
     phase: TxObserverPhase;
-    hash: Hash;
+    hash?: Hash;
     error: unknown;
-    transactionAlreadySent: true;
+    transactionAlreadySent: boolean;
+};
+
+export type ReceiptWaitOptions = Pick<
+    WaitForTransactionReceiptParameters,
+    'confirmations' | 'timeout' | 'pollingInterval' | 'checkReplacement'
+>;
+
+export type TxReplacementEvent = Parameters<NonNullable<WaitForTransactionReceiptParameters['onReplaced']>>[0] & {
+    submittedHash: Hash;
 };
 
 export type TxLifecycleHooks = {
-    onSent?: (event: { hash: Hash; description?: string }) => void;
-    onReceipt?: (event: { hash: Hash; receipt: TransactionReceipt }) => void;
+    onSent?: (event: { hash: Hash; description?: string }) => MaybePromise<void>;
+    onReceipt?: (event: { hash: Hash; submittedHash: Hash; receipt: TransactionReceipt }) => MaybePromise<void>;
+    onReplaced?: (event: TxReplacementEvent) => MaybePromise<void>;
     onReverted?: (event: {
         hash: Hash;
+        submittedHash: Hash;
         receipt: TransactionReceipt;
         error?: DecodedContractError;
         message?: string;
-    }) => void;
-    onEvent?: (event: { hash: Hash; receipt: TransactionReceipt; logIndex: number; description: string }) => void;
-    onParseError?: (event: { phase: 'transaction' | 'event' | 'error'; error: unknown }) => void;
-    onObserverError?: (event: TxObserverErrorEvent) => void;
+    }) => MaybePromise<void>;
+    onEvent?: (event: {
+        hash: Hash;
+        submittedHash: Hash;
+        receipt: TransactionReceipt;
+        logIndex: number;
+        description: string;
+    }) => MaybePromise<void>;
+    onParseError?: (event: { phase: 'transaction' | 'event' | 'error'; error: unknown }) => MaybePromise<void>;
+    onObserverError?: (event: TxObserverErrorEvent) => MaybePromise<void>;
 };
 
 export type SendTransactionOptions = {
     silent?: boolean;
     hooks?: TxLifecycleHooks;
+    wait?: ReceiptWaitOptions;
 };
 
 export type SentTransaction = {
@@ -123,8 +143,15 @@ export type SentTransaction = {
 
 export type BatchTransactionPhase = 'prepare' | 'sign' | 'send' | 'receipt';
 
+export type BatchTransactionOptions = SendTransactionOptions & {
+    /** Share one manager across concurrent calls in the same chain/RPC environment. */
+    nonceManager?: NonceManager;
+};
+
 export type BatchTransactionProgress = {
     index: number;
+    nonce?: number;
+    submission?: 'not-sent' | 'unknown' | 'submitted';
     hash?: Hash;
     receipt?: TransactionReceipt;
 };

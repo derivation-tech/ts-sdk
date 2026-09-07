@@ -12,10 +12,17 @@ export { createERC20Parser } from './parsers/erc20';
 export { createWETHParser } from './parsers/weth';
 export {
     BatchTransactionError,
+    TransactionSubmissionError,
+    TransactionReceiptError,
+    TransactionReplacementError,
+    TransactionRevertedError,
+    assertTransactionSuccess,
+    waitForTransactionOutcome,
     batchSendLocalTransactions,
     defineWriteRequest,
     sendContractTransaction,
     type BatchTransactionPhase,
+    type BatchTransactionOptions,
     type BatchTransactionProgress,
     type BatchTransactionResult,
     type DefinedWriteRequest,
@@ -53,6 +60,8 @@ export type {
     TxLifecycleHooks,
     TxObserverErrorEvent,
     TxObserverPhase,
+    ReceiptWaitOptions,
+    TxReplacementEvent,
 } from './types';
 export type {
     ContractWriteFunctionName,

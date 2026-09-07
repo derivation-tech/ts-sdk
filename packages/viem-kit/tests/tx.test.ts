@@ -1,3 +1,4 @@
+import { keccak256 } from 'viem';
 import { describe, expect, jest, test } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -210,7 +211,7 @@ describe('sendContractTransaction', () => {
                     },
                     { silent: true }
                 )
-            ).rejects.toThrow('send failed');
+            ).rejects.toMatchObject({ outcome: 'unknown', cause: expect.objectContaining({ message: 'send failed' }) });
 
             expect(info).not.toHaveBeenCalled();
         } finally {
@@ -224,7 +225,7 @@ describe('sendContractTransaction', () => {
             errorName: 'Error',
             args: ['bad transfer'],
         });
-        const onReverted = jest.fn();
+        const onReverted = jest.fn(() => undefined);
         const { context, publicClient } = createContext({ abi: erc20Abi });
         const waitForReceipt = publicClient.waitForTransactionReceipt;
         const call = publicClient.call;
@@ -279,10 +280,13 @@ describe('batchSendLocalTransactions', () => {
     test('signs and sends typed requests with local accounts', async () => {
         const publicClient = createTestPublicClient();
         const account = privateKeyToAccount('0x0000000000000000000000000000000000000000000000000000000000000001');
-        const signTransaction = jest.spyOn(account, 'signTransaction').mockResolvedValue('0xraw');
+        const signTransaction = jest.spyOn(account, 'signTransaction').mockResolvedValue('0x01');
         const walletClient = createTestWalletClient(account);
         const prepare = walletClient.prepareTransactionRequest;
         const sendRaw = publicClient.sendRawTransaction;
+        const signedHash = keccak256('0x01');
+        sendRaw.mockResolvedValue(signedHash);
+        publicClient.waitForTransactionReceipt.mockResolvedValue(makeReceipt('success', signedHash));
 
         const results = await batchSendLocalTransactions(
             publicClient,
@@ -299,9 +303,9 @@ describe('batchSendLocalTransactions', () => {
         );
 
         expect(results).toHaveLength(1);
-        expect(results[0]).toMatchObject({ index: 0, hash: txHash, receipt: { status: 'success' } });
+        expect(results[0]).toMatchObject({ index: 0, hash: signedHash, receipt: { status: 'success' } });
         expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ nonce: 0, to: tokenAddress }));
         expect(signTransaction).toHaveBeenCalledTimes(1);
-        expect(sendRaw).toHaveBeenCalledWith({ serializedTransaction: '0xraw' });
+        expect(sendRaw).toHaveBeenCalledWith({ serializedTransaction: '0x01' });
     });
 });

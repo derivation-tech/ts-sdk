@@ -61,6 +61,7 @@ export type { ParserResolver, ParserRegistry, RegisteredParser } from './parsers
 export type {
     BatchTransactionError,
     BatchTransactionPhase,
+    BatchTransactionOptions,
     BatchTransactionProgress,
     BatchTransactionResult,
     DefinedWriteRequest,
@@ -71,6 +72,8 @@ export type {
     TxLifecycleHooks,
     TxObserverErrorEvent,
     TxObserverPhase,
+    ReceiptWaitOptions,
+    TxReplacementEvent,
     TypedWriteRequest,
     WriteArgs,
     WriteFunctionName,

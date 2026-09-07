@@ -2,6 +2,7 @@ import type { Abi, Account, Address, Hash, Hex, TransactionReceipt } from 'viem'
 import type { DecodedContractError } from '../../types';
 import { decodeContractError } from '../contract-error';
 import { safeNotifyLifecycleHook } from './hooks';
+import { waitForTransactionOutcome } from './outcome';
 import { parseErrorDescription, parseEventDescription } from './parsing';
 import type { SendTransactionOptions, TxContext, TypedWriteRequest, WriteFunctionName } from './types';
 
@@ -26,14 +27,14 @@ function errorMessage(error: DecodedContractError): string {
 
 export async function waitForParsedReceipt<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
     context: TxContext,
-    hash: Hash,
+    submittedHash: Hash,
     request: TypedWriteRequest<TAbi, TFunctionName>,
     calldata: Hex,
     account: Account | Address,
     options: SendTransactionOptions = {}
 ): Promise<TransactionReceipt> {
-    const receipt = await context.publicClient.waitForTransactionReceipt({ hash });
-    safeNotifyLifecycleHook(options.hooks, 'receipt', hash, () => options.hooks?.onReceipt?.({ hash, receipt }));
+    const receipt = await waitForTransactionOutcome(context.publicClient, submittedHash, options);
+    const hash = receipt.transactionHash;
 
     if (receipt.status === 'reverted') {
         let decoded: DecodedContractError | undefined;
@@ -54,6 +55,7 @@ export async function waitForParsedReceipt<TAbi extends Abi, TFunctionName exten
         safeNotifyLifecycleHook(options.hooks, 'reverted', hash, () =>
             options.hooks?.onReverted?.({
                 hash,
+                submittedHash,
                 receipt,
                 error: decoded,
                 message: parsedMessage ?? (decoded ? errorMessage(decoded) : undefined),
@@ -69,6 +71,7 @@ export async function waitForParsedReceipt<TAbi extends Abi, TFunctionName exten
         safeNotifyLifecycleHook(options.hooks, 'event', hash, () =>
             options.hooks?.onEvent?.({
                 hash,
+                submittedHash,
                 receipt,
                 logIndex: log.logIndex ?? index,
                 description,

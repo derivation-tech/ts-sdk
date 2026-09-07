@@ -7,7 +7,13 @@ import { createDefaultParser } from './parsers/default';
 import { createParserRegistry, type ParserRegistry, type RegisteredParser } from './parsers/registry';
 import { getWrappedNativeToken } from './tokens/wrapped';
 import { getCommonErc20Tokens } from './tokens/erc20';
-import type { Erc20TokenInfo, ContractParser, TypedWriteRequest, WriteFunctionName } from './types';
+import type {
+    Erc20TokenInfo,
+    ContractParser,
+    TypedWriteRequest,
+    WriteFunctionName,
+    SendTransactionOptions,
+} from './types';
 import { sendContractTransaction } from './utils/tx';
 
 export type ChainKitOptions = {
@@ -265,7 +271,8 @@ export class ChainKit {
      */
     async sendTx<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
         walletClient: WalletClient,
-        request: TypedWriteRequest<TAbi, TFunctionName>
+        request: TypedWriteRequest<TAbi, TFunctionName>,
+        options: SendTransactionOptions = {}
     ): Promise<TransactionReceipt> {
         const sent = await sendContractTransaction(
             {
@@ -274,7 +281,8 @@ export class ChainKit {
                 chain: this.chain,
                 resolveParser: (address) => this.resolveParser(address),
             },
-            request
+            request,
+            options
         );
         return sent.receipt;
     }

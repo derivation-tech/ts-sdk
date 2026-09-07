@@ -81,7 +81,7 @@ describe('request parser lifecycle', () => {
         const { publicClient, walletClient } = setup(receipt);
         const parseEvent = jest.fn(async () => 'value:7');
         const parser: ContractParser<typeof abi> = { abi, parseEvent };
-        const onEvent = jest.fn();
+        const onEvent = jest.fn(() => undefined);
 
         const sent = await sendContractTransaction({ publicClient, walletClient, chain: mainnet }, request(parser), {
             silent: true,
@@ -90,7 +90,13 @@ describe('request parser lifecycle', () => {
         await sent.receipt;
 
         expect(parseEvent).toHaveBeenCalledWith({ eventName: 'ValueSet', args: { value: 7n } });
-        expect(onEvent).toHaveBeenCalledWith({ hash, receipt, logIndex: 0, description: 'value:7' });
+        expect(onEvent).toHaveBeenCalledWith({
+            hash,
+            submittedHash: hash,
+            receipt,
+            logIndex: 0,
+            description: 'value:7',
+        });
     });
 
     test('uses the direct request parser to describe decoded reverts', async () => {
@@ -100,7 +106,7 @@ describe('request parser lifecycle', () => {
         jest.spyOn(publicClient, 'call').mockRejectedValue({ data: revertData });
         const parseError = jest.fn(async () => 'rejected:7');
         const parser: ContractParser<typeof abi> = { abi, parseError };
-        const onReverted = jest.fn();
+        const onReverted = jest.fn(() => undefined);
 
         const sent = await sendContractTransaction({ publicClient, walletClient, chain: mainnet }, request(parser), {
             silent: true,
@@ -125,7 +131,7 @@ describe('request parser lifecycle', () => {
                 throw new Error('error parser failed');
             },
         };
-        const onParseError = jest.fn();
+        const onParseError = jest.fn(() => undefined);
 
         const sent = await sendContractTransaction({ publicClient, walletClient, chain: mainnet }, request(parser), {
             silent: true,
@@ -137,5 +143,36 @@ describe('request parser lifecycle', () => {
             phase: 'error',
             error: expect.objectContaining({ message: 'error parser failed' }),
         });
+    });
+    test('isolates a resolver failure for successful receipt logs', async () => {
+        const topics = encodeEventTopics({ abi, eventName: 'ValueSet' });
+        const receipt = makeReceipt('success', [
+            {
+                address: target,
+                topics: [topics[0]],
+                data: encodeAbiParameters([{ type: 'uint256' }], [7n]),
+                blockHash: hash,
+                blockNumber: 10n,
+                transactionHash: hash,
+                transactionIndex: 0,
+                logIndex: 0,
+                removed: false,
+            },
+        ]);
+        const { publicClient, walletClient } = setup(receipt);
+        const onParseError = jest.fn(() => undefined);
+        const sent = await sendContractTransaction(
+            {
+                publicClient,
+                walletClient,
+                resolveParser: () => {
+                    throw new Error('resolver unavailable');
+                },
+            },
+            { address: target, abi, functionName: 'setValue', args: [7n] },
+            { silent: true, hooks: { onParseError } }
+        );
+        await expect(sent.receipt).resolves.toBe(receipt);
+        expect(onParseError).toHaveBeenCalledWith(expect.objectContaining({ phase: 'event' }));
     });
 });

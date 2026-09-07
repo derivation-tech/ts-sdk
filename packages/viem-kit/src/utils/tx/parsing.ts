@@ -69,7 +69,9 @@ export async function parseTransactionDescription<TAbi extends Abi, TFunctionNam
         };
         return await parser.parseTransaction(input);
     } catch (error) {
-        options.hooks?.onParseError?.({ phase: 'transaction', error });
+        safeNotifyLifecycleHook(options.hooks, 'parseError', undefined, () =>
+            options.hooks?.onParseError?.({ phase: 'transaction', error })
+        );
         return undefined;
     }
 }
@@ -81,10 +83,9 @@ export async function parseEventDescription<TAbi extends Abi, TFunctionName exte
     options: SendTransactionOptions,
     hash: Hash
 ): Promise<string | undefined> {
-    const resolved = resolveParserForAddress(context, request, log.address);
-    if (!resolved || log.topics.length === 0) return undefined;
-
     try {
+        const resolved = resolveParserForAddress(context, request, log.address);
+        if (!resolved || log.topics.length === 0) return undefined;
         const decodedLog = decodeEventLog({
             abi: resolved.parser.abi,
             data: log.data,
@@ -115,10 +116,9 @@ export async function parseErrorDescription<TAbi extends Abi, TFunctionName exte
     options: SendTransactionOptions,
     hash: Hash
 ): Promise<string | undefined> {
-    const resolved = resolveParserForAddress(context, request, request.address);
-    if (!resolved?.parser.parseError) return undefined;
-
     try {
+        const resolved = resolveParserForAddress(context, request, request.address);
+        if (!resolved?.parser.parseError) return undefined;
         return await resolved.parser.parseError(error);
     } catch (parseError) {
         safeNotifyLifecycleHook(options.hooks, 'parseError', hash, () =>
