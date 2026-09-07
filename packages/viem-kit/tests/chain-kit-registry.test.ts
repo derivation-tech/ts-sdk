@@ -6,9 +6,9 @@ describe('ChainKitRegistry local chains', () => {
         const kit = ChainKitRegistry.for('abctest');
 
         expect(kit.chain.id).toBe(20_250_903);
-        expect(ChainKitRegistry.has('abctest')).toBe(true);
+        expect(ChainKitRegistry.has('ABCTEST')).toBe(true);
 
-        ChainKitRegistry.clearChain('abctest');
-        expect(ChainKitRegistry.has('abctest')).toBe(false);
+        ChainKitRegistry.clearChain('AbcTest');
+        expect(ChainKitRegistry.has('ABCTEST')).toBe(false);
     });
 });

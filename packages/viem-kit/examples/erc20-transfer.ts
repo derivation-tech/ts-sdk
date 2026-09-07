@@ -6,11 +6,11 @@
  * SIGNER_NEO_0=0x... RUN_TX=1 pnpm exec tsx examples/erc20-transfer.ts
  */
 
-import type { Address, LocalAccount } from 'viem';
+import type { Address, Chain, LocalAccount } from 'viem';
 import { createPublicClient, createWalletClient, erc20Abi, http } from 'viem';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
-import { ChainKitRegistry } from '../src/index';
+import { ChainKit } from '../src/index';
 
 function getAccountFromSigner(signerId: string): LocalAccount | null {
     const [name, index] = signerId.split(':');
@@ -28,19 +28,15 @@ function getAccountFromSigner(signerId: string): LocalAccount | null {
 }
 
 async function erc20TransferExample() {
-    const kit = ChainKitRegistry.for(base);
+    const chain: Chain = base;
+    const publicClient = createPublicClient({ chain, transport: http('https://mainnet.base.org') });
+    const kit = new ChainKit(chain, { publicClient });
     kit.registerErc20Token({
         symbol: 'USDC',
         name: 'USD Coin',
         address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
         decimals: 6,
     });
-
-    const publicClient = createPublicClient({
-        chain: kit.chain,
-        transport: http('https://mainnet.base.org'),
-    });
-    kit.publicClient = publicClient;
 
     const account = getAccountFromSigner('neo:0');
     if (!account) {

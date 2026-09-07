@@ -10,6 +10,13 @@ import { getCommonErc20Tokens } from './tokens/erc20';
 import type { Erc20TokenInfo, ContractParser, TypedWriteRequest, WriteFunctionName } from './types';
 import { sendContractTransaction } from './utils/tx';
 
+export type ChainKitOptions = {
+    publicClient?: PublicClient;
+    /** Omit to use built-ins; null disables wrapped-native registration. */
+    wrappedNativeToken?: Erc20TokenInfo | null;
+    addressNames?: Array<{ address: Address; name: string }>;
+};
+
 /**
  * ChainKit - Utilities for a single chain
  * Contains: AddressBook, TokenRegistry, Parsers
@@ -24,22 +31,27 @@ export class ChainKit {
     public readonly parserRegistry: ParserRegistry;
 
     public readonly nativeTokenInfo: Erc20TokenInfo;
-    public readonly wrappedNativeTokenInfo: Erc20TokenInfo;
+    private wrappedNativeToken: Erc20TokenInfo | undefined;
 
-    public publicClient: PublicClient;
+    get wrappedNativeTokenInfo(): Erc20TokenInfo | undefined {
+        return this.wrappedNativeToken;
+    }
 
-    constructor(
-        chain: Chain,
-        wrappedNativeTokenInfo?: Erc20TokenInfo | null,
-        addressNames?: Array<{ address: Address; name: string }>
-    ) {
+    public readonly publicClient: PublicClient;
+
+    constructor(chain: Chain, options: ChainKitOptions = {}) {
+        if (options.publicClient?.chain && options.publicClient.chain.id !== chain.id) {
+            throw new Error(
+                `Chain mismatch: publicClient uses ${options.publicClient.chain.id} but kit uses ${chain.id}`
+            );
+        }
         this.chain = chain;
         this.addressBook = new AddressBook();
-        this.publicClient = createPublicClient({ chain, transport: http() });
+        this.publicClient = options.publicClient ?? createPublicClient({ chain, transport: http() });
 
         // Load address names if provided
-        if (addressNames) {
-            this.addressBook.loadAddresses(addressNames);
+        if (options.addressNames) {
+            this.addressBook.loadAddresses(options.addressNames);
         }
 
         this.parserRegistry = createParserRegistry(createDefaultParser((addr) => this.getAddressName(addr)));
@@ -55,26 +67,9 @@ export class ChainKit {
         // Auto-register native token
         this.registerNativeToken();
 
-        // Auto-register wrapped native token
-        // 1. Try from built-in registry
-        let wrappedInfo = getWrappedNativeToken(chain.id);
-
-        // 2. If not in registry, use provided value
-        if (!wrappedInfo && wrappedNativeTokenInfo !== null) {
-            wrappedInfo = wrappedNativeTokenInfo;
-        }
-
-        // 3. Throw error if wrapped token not found
-        if (!wrappedInfo) {
-            throw new Error(
-                `No wrapped native token info found for chain ${chain.id} (${chain.name}). ` +
-                    `Either add it to WRAPPED_NATIVE_TOKENS or pass wrappedNativeTokenInfo to constructor.`
-            );
-        }
-
-        // 4. Set wrapped token info and register it
-        this.wrappedNativeTokenInfo = wrappedInfo;
-        this.registerWrappedNativeToken(wrappedInfo);
+        const wrappedInfo =
+            options.wrappedNativeToken === undefined ? getWrappedNativeToken(chain.id) : options.wrappedNativeToken;
+        if (wrappedInfo) this.registerWrappedNativeToken(wrappedInfo);
 
         // Auto-load common ERC20 tokens for this chain
         const commonTokens = getCommonErc20Tokens(chain.id);
@@ -128,6 +123,7 @@ export class ChainKit {
      * });
      */
     registerWrappedNativeToken(wrappedNativeToken: Erc20TokenInfo): void {
+        wrappedNativeToken = { ...wrappedNativeToken };
         const checksummedAddr = getAddress(wrappedNativeToken.address);
 
         // Register address name
@@ -139,13 +135,14 @@ export class ChainKit {
         // Create WETH parser (supports deposit/withdraw)
         const wethParser = createWETHParser(wrappedNativeToken, (addr) => this.getAddressName(addr));
         this.registerParser(checksummedAddr, wethParser);
+        this.wrappedNativeToken = wrappedNativeToken;
     }
 
     /**
      * Check if address is the wrapped native token
      */
     isWrappedNativeToken(address: Address): boolean {
-        const wrappedInfo = getWrappedNativeToken(this.chain.id);
+        const wrappedInfo = this.wrappedNativeTokenInfo;
         if (!wrappedInfo) return false;
 
         try {
@@ -159,6 +156,7 @@ export class ChainKit {
      * Register ERC20 token + auto-create parser
      */
     registerErc20Token(tokenInfo: Erc20TokenInfo, autoParser = true): void {
+        tokenInfo = { ...tokenInfo };
         const checksummedAddr = getAddress(tokenInfo.address);
 
         // Register address name (for symbol lookup)

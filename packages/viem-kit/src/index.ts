@@ -1,5 +1,5 @@
 // Main exports
-export { ChainKit } from './chain-kit';
+export { ChainKit, type ChainKitOptions } from './chain-kit';
 export { ChainKitRegistry } from './chain-kit-registry';
 export { AddressBook } from './utils/address-book';
 export { WRAPPED_NATIVE_TOKENS, getWrappedNativeToken } from './tokens/wrapped';

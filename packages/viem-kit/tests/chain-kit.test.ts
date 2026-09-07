@@ -2,7 +2,9 @@ import { describe, test, expect, beforeEach } from '@jest/globals';
 import { ChainKit } from '../src/chain-kit';
 import { mainnet } from 'viem/chains';
 import type { Address } from 'viem';
-import { defineChain, getAddress, zeroAddress } from 'viem';
+import { createPublicClient, custom, defineChain, getAddress, zeroAddress } from 'viem';
+import { sepolia } from 'viem/chains';
+import { getWrappedNativeToken } from '../src/tokens/wrapped';
 
 describe('ChainKit', () => {
     let kit: ChainKit;
@@ -30,9 +32,9 @@ describe('ChainKit', () => {
         });
 
         test('should register wrapped native token automatically', () => {
-            expect(kit.wrappedNativeTokenInfo.symbol).toBe('WETH');
-            expect(kit.wrappedNativeTokenInfo.decimals).toBe(18);
-            expect(kit.isWrappedNativeToken(kit.wrappedNativeTokenInfo.address)).toBe(true);
+            expect(kit.wrappedNativeTokenInfo?.symbol).toBe('WETH');
+            expect(kit.wrappedNativeTokenInfo?.decimals).toBe(18);
+            expect(kit.isWrappedNativeToken(kit.wrappedNativeTokenInfo!.address)).toBe(true);
         });
 
         test('should register ERC20 token', () => {
@@ -252,7 +254,7 @@ describe('ChainKit', () => {
             const usdc = monadKit.getErc20TokenInfo('USDC');
             expect(usdc?.address).toBe(getAddress('0x534b2f3A21130d7a60830c2Df862319e593943A3'));
 
-            expect(getAddress(monadKit.wrappedNativeTokenInfo.address)).toBe(
+            expect(getAddress(monadKit.wrappedNativeTokenInfo!.address)).toBe(
                 getAddress('0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541')
             );
         });
@@ -263,7 +265,7 @@ describe('ChainKit', () => {
     // ==========================================
 
     describe('Error Handling', () => {
-        test('should throw error when creating ChainKit without wrapped native token', () => {
+        test('constructs a custom chain without wrapped native metadata', () => {
             // Create a custom chain that doesn't have wrapped token in registry
             const customChain = defineChain({
                 id: 999999,
@@ -272,9 +274,10 @@ describe('ChainKit', () => {
                 rpcUrls: { default: { http: ['http://localhost'] } },
             });
 
-            expect(() => {
-                new ChainKit(customChain);
-            }).toThrow(/No wrapped native token info found/);
+            const customKit = new ChainKit(customChain);
+            expect(customKit.wrappedNativeTokenInfo).toBeUndefined();
+            expect(customKit.nativeTokenInfo.symbol).toBe('CUSTOM');
+            expect(customKit.isWrappedNativeToken(zeroAddress)).toBe(false);
         });
 
         test('should accept wrapped token info in constructor for custom chains', () => {
@@ -292,12 +295,41 @@ describe('ChainKit', () => {
                 decimals: 18,
             };
 
-            const customKit = new ChainKit(customChain, wrappedToken);
-            expect(customKit.wrappedNativeTokenInfo.symbol).toBe('WCUSTOM');
+            const customKit = new ChainKit(customChain, { wrappedNativeToken: wrappedToken });
+            expect(customKit.wrappedNativeTokenInfo?.symbol).toBe('WCUSTOM');
         });
 
         test('should handle invalid address gracefully', () => {
             expect(kit.isNativeToken('invalid' as Address)).toBe(false);
         });
+    });
+    test('isolates clients, names, parsers and wrapped token overrides for the same chain', () => {
+        const transport = custom({
+            request: async () => {
+                throw new Error('Unexpected RPC');
+            },
+        });
+        const firstClient = createPublicClient({ chain: mainnet, transport });
+        const secondClient = createPublicClient({ chain: mainnet, transport });
+        const address = '0x0000000000000000000000000000000000000011';
+        const wrappedToken = { address, symbol: 'ALT', name: 'Alternate wrapped token', decimals: 18 } as const;
+        const builtIn = getWrappedNativeToken(mainnet.id);
+        const first = new ChainKit(mainnet, { publicClient: firstClient, wrappedNativeToken: wrappedToken });
+        const second = new ChainKit(mainnet, { publicClient: secondClient, wrappedNativeToken: null });
+        second.registerAddressName(address, 'Second');
+        expect(first.publicClient).toBe(firstClient);
+        expect(second.publicClient).toBe(secondClient);
+        expect(first.getAddressName(address)).toBe('ALT');
+        expect(second.getAddressName(address)).toBe('Second');
+        expect(first.getParser(address)).not.toBe(second.getParser(address));
+        expect(first.isWrappedNativeToken(address)).toBe(true);
+        expect(second.isWrappedNativeToken(address)).toBe(false);
+        expect(second.wrappedNativeTokenInfo).toBeUndefined();
+        expect(getWrappedNativeToken(mainnet.id)).toBe(builtIn);
+    });
+
+    test('rejects a client configured for a different chain', () => {
+        const client = createPublicClient({ chain: sepolia, transport: custom({ request: async () => undefined }) });
+        expect(() => new ChainKit(mainnet, { publicClient: client })).toThrow('Chain mismatch');
     });
 });

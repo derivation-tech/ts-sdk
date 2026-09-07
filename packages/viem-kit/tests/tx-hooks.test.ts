@@ -1,8 +1,10 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import type { Address, Hash, Hex, TransactionReceipt } from 'viem';
+import type { Address, Chain, Hash, Hex, TransactionReceipt } from 'viem';
 import { concatHex, createPublicClient, createWalletClient, custom, encodeFunctionData, parseAbi } from 'viem';
 import { mainnet } from 'viem/chains';
 import { sendContractTransaction } from '../src/utils/tx';
+import { ChainKit } from '../src/chain-kit';
+import * as WETH from '../src/contracts/weth';
 
 const sender = '0x0000000000000000000000000000000000000001' as Address;
 const target = '0x0000000000000000000000000000000000000002' as Address;
@@ -11,10 +13,10 @@ const suffix = '0xdeadbeef' as Hex;
 const abi = parseAbi(['function setValue(uint256 value)']);
 const payableAbi = parseAbi(['function deposit() payable']);
 
-function setup(status: 'success' | 'reverted' = 'success') {
+function setup(status: 'success' | 'reverted' = 'success', chain: Chain = mainnet) {
     const transport = custom({ request: async () => undefined });
-    const publicClient = createPublicClient({ chain: mainnet, transport });
-    const walletClient = createWalletClient({ account: sender, chain: mainnet, transport });
+    const publicClient = createPublicClient({ chain, transport });
+    const walletClient = createWalletClient({ account: sender, chain, transport });
     const receipt: TransactionReceipt = {
         transactionHash: hash,
         blockNumber: 10n,
@@ -111,5 +113,39 @@ describe('transaction lifecycle observers', () => {
                 data: encodeFunctionData({ abi: payableAbi, functionName: 'deposit' }),
             })
         );
+    });
+});
+
+describe('wrapped-native instance configuration', () => {
+    test('fails before sending when wrapped-native metadata is disabled', async () => {
+        const { publicClient, walletClient, sendTransaction } = setup();
+        const kit = new ChainKit(mainnet, { publicClient, wrappedNativeToken: null });
+        await expect(WETH.deposit(publicClient, walletClient, kit, '1')).rejects.toThrow(
+            'Wrapped native token not found'
+        );
+        await expect(WETH.withdraw(publicClient, walletClient, kit, '1')).rejects.toThrow(
+            'Wrapped native token not found'
+        );
+        expect(sendTransaction).not.toHaveBeenCalled();
+    });
+
+    test('uses explicit instance metadata instead of client metadata and preserves native units', async () => {
+        const oldWrappedAddress = '0x0000000000000000000000000000000000000099' as Address;
+        const chain: Chain = {
+            ...mainnet,
+            id: 999999,
+            nativeCurrency: { name: 'Custom', symbol: 'C', decimals: 6 },
+            contracts: { wrappedEther: { address: oldWrappedAddress } },
+        };
+        const { publicClient, walletClient, sendTransaction } = setup('success', chain);
+        const kit = new ChainKit(chain, {
+            publicClient,
+            wrappedNativeToken: { address: target, symbol: 'WC', name: 'Wrapped Custom', decimals: 6 },
+        });
+        kit.registerErc20Token({ address: oldWrappedAddress, symbol: 'OLD', name: 'Old Wrapped', decimals: 6 });
+        await WETH.deposit(publicClient, walletClient, kit, '1.25');
+        expect(sendTransaction).toHaveBeenCalledWith(expect.objectContaining({ to: target, value: 1_250_000n }));
+        await WETH.withdraw(publicClient, walletClient, kit, '1.25');
+        expect(sendTransaction).toHaveBeenLastCalledWith(expect.objectContaining({ to: target }));
     });
 });

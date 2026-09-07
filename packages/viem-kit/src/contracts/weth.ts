@@ -1,4 +1,4 @@
-import { parseEther } from 'viem';
+import { parseUnits } from 'viem';
 import type { Account, Address, PublicClient, WalletClient, TransactionReceipt } from 'viem';
 import { ChainKit } from '../chain-kit';
 import { sendContractTransaction } from '../utils/tx';
@@ -23,16 +23,12 @@ export async function deposit(
     kit: ChainKit,
     amount: string
 ): Promise<TransactionReceipt> {
-    const wrappedEther = publicClient.chain?.contracts?.wrappedEther;
-    const wrappedTokenAddress =
-        typeof wrappedEther === 'object' && 'address' in wrappedEther ? wrappedEther.address : null;
-    const wrappedTokenInfo =
-        (wrappedTokenAddress ? kit.getErc20TokenInfo(wrappedTokenAddress) : null) ?? kit.wrappedNativeTokenInfo;
+    const wrappedTokenInfo = kit.wrappedNativeTokenInfo;
     if (!wrappedTokenInfo) {
         throw new Error(`Wrapped native token not found for chain ${publicClient.chain?.id}`);
     }
 
-    const amountWei = parseEther(amount);
+    const amountWei = parseUnits(amount, kit.nativeTokenInfo.decimals);
 
     const sent = await sendContractTransaction(
         {
@@ -67,11 +63,7 @@ export async function withdraw(
     kit: ChainKit,
     amount: string
 ): Promise<TransactionReceipt> {
-    const wrappedEther = publicClient.chain?.contracts?.wrappedEther;
-    const wrappedTokenAddress =
-        typeof wrappedEther === 'object' && 'address' in wrappedEther ? wrappedEther.address : null;
-    const wrappedTokenInfo =
-        (wrappedTokenAddress ? kit.getErc20TokenInfo(wrappedTokenAddress) : null) ?? kit.wrappedNativeTokenInfo;
+    const wrappedTokenInfo = kit.wrappedNativeTokenInfo;
     if (!wrappedTokenInfo) {
         throw new Error(`Wrapped native token not found for chain ${publicClient.chain?.id}`);
     }
