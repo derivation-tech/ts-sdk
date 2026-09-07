@@ -1,0 +1,23 @@
+---
+'@derivation-tech/viem-kit': major
+---
+
+Refactor parser and transaction APIs around viem-first typed requests.
+
+Removes the formatter compatibility surface, the legacy root error extraction export, and the untyped TxRequest transaction helper API. Contract writes now use viem-compatible typed write requests, parser registries resolve typed parser envelopes, and local batch signing is explicit through batchSendLocalTransactions.
+
+`TypedWriteRequest` now follows viem's payable and zero-argument conditions. Heterogeneous local batches use `defineWriteRequest`, return `{ index, hash, receipt }` entries, allocate pending nonces per account, and retain submitted hashes on partial failure. Lifecycle observer failures no longer turn an already-submitted transaction into a send failure.
+
+ESM declaration wrappers now use NodeNext-compatible implementation specifiers and are covered by ESM and CommonJS consumer type fixtures.
+
+ChainKit now takes named options for client injection, address names and wrapped-native metadata. Wrapped-native metadata is optional; explicit overrides take precedence and null disables automatic registration. Same-chain instances keep their own metadata and clients.
+
+Transaction options now expose receipt wait configuration. Async observers, logger failures and parser resolver failures are isolated. Receipt hooks include submittedHash and the actual receipt hash; cancellation and changed-intent replacement throw TransactionReplacementError. Submission and wait errors retain reconciliation evidence, and assertTransactionSuccess provides explicit reverted-receipt enforcement.
+
+Local batches preflight all static inputs before broadcasting, support an explicitly shared viem NonceManager and common wait options, and retain reserved nonces and signed hashes with submitted/unknown/not-sent progress on failures. RPC-returned hashes must match the signed payload.
+
+Environment accounts, signer-aware address resolution, artifact/Foundry helpers and deployments now live under @derivation-tech/viem-kit/node. Core entries no longer load Node tooling or dynamic eval. Ledger loads lazily through native import(), and environment account caches belong to individual kits. Deployment helpers share chain, fee, wait and outcome handling with contract writes.
+
+WETH helpers use the kit's explicit wrapped-native metadata and the chain's native decimals, and fail before broadcast when wrapped-native metadata is disabled.
+
+Package verification now includes an isolated tarball consumer modeled on Anchored's typed FundController administration flow, CJS/ESM loading without Ledger, and a browser bundle. A migration guide covers the consumer's fee, metadata, parser, import and transaction-outcome changes.

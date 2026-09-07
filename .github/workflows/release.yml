@@ -43,6 +43,10 @@ jobs:
           EOF
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build Ledger Dependency
+        run: pnpm -C packages/viem-ledger run build
+      - name: Verify viem-kit
+        run: pnpm -C packages/viem-kit run verify
       - name: Build
         run: pnpm run nx
       - name: Create Release Pull Request or Publish to npm

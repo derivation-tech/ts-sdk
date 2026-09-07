@@ -1,387 +1,259 @@
 # Viem Kit
 
-A robust, clean, and efficient `viem`-based utility library for interacting with EVM chains. Provides address book management, contract parsers, transaction helpers, and ERC20/WETH utilities with comprehensive logging and type safety.
+Typed contract execution, receipt diagnostics, address names and token metadata
+for viem applications. Clients, signers and application policy remain explicit.
 
-## Features
+This branch contains the planned breaking API migration from 0.2.1. See
+[MIGRATION.md](./MIGRATION.md) before upgrading an existing consumer.
 
-- **Singleton Chain Management**: `ChainKitRegistry` provides per-chain utilities
-- **Address Book**: Human-readable address mapping with case-insensitive lookups
-- **Token Registry**: ERC20 token information with decimals and formatting
-- **Contract Parsers**: Custom parsers for better transaction/event logging
-- **Transaction Helpers**: Simplified transaction sending with logging
-- **ERC20 Utilities**: Common ERC20 operations with reduced boilerplate
-- **WETH Support**: Wrapped native token deposit/withdraw functions
-- **Batch Operations**: Efficient batch transaction sending
-- **Type Safety**: Full TypeScript support with viem types
+## Installation and entries
 
-## Installation
-
-```bash
-npm install @derivation-tech/viem-kit
+```sh
+pnpm add @derivation-tech/viem-kit viem
 ```
 
-## Public Entrypoints (Exports)
+| Entry                                 | Contents                                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `@derivation-tech/viem-kit`           | ChainKit, parser registries, transaction helpers, ERC20/WETH/Multicall, common viem utilities |
+| `@derivation-tech/viem-kit/utils`     | Transactions, errors, address book and logging                                                |
+| `@derivation-tech/viem-kit/abis`      | WETH and Multicall ABIs                                                                       |
+| `@derivation-tech/viem-kit/contracts` | ERC20, WETH and Multicall helpers                                                             |
+| `@derivation-tech/viem-kit/chains`    | Additional chain definitions                                                                  |
+| `@derivation-tech/viem-kit/node`      | Environment accounts, signer address resolution, artifacts, Foundry and deployment helpers    |
 
-This package only supports the following import paths:
+All entries support ESM and CommonJS. Core entries can be bundled for browsers
+and do not import Node tooling. Deep imports into `dist` or internal files are
+unsupported. The Node entry loads the optional Ledger package only when requested.
 
-- `@derivation-tech/viem-kit`
-- `@derivation-tech/viem-kit/abis`
-- `@derivation-tech/viem-kit/contracts`
-- `@derivation-tech/viem-kit/utils`
-- `@derivation-tech/viem-kit/chains`
+## Chain instances
 
-Deep imports (for example `@derivation-tech/viem-kit/dist/...` or `@derivation-tech/viem-kit/utils/account`) are intentionally unsupported and may fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+```ts
+import { createPublicClient, createWalletClient, http, erc20Abi } from 'viem';
+import { mainnet } from 'viem/chains';
+import { ChainKit, assertTransactionSuccess } from '@derivation-tech/viem-kit';
 
-Both ESM (`import`) and CJS (`require`) are supported via conditional exports.
+const publicClient = createPublicClient({ chain: mainnet, transport: http(rpcUrl) });
+const walletClient = createWalletClient({ chain: mainnet, account, transport: http(rpcUrl) });
+const kit = new ChainKit(mainnet, { publicClient });
 
-## Environment Variables
+kit.registerAddressName(treasury, 'Treasury');
+kit.registerErc20Token({ address: token, symbol: 'USDC', name: 'USD Coin', decimals: 6 });
 
-This package does not read RPC URLs from environment variables. If you need a custom RPC, pass your own `transport` (or overwrite `kit.publicClient`) when creating a `PublicClient`.
-
-The following env vars are used by the optional account helpers and examples:
-
-```bash
-# getAccount('alice') prefers ALICE_MNEMONIC (addressIndex 0), then ALICE_PRIVATE_KEY
-export ALICE_MNEMONIC="your twelve word mnemonic phrase here..."
-export ALICE_PRIVATE_KEY=0x...
-
-# getAccount('neo:0-10') requires NEO_MNEMONIC and derives multiple addressIndex values
-export NEO_MNEMONIC="another twelve word mnemonic phrase here..."
+const receipt = assertTransactionSuccess(
+    await kit.sendTx(
+        walletClient,
+        {
+            address: token,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [treasury, kit.parseErc20Amount('10', 'USDC')],
+            gas: 100_000n,
+            maxFeePerGas: 10_000_000_000n,
+            maxPriorityFeePerGas: 1_000_000_000n,
+        },
+        { wait: { confirmations: 2, timeout: 120_000 } }
+    )
+);
 ```
 
-## Quick Start
+Provide the application account, RPC URL and addresses explicitly. ChainKit does
+not read environment variables to create clients. Its `publicClient` is readonly;
+construct another kit for another RPC or fork. A known client/chain mismatch fails
+before a transaction is sent.
 
-```typescript
-import { createPublicClient, createWalletClient, http } from 'viem';
-import { base } from 'viem/chains';
-import { ChainKitRegistry, ERC20, WETH } from '@derivation-tech/viem-kit';
-import { mnemonicToAccount } from 'viem/accounts';
+`ChainKitOptions` also accepts `addressNames` and `wrappedNativeToken`:
 
-// Setup
-const publicClient = createPublicClient({
-    chain: base,
-    transport: http(),
-});
+- Omit `wrappedNativeToken` to use built-in metadata when available.
+- Supply metadata to override built-ins for this instance.
+- Pass `null` to disable automatic wrapped-native registration.
 
-const walletClient = createWalletClient({
-    account: mnemonicToAccount('your mnemonic here'),
-    chain: base,
-    transport: http(),
-});
+Custom chains do not require wrapped-native metadata. `wrappedNativeTokenInfo` is
+optional; WETH operations fail before broadcasting if it is absent. WETH helpers
+use instance metadata and the chain's native decimals.
 
-const kit = ChainKitRegistry.for(base);
+Instances own their tokens, parsers and address names. Useful methods include
+`getAddressName`, `getErc20TokenInfo`, `formatErc20Amount`, `parseErc20Amount`,
+`registerParser` and `resolveParser`.
 
-// Query ERC20 balance
-const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
-const balance = await ERC20.balanceOf(publicClient, usdcAddress, walletClient.account.address);
-const formatted = kit.formatErc20Amount(balance, usdcAddress);
-console.log(`USDC Balance: ${formatted}`);
+`ChainKitRegistry.for(chainOrIdOrName)` remains a process-wide convenience for
+**default** kits. It caches by chain ID. Use independent `new ChainKit(...)`
+instances for configured clients, forks and concurrent workflows; do not put a
+custom RPC into the global registry. `has`, `clearChain` and named lookup are
+case-insensitive; `getAll` and `clear` are available for lifecycle management.
 
-// Deposit ETH to WETH
-const receipt = await WETH.deposit(publicClient, walletClient, kit, '0.1');
-console.log(`Deposited 0.1 ETH to WETH: ${receipt.transactionHash}`);
-```
+## Transactions and receipts
 
-## Core Components
+`TypedWriteRequest` derives ABI names, arguments, payable values and transaction
+fields from viem. Fees, gas, nonce and `dataSuffix` pass through the same send path.
+The SDK encodes calldata once before async transaction parsing.
 
-### ChainKitRegistry
+```ts
+import { sendContractTransaction, assertTransactionSuccess } from '@derivation-tech/viem-kit';
 
-Singleton manager for chain-specific utilities:
-
-```typescript
-import { ChainKitRegistry } from '@derivation-tech/viem-kit';
-
-const kit = ChainKitRegistry.for(base);
-// Returns the same instance for base chain across your app
-```
-
-### ChainKit
-
-Per-chain utilities containing address book, token registry, and parsers:
-
-```typescript
-// Address book
-kit.addressBook.registerAddressName('0x...', 'MyContract');
-const name = kit.addressBook.getAddressName('0x...'); // 'MyContract'
-
-// Token registry
-kit.registerErc20Token({
-    symbol: 'USDC',
-    name: 'USD Coin',
-    address: '0x...',
-    decimals: 6,
-});
-
-// Formatting
-const formatted = kit.formatErc20Amount(balance, tokenAddress);
-const parsed = kit.parseErc20Amount('100.5', tokenAddress);
-```
-
-### ERC20 Utilities
-
-Common ERC20 operations with reduced boilerplate:
-
-```typescript
-import { ERC20 } from '@derivation-tech/viem-kit';
-
-// Read operations
-const balance = await ERC20.balanceOf(publicClient, token, account);
-const allowance = await ERC20.allowanceOf(publicClient, token, owner, spender);
-const totalSupply = await ERC20.totalSupply(publicClient, token);
-
-// Write operations (with logging)
-const receipt = await ERC20.transfer(publicClient, walletClient, kit, token, to, amount);
-const receipt = await ERC20.approve(publicClient, walletClient, kit, token, spender, amount);
-
-// Batch operations
-const balances = await ERC20.batchBalanceOf(publicClient, token, accounts);
-```
-
-### WETH Utilities
-
-Wrapped native token operations:
-
-```typescript
-import { WETH } from '@derivation-tech/viem-kit';
-
-// Deposit native token to wrapped token
-const receipt = await WETH.deposit(publicClient, walletClient, kit, '0.1');
-
-// Withdraw wrapped token to native token
-const receipt = await WETH.withdraw(publicClient, walletClient, kit, '0.05');
-```
-
-### Transaction Helpers
-
-Typed contract transaction sending with parser-backed logging:
-
-```typescript
-import { erc20Abi } from 'viem';
-import { batchSendLocalTransactions, defineWriteRequest, sendContractTransaction } from '@derivation-tech/viem-kit';
-
-// Single transaction using ChainKit's public client and parser registry.
-const receipt = await kit.sendTx(walletClient, {
-    address: tokenAddress,
-    abi: erc20Abi,
-    functionName: 'transfer',
-    args: [to, amount],
-});
-
-// Custom context when you need a different public client or hooks.
 const sent = await sendContractTransaction(
     {
         publicClient,
         walletClient,
-        chain,
+        chain: kit.chain,
         resolveParser: (address) => kit.resolveParser(address),
     },
+    request,
     {
-        address: tokenAddress,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [to, amount],
+        wait: { confirmations: 2, timeout: 120_000, pollingInterval: 1_000 },
+        hooks: {
+            onSent: ({ hash, description }) => logger.info(hash, description),
+            onEvent: ({ description }) => logger.info(description),
+            onObserverError: ({ phase, error }) => logger.warn(phase, error),
+        },
     }
 );
-const receiptWithHooks = await sent.receipt;
+const receipt = assertTransactionSuccess(await sent.receipt);
+```
 
-// Batch signing is explicit and only supports WalletClients backed by local accounts.
-const batchResults = await batchSendLocalTransactions(publicClient, walletClients, [
-    defineWriteRequest({
-        address: tokenAddress,
+`sent.hash` is the submitted hash. Receipt waiting begins after submission; always
+handle `sent.receipt`. `ChainKit.sendTx` is a convenience that waits and returns
+that receipt. Both accept the same options. `silent` suppresses built-in send logs,
+but does not disable explicitly supplied hooks.
+
+Wait options are viem's `confirmations`, `timeout`, `pollingInterval` and
+`checkReplacement`; omitted settings use viem defaults.
+
+| Result                                       | Contract                                                                                                        |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Successful original transaction or repricing | Returns the receipt                                                                                             |
+| Reverted original transaction                | Returns the raw reverted receipt; `assertTransactionSuccess` throws `TransactionRevertedError` retaining it     |
+| Cancellation or different-intent replacement | Throws `TransactionReplacementError` with original hash, reason and replacement receipt                         |
+| Receipt timeout/RPC failure                  | Throws `TransactionReceiptError` with submitted hash and cause                                                  |
+| Failure inside wallet submission             | Conservatively throws `TransactionSubmissionError` with `outcome: 'unknown'`, public request identity and cause |
+| Static validation/encoding failure           | Fails before calling the wallet                                                                                 |
+
+Receipt hooks carry both `submittedHash` and the actual receipt `hash`.
+`onReplaced` includes viem's replacement details. A successful cancellation
+receipt is not treated as successful execution of the original request.
+
+Hooks may return promises. Synchronous errors and rejected promises are reported
+to `onObserverError` and cannot change transaction outcomes. Hooks are not awaited;
+the caller owns delivery guarantees for external logging. Parser failures are
+reported through `onParseError`; parser functions should bound any network I/O
+they perform. Revert replay at the receipt block is best-effort diagnostic evidence,
+not an exact replay of intra-block execution state.
+
+The SDK never retries submission automatically. A wait failure or unknown send
+result requires reconciliation; it is not evidence that a transaction was never
+accepted. For RPC-wallet sends a hash may be unavailable after an error.
+
+## Parsers
+
+```ts
+import { createContractParser } from '@derivation-tech/viem-kit';
+
+kit.registerParser(
+    token,
+    createContractParser({
         abi: erc20Abi,
-        functionName: 'transfer',
-        args: [to, amount],
-    }),
-]);
+        transactions: {
+            transfer: ({ args }) => `Transfer ${args[1]} to ${kit.getAddressName(args[0])}`,
+        },
+        events: {
+            Transfer: ({ args }) => `Transferred ${args.value} to ${kit.getAddressName(args.to)}`,
+        },
+        parseErrorFallback: (error) => error.message,
+    })
+);
 ```
 
-`sendContractTransaction` returns the transaction hash immediately and exposes receipt waiting through `sent.receipt`. Parser and receipt callbacks can be wired through lifecycle hooks. Successful batch entries contain `{ index, hash, receipt }`. If a batch fails after submitting one or more transactions, `BatchTransactionError.progress` retains their hashes and any receipts already collected.
+`createERC20Parser`, `createWETHParser`, `createDefaultParser` and
+`createParserRegistry` are available for composition. A request can also supply a
+typed `parser` directly. Business-specific decoding and formatting belong in the
+consumer. Logs are decoded against the emitting address's parser.
 
-```typescript
-await sendContractTransaction(context, request, {
-    hooks: {
-        onSent: ({ hash, description }) => console.log(hash, description),
-        onEvent: ({ description }) => console.log(description),
+## Local batches
+
+```ts
+import { createNonceManager } from 'viem';
+import { batchSendLocalTransactions, defineWriteRequest } from '@derivation-tech/viem-kit';
+
+// Own one manager per RPC/fork environment, and share it across concurrent calls.
+const nonceManager = createNonceManager({
+    source: {
+        get: ({ address }) => publicClient.getTransactionCount({ address, blockTag: 'pending' }),
+        set: () => undefined,
     },
+});
+const results = await batchSendLocalTransactions(
+    publicClient,
+    walletClients,
+    [defineWriteRequest({ address: token, abi: erc20Abi, functionName: 'transfer', args: [treasury, 1n] })],
+    { nonceManager, wait: { timeout: 120_000 } }
+);
+```
+
+Wallets must use local accounts and match their request accounts. Each request
+needs a corresponding wallet. Static account, chain and calldata validation runs
+for the entire batch before any broadcast. Explicit request `nonce` and `chainId`
+are prohibited because the batch owns allocation and chain selection.
+
+Without a shared manager, allocation is per-call and is suitable only for
+serialized calls with exclusive sender ownership. A shared manager coordinates
+participating calls in one process; it does not coordinate other processes,
+external senders or unrelated wallets. Single local-wallet sends can use viem's
+account nonce manager when they need the same coordination policy.
+
+Successful entries remain `{ index, hash, receipt }`. `BatchTransactionError`
+retains `phase`, `index`, `cause` and `progress`; entries include reserved nonces,
+signed hashes, known receipts and `submission` states (`not-sent`, `unknown`,
+`submitted`). Raw hashes are calculated before RPC submission. An inconsistent
+RPC response preserves the signed hash and reports an unknown result.
+
+After a preparation or signing failure, a shared manager may retain a consumed
+nonce. Reconcile all active calls before explicit nonce reuse or creating a fresh
+manager. Never roll back a reservation just because submission returned an error.
+Batch receipts use the same replacement/wait semantics; callers explicitly assert
+receipt success when their workflow requires all transactions to succeed.
+
+## Node tools
+
+```ts
+import { ArtifactHelper, deployArtifact, getAccount } from '@derivation-tech/viem-kit/node';
+
+const account = await getAccount(kit, 'deployer');
+const artifact = ArtifactHelper.loadArtifact('out/Example.sol/Example.json');
+const address = await deployArtifact(publicClient, walletClient, {
+    artifact,
+    constructorArgs: [],
+    transaction: { gas: 1_000_000n, maxFeePerGas: 10_000_000_000n },
+    wait: { confirmations: 2, timeout: 120_000 },
 });
 ```
 
-### Migrating from the legacy transaction API
+`getAccount` reads named environment credentials: `DEPLOYER_MNEMONIC` or
+`DEPLOYER_PRIVATE_KEY` for `deployer`, and `DEPLOYER_MNEMONIC` for `deployer:0`.
+Setting both forms for a bare name is an error. Account caches belong to the kit.
+`expandSignerIdPattern` expands ranges before individual account resolution.
 
-| Removed API                     | Replacement                                                       |
-| ------------------------------- | ----------------------------------------------------------------- |
-| `sendTxWithLog`                 | `kit.sendTx` or `sendContractTransaction`                         |
-| `batchSendTxWithLog`            | `batchSendLocalTransactions` with `defineWriteRequest`            |
-| `TxRequest`                     | `TypedWriteRequest`                                               |
-| formatter compatibility methods | `ContractParser.parseTransaction`, `parseEvent`, and `parseError` |
-| root error extraction helper    | `decodeContractError`                                             |
+Ledger signers require the optional `@derivation-tech/viem-ledger` peer. Hardware
+access occurs only when Ledger is requested. Existing consumer signer policy,
+permissions and fork restrictions should remain in the consumer.
 
-### Contract Parsers
+`deployArtifact` and `deployBytecode` validate chains, retain submission/wait
+errors, reject reverted receipts and require a deployment address. Legacy
+`confirmations` defaults to 2; `wait.confirmations` takes precedence.
+`ArtifactHelper` and `FoundryHelper` perform local file operations from this entry.
 
-Custom parsers for better transaction and event logging:
+## Validation
 
-```typescript
-import { erc20Abi } from 'viem';
-import { createContractParser, createERC20Parser, createWETHParser } from '@derivation-tech/viem-kit';
-
-// ERC20 parser
-const erc20Parser = createERC20Parser(tokenInfo, (address) => kit.getAddressName(address));
-kit.registerParser(tokenAddress, erc20Parser);
-
-// WETH parser (includes deposit/withdraw)
-const wethParser = createWETHParser(wethInfo, (address) => kit.getAddressName(address));
-kit.registerParser(wethAddress, wethParser);
-
-// Custom parser maps are keyed by ABI function/event names.
-const parser = createContractParser({
-    abi: erc20Abi,
-    transactions: {
-        transfer: ({ args }) => `transfer(${args[0]}, ${args[1]})`,
-    },
-    events: {
-        Transfer: ({ args }) => `Transfer(${args.from}, ${args.to}, ${args.value})`,
-    },
-});
+```sh
+pnpm -C packages/viem-ledger run build
+pnpm -C packages/viem-kit run verify
 ```
 
-## Token Registry
+Verification includes lint, source/test/example types, Jest, build, NodeNext ESM
+and CJS types, a packed Anchored-shaped consumer, browser bundling, publint and
+attw. Consumer tests use a custom RPC transport, synthetic addresses and no
+Ledger installation. They do not broadcast or prove production/fork behavior.
 
-### Wrapped Native Tokens
+To test an already-built package against another installed viem peer:
 
-Pre-configured wrapped native tokens for 30+ chains:
-
-```typescript
-import { WRAPPED_NATIVE_TOKENS, getWrappedNativeToken } from '@derivation-tech/viem-kit';
-
-// Get wrapped token info for a chain
-const wrappedToken = getWrappedNativeToken(8453); // Base
-console.log(wrappedToken); // { symbol: 'WETH', address: '0x...', decimals: 18 }
+```sh
+pnpm -C packages/viem-kit run verify:consumer /path/to/viem
 ```
-
-### Common ERC20 Tokens
-
-Pre-configured common ERC20 tokens:
-
-```typescript
-import { COMMON_ERC20_TOKENS, getCommonErc20Tokens } from '@derivation-tech/viem-kit';
-
-// Get common tokens for a chain
-const commonTokens = getCommonErc20Tokens(8453); // Base
-console.log(commonTokens); // Array of Erc20TokenInfo
-```
-
-## Examples
-
-See the `examples/` directory for complete examples:
-
-- `abc-testnet.ts` - Custom chain setup
-- `abc-transfer.ts` - ERC20 transfer on custom chain
-- `batch-transfer.ts` - Batch ERC20 transfers
-- `erc20-transfer.ts` - Standard ERC20 operations
-- `monad.ts` - Monad chain example
-- `singleton.ts` - Singleton pattern usage
-
-## API Reference
-
-### ChainKitRegistry
-
-- `for(chainIdOrNameOrChain: number | string | Chain): ChainKit` - Get or create a ChainKit singleton
-
-### ChainKit
-
-- `addressBook: AddressBook` - Address-to-name mappings
-- `tokens: Map<string, Erc20TokenInfo>` - Token registry
-- `parserRegistry: ParserRegistry` - Contract parser registry
-- `registerErc20Token(tokenInfo: Erc20TokenInfo): void` - Register token
-- `registerParser(address: Address, parser: ContractParser): void` - Register parser
-- `resolveParser(address: Address): RegisteredParser | undefined` - Resolve parser with address metadata
-- `getParser(address: Address): ContractParser | undefined` - Get parser for contract address
-- `sendTx(walletClient, request): Promise<TransactionReceipt>` - Send a typed contract transaction
-- `getErc20TokenInfo(symbolOrAddress: string): Erc20TokenInfo | undefined` - Get token info
-- `formatErc20Amount(amount: bigint, tokenSymbolOrAddress: string): string` - Format amount
-- `parseErc20Amount(amount: string, tokenSymbolOrAddress: string): bigint` - Parse amount
-- `isNativeToken(address: Address): boolean` - Check if native token
-- `isWrappedNativeToken(address: Address): boolean` - Check if wrapped native token
-
-### ERC20
-
-- `balanceOf(publicClient, token, account): Promise<bigint>` - Get balance
-- `allowanceOf(publicClient, token, owner, spender): Promise<bigint>` - Get allowance
-- `transfer(publicClient, walletClient, kit, token, to, amount): Promise<TransactionReceipt>` - Transfer
-- `approve(publicClient, walletClient, kit, token, spender, amount): Promise<TransactionReceipt>` - Approve
-- `batchBalanceOf(publicClient, token, accounts): Promise<bigint[]>` - Batch balances
-
-### WETH
-
-- `deposit(publicClient, walletClient, kit, amount): Promise<TransactionReceipt>` - Deposit
-- `withdraw(publicClient, walletClient, kit, amount): Promise<TransactionReceipt>` - Withdraw
-
-### Transaction Helpers
-
-- `sendContractTransaction(context, request, options?): Promise<SentTransaction>` - Send a typed contract write and parse transaction/receipt context through registered parsers
-- `defineWriteRequest(request): DefinedWriteRequest` - Preserve per-request ABI inference before adding it to a heterogeneous batch
-- `batchSendLocalTransactions(publicClient, walletClients, requests): Promise<BatchTransactionResult[]>` - Sign and send defined contract writes from local-account wallet clients; each result contains `index`, `hash`, and `receipt`
-
-## Type Safety
-
-The library provides full TypeScript support with viem types:
-
-```typescript
-import type { Address, PublicClient, WalletClient, TransactionReceipt } from '@derivation-tech/viem-kit';
-import type {
-    BatchTransactionResult,
-    ContractParser,
-    DefinedWriteRequest,
-    Erc20TokenInfo,
-    TypedWriteRequest,
-} from '@derivation-tech/viem-kit';
-```
-
-## Error Handling
-
-All functions include proper error handling and logging:
-
-```typescript
-try {
-    const receipt = await ERC20.transfer(publicClient, walletClient, kit, token, to, amount);
-    console.log('Transfer successful:', receipt.transactionHash);
-} catch (error) {
-    console.error('Transfer failed:', error);
-}
-```
-
-## Coding Practices
-
-### No Trailing Spaces Rule
-
-**All code must not contain trailing spaces.** This is enforced as a coding practice rule:
-
-- **ESLint**: `no-trailing-spaces: 'error'` rule is enabled
-- **Prettier**: Automatically removes trailing spaces during formatting
-- **Pre-commit Hook**: `.pre-commit-hook.sh` prevents commits with trailing spaces
-
-#### Enforcement Tools
-
-1. **Automatic Removal**: Run `find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.json" -o -name "*.md" \) -exec sed -i '' -e 's/[[:space:]]*$//' {} \;`
-2. **IDE Setup**: Configure your editor to show trailing spaces and remove them on save
-3. **Pre-commit**: Copy `.pre-commit-hook.sh` to `.git/hooks/pre-commit` to enforce this rule
-
-#### Why This Matters
-
-- **Clean diffs**: Trailing spaces create unnecessary changes in version control
-- **Consistency**: Ensures uniform code formatting across the team
-- **Readability**: Prevents invisible characters that can cause confusion
-- **Best practice**: Industry standard for clean, maintainable code
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Ensure no trailing spaces (run the removal command if needed)
-5. Add tests
-6. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.

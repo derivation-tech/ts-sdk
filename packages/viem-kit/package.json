@@ -96,7 +96,8 @@
     },
     "files": [
         "dist",
-        "README.md"
+        "README.md",
+        "MIGRATION.md"
     ],
     "scripts": {
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
@@ -116,11 +117,12 @@
         "lint:fix": "eslint . --fix",
         "publint": "publint --pack npm",
         "attw": "attw --pack .",
-        "verify": "pnpm run lint && pnpm run verify:types && pnpm exec jest --config jest.config.cjs --runInBand && pnpm run build && pnpm run typecheck:consumer && pnpm run publint && pnpm run attw",
+        "verify": "pnpm run lint && pnpm run verify:types && pnpm exec jest --config jest.config.cjs --runInBand && pnpm run build && pnpm run typecheck:consumer && pnpm run verify:consumer && pnpm run publint && pnpm run attw",
         "check-trailing-spaces": "find . -type f \\( -name \"*.ts\" -o -name \"*.js\" -o -name \"*.json\" -o -name \"*.md\" \\) -exec grep -l '[[:space:]]$' {} \\; || echo 'No trailing spaces found'",
         "pack": "npm pack",
         "prepack": "npm run build && npm run build:check",
-        "postpublish": "node ../../scripts/slack-notify.js"
+        "postpublish": "node ../../scripts/slack-notify.js",
+        "verify:consumer": "node scripts/verify-consumer.mjs"
     },
     "devDependencies": {
         "@arethetypeswrong/cli": "0.18.5",
