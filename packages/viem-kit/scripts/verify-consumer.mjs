@@ -77,7 +77,7 @@ try {
     }
     run(process.execPath, ['--disallow-code-generation-from-strings', output]);
     log(
-        `Packed consumer verification passed with viem ${viemPackage.version}: ESM, CJS, browser bundle, no Ledger installed`
+        `Packed consumer verification passed on Node ${process.versions.node} with viem ${viemPackage.version}: ESM, CJS, browser bundle, no Ledger installed`
     );
 } finally {
     rmSync(temporary, { recursive: true, force: true });

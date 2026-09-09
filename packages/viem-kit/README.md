@@ -283,7 +283,7 @@ pnpm -C packages/viem-ledger run build
 pnpm -C packages/viem-kit run verify
 ```
 
-Verification includes lint, source/test/example types, Jest, build, NodeNext ESM
+Verification includes lint, formatting, source/test/example types, Jest, clean build, NodeNext ESM
 and CJS types, a packed Anchored-shaped consumer, browser bundling, publint and
 attw. Consumer tests use a custom RPC transport, synthetic addresses and no
 Ledger installation. They do not broadcast or prove production/fork behavior.
@@ -292,4 +292,18 @@ To test an already-built package against another installed viem peer:
 
 ```sh
 pnpm -C packages/viem-kit run verify:consumer /path/to/viem
+```
+
+The package declares Node.js 18 or newer. CI runs the full development verification
+on Node.js 22 and runs the packed consumer on both Node.js 18 and 22, each with
+the minimum supported viem peer and the development lockfile version. The full
+toolchain includes `attw`, which requires Node.js 20 or newer; it is not part of
+the package runtime.
+
+To check the same built package with a separate Node.js runtime, invoke the
+existing consumer script directly from the workspace root:
+
+```sh
+/path/to/node18 packages/viem-kit/scripts/verify-consumer.mjs
+/path/to/node18 packages/viem-kit/scripts/verify-consumer.mjs /path/to/viem
 ```
