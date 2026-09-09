@@ -39,3 +39,5 @@ The draft `./utils` receipt helpers `waitForParsedReceipt` and `diagnoseReceipt`
 Remove the retired ABC testnet, its token defaults and examples, the `abctest` root export, and the ABC-only `./chains` entry. Consumers must remove ABC imports and configuration entries; explicit caller-owned Chain objects remain supported.
 
 Remove built-in ERC20 and wrapped-native token defaults for retired Goerli and Berachain bArtio networks. Explicit caller-owned metadata remains supported.
+
+Remove deployment-specific WETH and ERC20 defaults for local chain 31337. Anvil remains supported; consumers register metadata from their own deployment instead of inheriting stale addresses.

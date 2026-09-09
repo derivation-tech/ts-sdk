@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
 import { ChainKit } from '../src/chain-kit';
-import { mainnet } from 'viem/chains';
+import { anvil, mainnet } from 'viem/chains';
 import type { Address } from 'viem';
 import { createPublicClient, custom, defineChain, getAddress, zeroAddress } from 'viem';
 import { sepolia } from 'viem/chains';
@@ -203,6 +203,32 @@ describe('ChainKit', () => {
     // ==========================================
 
     describe('Integration Tests', () => {
+        test('uses deployment-owned token metadata on Anvil without stale defaults', () => {
+            const localKit = new ChainKit(anvil);
+            expect(localKit.chain.id).toBe(31337);
+            expect([...localKit.tokens.keys()]).toEqual([zeroAddress]);
+            expect(localKit.wrappedNativeTokenInfo).toBeUndefined();
+
+            const wrapped = {
+                address: '0x0000000000000000000000000000000000000011',
+                symbol: 'WETH',
+                name: 'Wrapped Ether',
+                decimals: 18,
+            } as const;
+            localKit.registerWrappedNativeToken(wrapped);
+            localKit.registerErc20Token({
+                address: '0x0000000000000000000000000000000000000012',
+                symbol: 'USDC',
+                name: 'Local USD Coin',
+                decimals: 6,
+            });
+            expect(localKit.wrappedNativeTokenInfo).toEqual(wrapped);
+            expect(localKit.isWrappedNativeToken(wrapped.address)).toBe(true);
+            expect(localKit.parseErc20Amount('1.5', 'USDC')).toBe(1_500_000n);
+            expect(localKit.getParser(wrapped.address)?.abi).toBeDefined();
+            expect(new ChainKit(anvil).wrappedNativeTokenInfo).toBeUndefined();
+        });
+
         test.each([5, 80084])('does not preload retired token metadata for chain %i', (id) => {
             const chain = defineChain({
                 id,

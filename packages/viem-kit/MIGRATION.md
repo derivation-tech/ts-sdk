@@ -191,3 +191,13 @@ Built-in ERC20 and wrapped-native defaults for Goerli (5) and Berachain bArtio
 (80084) have been removed. The SDK no longer preloads those historical addresses.
 This does not filter the upstream `viem/chains` catalog or prevent explicit
 caller-owned chain definitions and token registration.
+
+## Local deployment metadata
+
+Chain ID 31337 no longer preloads WETH or the six ERC20 addresses from an old
+local deployment. Anvil support remains available through `viem/chains`.
+After deploying contracts, use `kit.registerErc20Token(...)` and
+`kit.registerWrappedNativeToken(...)` with that deployment's addresses, or pass
+`wrappedNativeToken` when constructing the kit. A fresh local kit contains only
+its native token until metadata is registered; wrapped-native operations require
+an explicitly configured wrapped token.

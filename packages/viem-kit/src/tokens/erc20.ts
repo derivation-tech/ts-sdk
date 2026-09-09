@@ -181,16 +181,6 @@ export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
         { symbol: "USDM", name: "USD Mock Token", address: "0x7a61Fd2092a3933831E826c08f0D12913FEfB96C", decimals: 6 },
     ],
 
-    // Local (Chain ID: 31337)
-    31337: [
-        { symbol: "USDC", name: "USDC Coin", address: "0x911EB93171EDCBBC0ED8CCc838735b67ec1b2580", decimals: 6 },
-        { symbol: "USDT", name: "Tether USD", address: "0x208B314810a368F978B612b87E6271Ea5ff1cD95", decimals: 18 },
-        { symbol: "DAI", name: "Dai Stable Coin", address: "0x9fdE50e50ffFb0EE02d5398Aa0B0E9d25d64CcAA", decimals: 18 },
-        { symbol: "WBTC", name: "Wrapped BTC", address: "0x15b948eE63563f6AF626a061517e1e531A9D78d0", decimals: 8 },
-        { symbol: "MATIC", name: "Matic Token", address: "0x8D44a26983030e390a3cCf135B270B313AEbb181", decimals: 18 },
-        { symbol: "BNB", name: "BNB Token", address: "0x0a4674bfdD977d7440A371c5E3333d0E99FF69f2", decimals: 18 },
-    ],
-
     // Manta (Chain ID: 169)
     169: [
         { symbol: "MANTA", name: "Manta", address: "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE", decimals: 18 },
