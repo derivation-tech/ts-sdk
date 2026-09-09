@@ -159,3 +159,10 @@ submission. Raw bytecode may include compiler `//` mapping comments; they are re
 from the linked output. SHA3-256 is not used as a fallback for Solidity library hashes.
 Name-style raw placeholders reject multiple source-qualified matches unless an
 explicit short-name mapping selects the intended library.
+
+## Balance query failures
+
+Multicall balance helpers now reject RPC errors or failed individual calls rather
+than returning zero balances. Successful results keep the existing bigint arrays
+and ordering, including genuine zero balances. Callers must handle query failure
+separately from an empty balance. Batch sizes must be positive safe integers.

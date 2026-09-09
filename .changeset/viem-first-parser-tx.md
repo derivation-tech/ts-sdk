@@ -31,3 +31,5 @@ LoggerFactory.setLogger now consistently overrides a name across all log levels,
 Structured artifact links now prefer exact source-qualified library names over explicit short-name fallbacks. Mappings for other source files no longer silently link the first same-named library.
 
 Deployment bytecode is validated before submission, including preloaded artifacts and calls without library mappings. Raw compiler mapping comments are stripped from linked output; Solidity library hashes use keccak256 exclusively.
+
+Balance multicall helpers now reject failed RPC or contract calls instead of substituting zero balances. Batch sizes must be positive safe integers; successful bigint arrays retain their ordering.
