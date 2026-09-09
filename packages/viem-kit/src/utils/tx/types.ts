@@ -90,7 +90,16 @@ export type TxContext = {
     resolveParser?: ParserResolver;
 };
 
-export type TxObserverPhase = 'sent' | 'receipt' | 'reverted' | 'event' | 'parseError' | 'log' | 'replaced';
+export type TxObserverPhase =
+    | 'sent'
+    | 'description'
+    | 'diagnostics'
+    | 'receipt'
+    | 'reverted'
+    | 'event'
+    | 'parseError'
+    | 'log'
+    | 'replaced';
 
 export type TxObserverErrorEvent = {
     phase: TxObserverPhase;
@@ -110,6 +119,7 @@ export type TxReplacementEvent = Parameters<NonNullable<WaitForTransactionReceip
 
 export type TxLifecycleHooks = {
     onSent?: (event: { hash: Hash; description?: string }) => MaybePromise<void>;
+    onDescription?: (event: { hash: Hash; description: string }) => MaybePromise<void>;
     onReceipt?: (event: { hash: Hash; submittedHash: Hash; receipt: TransactionReceipt }) => MaybePromise<void>;
     onReplaced?: (event: TxReplacementEvent) => MaybePromise<void>;
     onReverted?: (event: {
@@ -134,11 +144,26 @@ export type SendTransactionOptions = {
     silent?: boolean;
     hooks?: TxLifecycleHooks;
     wait?: ReceiptWaitOptions;
+    diagnostics?: {
+        /** Milliseconds per diagnostic stage, starting after submission/receipt. Defaults to 5,000. */
+        timeout?: number;
+        /** Stops diagnostic waiting and late delivery, not the transaction or consumer-owned I/O. */
+        signal?: AbortSignal;
+    };
+};
+
+export type TxDiagnosticStatus = 'completed' | 'timed-out' | 'cancelled';
+
+export type TxDiagnosticsResult = {
+    transaction: TxDiagnosticStatus;
+    receipt: TxDiagnosticStatus | 'skipped';
 };
 
 export type SentTransaction = {
     hash: Hash;
     receipt: Promise<TransactionReceipt>;
+    /** Resolves after receipt handling; await separately when CLI diagnostic output is needed. */
+    diagnostics: Promise<TxDiagnosticsResult>;
 };
 
 export type BatchTransactionPhase = 'prepare' | 'sign' | 'send' | 'receipt';

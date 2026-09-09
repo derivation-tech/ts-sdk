@@ -53,7 +53,8 @@ export function resolveParserForAddress<TAbi extends Abi, TFunctionName extends 
 export async function parseTransactionDescription<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
     context: TxContext,
     request: TypedWriteRequest<TAbi, TFunctionName>,
-    options: SendTransactionOptions
+    options: SendTransactionOptions,
+    hash?: Hash
 ): Promise<string | undefined> {
     try {
         if (request.parser?.parseTransaction) {
@@ -69,7 +70,7 @@ export async function parseTransactionDescription<TAbi extends Abi, TFunctionNam
         };
         return await parser.parseTransaction(input);
     } catch (error) {
-        safeNotifyLifecycleHook(options.hooks, 'parseError', undefined, () =>
+        safeNotifyLifecycleHook(options.hooks, 'parseError', hash, () =>
             options.hooks?.onParseError?.({ phase: 'transaction', error })
         );
         return undefined;

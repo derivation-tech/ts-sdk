@@ -68,6 +68,8 @@ export type {
     RuntimeWriteRequest,
     SendTransactionOptions,
     SentTransaction,
+    TxDiagnosticsResult,
+    TxDiagnosticStatus,
     TxContext,
     TxLifecycleHooks,
     TxObserverErrorEvent,

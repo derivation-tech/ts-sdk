@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import type { Address, Hash, TransactionReceipt } from 'viem';
 import {
     createPublicClient,
@@ -11,7 +11,7 @@ import {
 } from 'viem';
 import { mainnet } from 'viem/chains';
 import type { ContractParser } from '../src/types';
-import { sendContractTransaction } from '../src/utils/tx';
+import { sendContractTransaction, TransactionReceiptError } from '../src/utils/tx';
 
 const sender = '0x0000000000000000000000000000000000000001' as Address;
 const target = '0x0000000000000000000000000000000000000002' as Address;
@@ -88,6 +88,7 @@ describe('request parser lifecycle', () => {
             hooks: { onEvent },
         });
         await sent.receipt;
+        await sent.diagnostics;
 
         expect(parseEvent).toHaveBeenCalledWith({ eventName: 'ValueSet', args: { value: 7n } });
         expect(onEvent).toHaveBeenCalledWith({
@@ -113,6 +114,7 @@ describe('request parser lifecycle', () => {
             hooks: { onReverted },
         });
         await sent.receipt;
+        await sent.diagnostics;
 
         expect(parseError).toHaveBeenCalledWith(
             expect.objectContaining({ kind: 'custom', name: 'ValueRejected', args: [7n] })
@@ -139,6 +141,7 @@ describe('request parser lifecycle', () => {
         });
 
         await expect(sent.receipt).resolves.toBe(receipt);
+        await sent.diagnostics;
         expect(onParseError).toHaveBeenCalledWith({
             phase: 'error',
             error: expect.objectContaining({ message: 'error parser failed' }),
@@ -173,6 +176,153 @@ describe('request parser lifecycle', () => {
             { silent: true, hooks: { onParseError } }
         );
         await expect(sent.receipt).resolves.toBe(receipt);
+        await sent.diagnostics;
         expect(onParseError).toHaveBeenCalledWith(expect.objectContaining({ phase: 'event' }));
+    });
+});
+
+describe('diagnostic liveness', () => {
+    beforeEach(() => {
+        jest.useFakeTimers();
+    });
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    const eventLog: TransactionReceipt['logs'][number] = {
+        address: target,
+        topics: [encodeEventTopics({ abi, eventName: 'ValueSet' })[0]],
+        data: encodeAbiParameters([{ type: 'uint256' }], [7n]),
+        blockHash: hash,
+        blockNumber: 10n,
+        transactionHash: hash,
+        transactionIndex: 0,
+        logIndex: 0,
+        removed: false,
+    };
+
+    test('returns the hash and receipt while a transaction parser never settles', async () => {
+        const receipt = makeReceipt('success');
+        const { publicClient, walletClient } = setup(receipt);
+        const onSent = jest.fn(() => undefined);
+        const onDescription = jest.fn(() => undefined);
+        const sent = await sendContractTransaction(
+            { publicClient, walletClient },
+            request({ abi, parseTransaction: () => new Promise(() => undefined) }),
+            { silent: true, hooks: { onSent, onDescription } }
+        );
+        expect(sent.hash).toBe(hash);
+        expect(onSent).toHaveBeenCalledWith({ hash });
+        await expect(sent.receipt).resolves.toBe(receipt);
+        let completed = false;
+        void sent.diagnostics.then(() => {
+            completed = true;
+        });
+        await jest.advanceTimersByTimeAsync(4_999);
+        expect(completed).toBe(false);
+        await jest.advanceTimersByTimeAsync(1);
+        await expect(sent.diagnostics).resolves.toEqual({ transaction: 'timed-out', receipt: 'completed' });
+        expect(onDescription).not.toHaveBeenCalled();
+        expect(jest.getTimerCount()).toBe(0);
+    });
+
+    test.each(['event', 'error', 'replay'] as const)(
+        'returns a receipt despite a pending %s diagnostic',
+        async (kind) => {
+            const receipt = makeReceipt(kind === 'event' ? 'success' : 'reverted', [eventLog]);
+            const { publicClient, walletClient } = setup(receipt);
+            const pending = () => new Promise<string>(() => undefined);
+            const parser: ContractParser<typeof abi> = { abi, parseEvent: pending, parseError: pending };
+            if (kind === 'replay')
+                jest.spyOn(publicClient, 'call').mockImplementation(() => new Promise(() => undefined));
+            else
+                jest.spyOn(publicClient, 'call').mockRejectedValue({
+                    data: encodeErrorResult({ abi, errorName: 'ValueRejected', args: [7n] }),
+                });
+            const onReverted = jest.fn(() => undefined);
+            const onEvent = jest.fn(() => undefined);
+            const sent = await sendContractTransaction({ publicClient, walletClient }, request(parser), {
+                silent: true,
+                diagnostics: { timeout: 25 },
+                hooks: { onReverted, onEvent },
+            });
+            await expect(sent.receipt).resolves.toBe(receipt);
+            await jest.advanceTimersByTimeAsync(25);
+            await expect(sent.diagnostics).resolves.toEqual({ transaction: 'completed', receipt: 'timed-out' });
+            expect(onEvent).not.toHaveBeenCalled();
+            expect(onReverted).toHaveBeenCalledTimes(kind === 'event' ? 0 : 1);
+            if (kind === 'error')
+                expect(onReverted).toHaveBeenCalledWith(expect.objectContaining({ message: 'ValueRejected' }));
+            expect(jest.getTimerCount()).toBe(0);
+        }
+    );
+
+    test.each(['timeout', 'cancel'] as const)('suppresses late descriptions after %s', async (mode) => {
+        const { publicClient, walletClient } = setup(makeReceipt('success'));
+        let complete!: (description: string) => void;
+        const description = new Promise<string>((resolve) => {
+            complete = resolve;
+        });
+        const controller = new AbortController();
+        const remove = jest.spyOn(controller.signal, 'removeEventListener');
+        const onDescription = jest.fn(() => undefined);
+        const sent = await sendContractTransaction(
+            { publicClient, walletClient },
+            request({ abi, parseTransaction: () => description }),
+            { silent: true, diagnostics: { timeout: 10, signal: controller.signal }, hooks: { onDescription } }
+        );
+        await sent.receipt;
+        if (mode === 'cancel') controller.abort();
+        else await jest.advanceTimersByTimeAsync(10);
+        expect((await sent.diagnostics).transaction).toBe(mode === 'cancel' ? 'cancelled' : 'timed-out');
+        complete('too late');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(onDescription).not.toHaveBeenCalled();
+        expect(remove).toHaveBeenCalled();
+        expect(jest.getTimerCount()).toBe(0);
+    });
+
+    test('suppresses a late event-parser rejection after cancellation', async () => {
+        const { publicClient, walletClient } = setup(makeReceipt('success', [eventLog]));
+        let reject!: (error: Error) => void;
+        const parseEvent = jest.fn(
+            () =>
+                new Promise<string>((_resolve, fail) => {
+                    reject = fail;
+                })
+        );
+        const controller = new AbortController();
+        const onParseError = jest.fn(() => undefined);
+        const sent = await sendContractTransaction({ publicClient, walletClient }, request({ abi, parseEvent }), {
+            silent: true,
+            diagnostics: { signal: controller.signal },
+            hooks: { onParseError },
+        });
+        await sent.receipt;
+        await jest.advanceTimersByTimeAsync(0);
+        expect(parseEvent).toHaveBeenCalledTimes(1);
+        controller.abort();
+        expect((await sent.diagnostics).receipt).toBe('cancelled');
+        reject(new Error('late rejection'));
+        await jest.advanceTimersByTimeAsync(0);
+        expect(onParseError).not.toHaveBeenCalled();
+        expect(jest.getTimerCount()).toBe(0);
+    });
+
+    test('skips receipt parsing on a wait failure and resolves diagnostic completion', async () => {
+        const { publicClient, walletClient } = setup(makeReceipt('success', [eventLog]));
+        jest.spyOn(publicClient, 'waitForTransactionReceipt').mockRejectedValue(new Error('timeout'));
+        const parseEvent = jest.fn(async () => 'event');
+        const onDescription = jest.fn(() => undefined);
+        const sent = await sendContractTransaction(
+            { publicClient, walletClient },
+            request({ abi, parseEvent, parseTransaction: async () => 'admin call' }),
+            { silent: true, hooks: { onDescription } }
+        );
+        await expect(sent.receipt).rejects.toBeInstanceOf(TransactionReceiptError);
+        await expect(sent.diagnostics).resolves.toEqual({ transaction: 'completed', receipt: 'skipped' });
+        expect(onDescription).toHaveBeenCalledWith({ hash, description: 'admin call' });
+        expect(parseEvent).not.toHaveBeenCalled();
+        expect(jest.getTimerCount()).toBe(0);
     });
 });

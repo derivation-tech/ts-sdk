@@ -16,6 +16,7 @@ import {
     assertTransactionSuccess,
     ChainKit,
     createContractParser,
+    sendContractTransaction,
     TransactionRevertedError,
     WRAPPED_NATIVE_TOKENS,
 } from '@derivation-tech/viem-kit';
@@ -128,15 +129,21 @@ const options = {
     silent: true,
     wait: { confirmations: 1, timeout: 120_000, pollingInterval: 1 },
     hooks: {
-        onSent: ({ description }: { description?: string }) => {
-            if (description) descriptions.push(description);
+        onDescription: ({ description }: { description: string }) => {
+            descriptions.push(description);
         },
         onEvent: ({ description }: { description: string }) => {
             descriptions.push(description);
         },
     },
 };
-const receipt = assertTransactionSuccess(await kit.sendTx(walletClient, request, options));
+const sent = await sendContractTransaction(
+    { publicClient, walletClient, chain, resolveParser: (address) => kit.resolveParser(address) },
+    request,
+    options
+);
+const receipt = assertTransactionSuccess(await sent.receipt);
+assert.deepEqual(await sent.diagnostics, { transaction: 'completed', receipt: 'completed' });
 assert.equal(receipt.transactionHash, hash);
 assert.equal(transactions.length, 1);
 assert.equal(transactions[0].data, encodeFunctionData(request));

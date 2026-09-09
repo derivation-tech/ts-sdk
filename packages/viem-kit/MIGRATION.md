@@ -66,6 +66,15 @@ hash of the signed payload even when the RPC response is lost.
 
 ## Parser migration
 
+Transaction descriptions now arrive through `onDescription`, independently of
+`onSent` and receipt completion. Move any description logging out of `onSent`.
+For CLI commands that need event/error output before exiting, use
+`sendContractTransaction`, handle `sent.receipt`, then await `sent.diagnostics`
+separately (including in a `finally` block when success assertions can throw).
+`ChainKit.sendTx` returns the receipt without waiting for diagnostics. Configure
+`options.diagnostics.timeout` or `signal` for the separate diagnostic wait; async
+hook delivery remains the caller's responsibility.
+
 Use typed `ContractParser<TAbi>` or `createContractParser({ abi, transactions,
 events, errors })`. Existing business formatters can be wired to those handlers;
 keep Anchored's token/role metadata and formatting in Anchored.

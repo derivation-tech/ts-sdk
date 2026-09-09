@@ -48,6 +48,8 @@ export type {
     ParseTransactionInput,
     SendTransactionOptions,
     SentTransaction,
+    TxDiagnosticsResult,
+    TxDiagnosticStatus,
     TxContext,
     TxLifecycleHooks,
     TxObserverErrorEvent,

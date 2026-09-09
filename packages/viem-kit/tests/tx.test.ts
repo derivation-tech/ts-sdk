@@ -140,6 +140,7 @@ describe('sendContractTransaction', () => {
             account: receiverAddress,
         });
         const receipt = await sent.receipt;
+        await sent.diagnostics;
 
         expect(sent.hash).toBe(txHash);
         expect(receipt.status).toBe('success');
@@ -244,6 +245,7 @@ describe('sendContractTransaction', () => {
             { hooks: { onReverted } }
         );
         const receipt = await sent.receipt;
+        await sent.diagnostics;
 
         expect(receipt.status).toBe('reverted');
         expect(onReverted).toHaveBeenCalledWith(

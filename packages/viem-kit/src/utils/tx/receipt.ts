@@ -1,10 +1,17 @@
 import type { Abi, Account, Address, Hash, Hex, TransactionReceipt } from 'viem';
 import type { DecodedContractError } from '../../types';
 import { decodeContractError } from '../contract-error';
+import { runDiagnostics, validateDiagnosticOptions } from './diagnostics';
 import { safeNotifyLifecycleHook } from './hooks';
 import { waitForTransactionOutcome } from './outcome';
 import { parseErrorDescription, parseEventDescription } from './parsing';
-import type { SendTransactionOptions, TxContext, TypedWriteRequest, WriteFunctionName } from './types';
+import type {
+    SendTransactionOptions,
+    TxContext,
+    TxDiagnosticStatus,
+    TypedWriteRequest,
+    WriteFunctionName,
+} from './types';
 
 function accountAddress(account: Account | Address | null | undefined): Address | undefined {
     if (!account) return undefined;
@@ -33,25 +40,43 @@ export async function waitForParsedReceipt<TAbi extends Abi, TFunctionName exten
     account: Account | Address,
     options: SendTransactionOptions = {}
 ): Promise<TransactionReceipt> {
+    validateDiagnosticOptions(options);
     const receipt = await waitForTransactionOutcome(context.publicClient, submittedHash, options);
+    void diagnoseReceipt(context, submittedHash, receipt, request, calldata, account, options);
+    return receipt;
+}
+
+export async function diagnoseReceipt<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
+    context: TxContext,
+    submittedHash: Hash,
+    receipt: TransactionReceipt,
+    request: TypedWriteRequest<TAbi, TFunctionName>,
+    calldata: Hex,
+    account: Account | Address,
+    options: SendTransactionOptions
+): Promise<TxDiagnosticStatus> {
     const hash = receipt.transactionHash;
 
     if (receipt.status === 'reverted') {
         let decoded: DecodedContractError | undefined;
-        try {
-            await context.publicClient.call({
-                account: accountAddress(account),
-                to: request.address,
-                data: calldata,
-                value: request.value,
-                blockNumber: receipt.blockNumber,
-            });
-        } catch (error) {
-            decoded = decodeContractError(error, request.abi);
-        }
-        const parsedMessage = decoded
-            ? await parseErrorDescription(context, request, decoded, options, hash)
-            : undefined;
+        let parsedMessage: string | undefined;
+        const status = await runDiagnostics(options, hash, async (scope) => {
+            try {
+                await context.publicClient.call({
+                    account: accountAddress(account),
+                    to: request.address,
+                    data: calldata,
+                    value: request.value,
+                    blockNumber: receipt.blockNumber,
+                });
+            } catch (error) {
+                if (scope.active()) decoded = decodeContractError(error, request.abi);
+            }
+            if (!scope.active() || !decoded) return;
+            const message = await parseErrorDescription(context, request, decoded, scope.options, hash);
+            if (scope.active()) parsedMessage = message;
+        });
+        // Report the revert once, even when its optional diagnostic work cannot finish.
         safeNotifyLifecycleHook(options.hooks, 'reverted', hash, () =>
             options.hooks?.onReverted?.({
                 hash,
@@ -61,23 +86,24 @@ export async function waitForParsedReceipt<TAbi extends Abi, TFunctionName exten
                 message: parsedMessage ?? (decoded ? errorMessage(decoded) : undefined),
             })
         );
-        return receipt;
+        return status;
     }
 
-    for (let index = 0; index < receipt.logs.length; index += 1) {
-        const log = receipt.logs[index];
-        const description = await parseEventDescription(context, request, log, options, hash);
-        if (!description) continue;
-        safeNotifyLifecycleHook(options.hooks, 'event', hash, () =>
-            options.hooks?.onEvent?.({
-                hash,
-                submittedHash,
-                receipt,
-                logIndex: log.logIndex ?? index,
-                description,
-            })
-        );
-    }
-
-    return receipt;
+    return runDiagnostics(options, hash, async (scope) => {
+        for (let index = 0; index < receipt.logs.length; index += 1) {
+            const log = receipt.logs[index];
+            const description = await parseEventDescription(context, request, log, scope.options, hash);
+            if (!scope.active()) return;
+            if (!description) continue;
+            safeNotifyLifecycleHook(scope.options.hooks, 'event', hash, () =>
+                options.hooks?.onEvent?.({
+                    hash,
+                    submittedHash,
+                    receipt,
+                    logIndex: log.logIndex ?? index,
+                    description,
+                })
+            );
+        }
+    });
 }

@@ -101,18 +101,20 @@ const sent = await sendContractTransaction(
     {
         wait: { confirmations: 2, timeout: 120_000, pollingInterval: 1_000 },
         hooks: {
-            onSent: ({ hash, description }) => logger.info(hash, description),
+            onSent: ({ hash }) => logger.info(hash),
+            onDescription: ({ description }) => logger.info(description),
             onEvent: ({ description }) => logger.info(description),
             onObserverError: ({ phase, error }) => logger.warn(phase, error),
         },
     }
 );
 const receipt = assertTransactionSuccess(await sent.receipt);
+const diagnostics = await sent.diagnostics; // Optional, separate CLI wait.
 ```
 
 `sent.hash` is the submitted hash. Receipt waiting begins after submission; always
 handle `sent.receipt`. `ChainKit.sendTx` is a convenience that waits and returns
-that receipt. Both accept the same options. `silent` suppresses built-in send logs,
+that receipt without waiting for diagnostics. Both accept the same options. `silent` suppresses built-in send logs,
 but does not disable explicitly supplied hooks.
 
 Wait options are viem's `confirmations`, `timeout`, `pollingInterval` and
@@ -134,8 +136,24 @@ receipt is not treated as successful execution of the original request.
 Hooks may return promises. Synchronous errors and rejected promises are reported
 to `onObserverError` and cannot change transaction outcomes. Hooks are not awaited;
 the caller owns delivery guarantees for external logging. Parser failures are
-reported through `onParseError`; parser functions should bound any network I/O
-they perform. Revert replay at the receipt block is best-effort diagnostic evidence,
+reported through `onParseError`. `onSent` delivers the hash immediately, while
+`onDescription` delivers the eventual parsed transaction description. Do not depend
+on descriptions or event/error hooks being ready when the receipt resolves.
+
+`sent.diagnostics` resolves to `{ transaction, receipt }` statuses. Each is
+`completed`, `timed-out` or `cancelled`; receipt diagnostics are `skipped` when
+receipt waiting or replacement validation fails. A completed stage may have reported
+parse failures. Diagnostic work has a default 5,000 ms budget per stage, beginning
+after submission and after a validated receipt respectively. Set
+`diagnostics: { timeout: 1_000, signal: controller.signal }` to override it.
+Timeout/cancellation stops SDK waiting and suppresses late descriptions, events and
+parse-error delivery. A reverted receipt still produces one `onReverted` notification
+with whatever diagnostic detail was available at the cutoff.
+
+This diagnostic budget excludes receipt waiting and does not await consumer hooks.
+It cannot interrupt synchronous JavaScript or forcibly cancel parser/replay I/O;
+consumer parsers should also bound their own network operations. Revert replay at
+the receipt block is best-effort diagnostic evidence,
 not an exact replay of intra-block execution state.
 
 The SDK never retries submission automatically. A wait failure or unknown send

@@ -92,6 +92,7 @@ describe('transaction lifecycle observers', () => {
             { silent: true }
         );
         await sent.receipt;
+        await sent.diagnostics;
 
         const functionData = encodeFunctionData({ abi, functionName: 'setValue', args: [1n] });
         const calldata = concatHex([functionData, suffix]);
@@ -256,7 +257,8 @@ describe('transaction outcome contracts', () => {
         );
         await expect(sent.receipt).resolves.toBe(receipt);
         await new Promise<void>((resolve) => setImmediate(resolve));
-        expect(onObserverError).toHaveBeenCalledWith(expect.objectContaining({ transactionAlreadySent: false }));
+        await sent.diagnostics;
+        expect(onObserverError).toHaveBeenCalledTimes(2);
         expect(onObserverError).toHaveBeenCalledWith(expect.objectContaining({ hash, transactionAlreadySent: true }));
         expect(() => assertTransactionSuccess(receipt)).toThrow(TransactionRevertedError);
     });

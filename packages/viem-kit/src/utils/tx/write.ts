@@ -4,10 +4,11 @@ import { LoggerFactory } from '../logger';
 import type { DecodedContractError } from '../../types';
 import { encodeWriteRequestData } from './calldata';
 import { resolveTxExecutionContext } from './context';
+import { runDiagnostics, validateDiagnosticOptions } from './diagnostics';
 import { safeNotifyLifecycleHook } from './hooks';
-import { TransactionSubmissionError } from './outcome';
+import { TransactionSubmissionError, waitForTransactionOutcome } from './outcome';
 import { parseTransactionDescription } from './parsing';
-import { waitForParsedReceipt } from './receipt';
+import { diagnoseReceipt } from './receipt';
 import type { SendTransactionOptions, SentTransaction, TxContext, TypedWriteRequest, WriteFunctionName } from './types';
 
 function errorMessage(error: DecodedContractError): string {
@@ -55,6 +56,7 @@ export async function sendContractTransaction<TAbi extends Abi, TFunctionName ex
     options: SendTransactionOptions = {}
 ): Promise<SentTransaction> {
     request = { ...request };
+    validateDiagnosticOptions(options);
     const { account, chain } = resolveTxExecutionContext(context, request.account, request.chain);
     const log = (hash: Hash | undefined, message: string) => {
         if (options.silent) return;
@@ -63,7 +65,6 @@ export async function sendContractTransaction<TAbi extends Abi, TFunctionName ex
         );
     };
     const calldata = encodeWriteRequestData(request);
-    const description = await parseTransactionDescription(context, request, options);
 
     let hash: Hash;
     try {
@@ -84,10 +85,27 @@ export async function sendContractTransaction<TAbi extends Abi, TFunctionName ex
         );
     }
 
-    log(hash, `Sent tx: ${hash}${description ? ` ${description}` : ''}`);
-    safeNotifyLifecycleHook(options.hooks, 'sent', hash, () => options.hooks?.onSent?.({ hash, description }));
+    log(hash, `Sent tx: ${hash}`);
+    safeNotifyLifecycleHook(options.hooks, 'sent', hash, () => options.hooks?.onSent?.({ hash }));
+    const receipt = waitForTransactionOutcome(context.publicClient, hash, options);
+    const transactionDiagnostics = runDiagnostics(options, hash, async (scope) => {
+        const description = await parseTransactionDescription(context, request, scope.options, hash);
+        if (!scope.active() || !description) return;
+        log(hash, `Tx ${hash}: ${description}`);
+        safeNotifyLifecycleHook(scope.options.hooks, 'description', hash, () =>
+            options.hooks?.onDescription?.({ hash, description })
+        );
+    });
+    const receiptDiagnostics = receipt.then(
+        (confirmed) => diagnoseReceipt(context, hash, confirmed, request, calldata, account, options),
+        () => 'skipped' as const
+    );
     return {
         hash,
-        receipt: waitForParsedReceipt(context, hash, request, calldata, account, options),
+        receipt,
+        diagnostics: Promise.all([transactionDiagnostics, receiptDiagnostics]).then(([transaction, receipt]) => ({
+            transaction,
+            receipt,
+        })),
     };
 }
