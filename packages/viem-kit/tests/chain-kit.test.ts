@@ -203,6 +203,19 @@ describe('ChainKit', () => {
     // ==========================================
 
     describe('Integration Tests', () => {
+        test.each([5, 80084])('does not preload retired token metadata for chain %i', (id) => {
+            const chain = defineChain({
+                id,
+                name: 'Retired chain fixture',
+                nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                rpcUrls: { default: { http: ['http://localhost:8545'] } },
+            });
+            const retiredKit = new ChainKit(chain);
+            expect(retiredKit.wrappedNativeTokenInfo).toBeUndefined();
+            expect([...retiredKit.tokens.keys()]).toEqual([zeroAddress]);
+            expect(retiredKit.hasErc20TokenInfo('USDM')).toBe(false);
+        });
+
         test('should handle complete token registration flow', () => {
             const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
 

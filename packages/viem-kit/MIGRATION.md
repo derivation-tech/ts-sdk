@@ -184,3 +184,10 @@ examples. Remove those imports and ABC entries from consumer chain maps.
 `ChainKitRegistry.for('abctest')` and its former numeric ID no longer resolve.
 Import supported chain definitions from `viem/chains`; application-owned chains
 can still be passed as explicit `Chain` objects.
+
+## Retired network token defaults
+
+Built-in ERC20 and wrapped-native defaults for Goerli (5) and Berachain bArtio
+(80084) have been removed. The SDK no longer preloads those historical addresses.
+This does not filter the upstream `viem/chains` catalog or prevent explicit
+caller-owned chain definitions and token registration.

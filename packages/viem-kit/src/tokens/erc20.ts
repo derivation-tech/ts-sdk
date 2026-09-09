@@ -4,7 +4,6 @@ import type { Erc20TokenInfo } from '../types';
  * Common ERC20 tokens per chain
  *
  * Extracted from web3-context/packages/context/src/chain/*.json
- * Covers 25+ chains with 150+ tokens total
  */
 // prettier-ignore
 export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
@@ -76,11 +75,6 @@ export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
     // BaseSepolia (Chain ID: 84532)
     84532: [
         { symbol: "USDM", name: "USDM", address: "0xBc97004659b51C325a293386F319e66ACA4561C4", decimals: 18 },
-    ],
-
-    // Berachain Bartio (Chain ID: 80084)
-    80084: [
-        { symbol: "USDM", name: "USD Mock", address: "0x82C353484c0a557aff07A74f0cda13eb7e52DB08", decimals: 6 },
     ],
 
     // Blast (Chain ID: 81457)
@@ -161,13 +155,6 @@ export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
         { symbol: "USDC", name: "USD Coin", address: "0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83", decimals: 6 },
         { symbol: "WBTC", name: "Wrapped BTC on xDai", address: "0x8e5bBbb09Ed1ebdE8674Cda39A0c169401db4252", decimals: 8 },
         { symbol: "WETH", name: "Wrapped ETH on xDai", address: "0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1", decimals: 18 },
-    ],
-
-    // Goerli (Chain ID: 5)
-    5: [
-        { symbol: "MATIC", name: "Matic Token", address: "0xbf3b5CF32066650Ea0b28277e621Ee3d0b41905A", decimals: 18 },
-        { symbol: "DAI", name: "Dai Stablecoin", address: "0x11fE4B6AE13d2a6055C8D9cF65c55bac32B5d844", decimals: 18 },
-        { symbol: "USDM", name: "USD Mock Token", address: "0x82C353484c0a557aff07A74f0cda13eb7e52DB08", decimals: 6 },
     ],
 
     // Klaytn (Chain ID: 8217)

@@ -37,3 +37,5 @@ Balance multicall helpers now reject failed RPC or contract calls instead of sub
 The draft `./utils` receipt helpers `waitForParsedReceipt` and `diagnoseReceipt` are no longer public exports. Consumers use `SentTransaction.receipt` and `SentTransaction.diagnostics`, or `waitForTransactionOutcome` when only a submitted hash is available. Other transaction exports are preserved through an explicit public list.
 
 Remove the retired ABC testnet, its token defaults and examples, the `abctest` root export, and the ABC-only `./chains` entry. Consumers must remove ABC imports and configuration entries; explicit caller-owned Chain objects remain supported.
+
+Remove built-in ERC20 and wrapped-native token defaults for retired Goerli and Berachain bArtio networks. Explicit caller-owned metadata remains supported.
