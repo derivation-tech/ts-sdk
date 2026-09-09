@@ -12,10 +12,11 @@
         "deps": "pnpm -r i",
         "prepare": "husky",
         "lint": "eslint",
-        "format": "prettier --write packages/**/*.ts apps/**/*.ts",
+        "format": "pnpm -r --if-present run format",
         "clean": "pnpm -r clean",
         "release": "changeset publish",
-        "release:dry": "changeset status"
+        "release:dry": "changeset status",
+        "format:check": "pnpm -r --if-present run format:check"
     },
     "devDependencies": {
         "@changesets/cli": "^2.28.1",
