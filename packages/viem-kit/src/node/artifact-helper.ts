@@ -133,12 +133,11 @@ export function loadArtifact(
     for (const fileKey of Object.keys(structuredRefs)) {
       const libs = structuredRefs[fileKey];
       for (const libName of Object.keys(libs)) {
-        // resolve mapping: prefer exact libName, then fileKey:libName keys
-        let provided = linkReferenceMap[libName];
-        if (!provided) {
-          const found = Object.keys(linkReferenceMap).find(k => k.endsWith(`:${libName}`));
-          if (found) provided = linkReferenceMap[found];
-        }
+        // Structured references identify the source file; never match a different file by suffix.
+        const qualifiedName = `${fileKey}:${libName}`;
+        const provided = Object.hasOwn(linkReferenceMap, qualifiedName)
+          ? linkReferenceMap[qualifiedName]
+          : Object.hasOwn(linkReferenceMap, libName) ? linkReferenceMap[libName] : undefined;
 
         if (!provided) {
           throw new Error(`Missing link reference for ${libName}`);

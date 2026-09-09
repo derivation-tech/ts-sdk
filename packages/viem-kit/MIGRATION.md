@@ -147,3 +147,9 @@ cross-process coordination, persistent intent storage or automatic resubmission.
 The SDK fixture validates the common API contract, package boundaries and native
 viem request formatting. It is not a migration or end-to-end validation of all
 Anchored deployment commands, Safe workflows or hardware signing.
+
+## Artifact library mapping
+
+For structured compiler references, use `Source.sol:Library` keys. Exact source-qualified
+keys take precedence over explicit `Library` fallbacks. A key for another source file
+is no longer accepted merely because its library name matches.
