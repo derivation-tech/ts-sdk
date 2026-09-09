@@ -130,11 +130,11 @@
         "@types/jest": "^29.5.12",
         "@types/node": "^20.0.0",
         "jest": "^29.7.0",
-        "prettier": "^3.6.2",
-        "publint": "0.3.21",
-        "ts-jest": "^29.2.2",
+        "prettier": "catalog:",
+        "publint": "0.3.24",
+        "ts-jest": "catalog:",
         "tsup": "^8.5.0",
-        "typescript": "^5.9.3",
+        "typescript": "catalog:",
         "viem": "catalog:"
     },
     "peerDependencies": {

@@ -21,7 +21,7 @@
     "devDependencies": {
         "viem": "catalog:",
         "@types/node": "^20.0.0",
-        "typescript": "^5.9.3"
+        "typescript": "catalog:"
     },
     "peerDependencies": {
         "viem": "^2.43.3"
