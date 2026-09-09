@@ -92,7 +92,7 @@ export async function deployArtifact(
         walletClient,
         {
             abi: artifact.abi,
-            bytecode: artifact.bytecode as Hex,
+            bytecode: linkBytecode(artifact.bytecode, linkReferenceMap) as Hex,
             args: constructorArgs,
         },
         options,
@@ -106,7 +106,7 @@ export async function deployBytecode(
     options: DeployBytecodeOptions
 ): Promise<Address> {
     const { abi, bytecode, constructorArgs = [], linkReferenceMap = {} } = options;
-    const linkedBytecode = Object.keys(linkReferenceMap).length ? linkBytecode(bytecode, linkReferenceMap) : bytecode;
+    const linkedBytecode = linkBytecode(bytecode, linkReferenceMap);
     return deploy(
         publicClient,
         walletClient,

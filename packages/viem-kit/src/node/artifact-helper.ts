@@ -1,6 +1,5 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as crypto from 'node:crypto';
 import { keccak256 } from 'viem';
 import type { Abi } from 'viem';
 
@@ -86,7 +85,6 @@ export function loadArtifact(
   jsonInput: JsonInput,
   linkReferenceMap: Record<string, string> = {}
 ): Artifact {
-  // ==== New clean implementation following the user's spec ====
   const artifact = asArtifactRecord(parseJsonInput(jsonInput));
 
   // 1) Extract bytecode and structured linkReferences when present.
@@ -186,6 +184,7 @@ export function loadArtifact(
   if (!inferredName) {
     inferredName = (typeof jsonInput === 'string' && fs.existsSync(jsonInput)) ? path.basename(jsonInput, '.json') : '<unknown>';
   }
+  assertHexBytecode(bytecode);
   return {
     abi: artifact.abi ?? [],
     bytecode: `0x${bytecode}`,
@@ -203,15 +202,18 @@ export function loadArtifact(
 //  - After linking, ensure no placeholders remain; otherwise throw.
 export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<string, string> = {}): string {
   if (!bytecodeStr) throw new Error('bytecode string required');
-  const raw = bytecodeStr.startsWith('0x') ? bytecodeStr.slice(2) : bytecodeStr;
+  const input = bytecodeStr.trim();
+  const raw = input.startsWith('0x') ? input.slice(2) : input;
+  // Compiler mapping comments are metadata, not deployment bytes.
+  let out = raw.replace(/\/\/[^\r\n]*/g, '').replace(/\s+/g, '');
 
   // regexes
   const hashPlaceholderRe = /__\$([0-9a-fA-F]+)\$__/g;
   // require library-name placeholders to start with a letter (avoid matching long hex segments)
   const namePlaceholderRe = /__([A-Za-z][A-Za-z0-9_./:-]*?)__/g;
 
-  const hasHash = hashPlaceholderRe.test(raw);
-  const hasName = namePlaceholderRe.test(raw);
+  const hasHash = hashPlaceholderRe.test(out);
+  const hasName = namePlaceholderRe.test(out);
 
   const normalizeAddr = (a: string) => {
     if (!a) throw new Error('Empty address provided');
@@ -221,16 +223,16 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
     return low.length > 40 ? low.slice(low.length - 40) : low.padStart(40, '0');
   };
 
-  let out = raw;
 
   if (hasName && !hasHash) {
     // replace __LibName__ occurrences
     out = out.replace(namePlaceholderRe, (m, name: string) => {
       // try direct lib name, then file:lib keys
-      let provided = linkReferenceMap[name];
+      let provided = Object.hasOwn(linkReferenceMap, name) ? linkReferenceMap[name] : undefined;
       if (!provided) {
-        const found = Object.keys(linkReferenceMap).find(k => k.endsWith(`:${name}`));
-        if (found) provided = linkReferenceMap[found];
+        const matches = Object.keys(linkReferenceMap).filter(k => k.endsWith(`:${name}`));
+        if (matches.length > 1) throw new Error(`Ambiguous library mapping for '${name}'; use an explicit short-name mapping`);
+        if (matches.length === 1) provided = linkReferenceMap[matches[0]];
       }
       if (!provided) throw new Error(`Missing link mapping for library '${name}'`);
       return normalizeAddr(provided);
@@ -264,23 +266,9 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
       if (!addr) continue;
       const normalized = normalizeAddr(addr);
 
-      // only use keccak256 of the fully-qualified name (fk) and take 34-char prefix
-      try {
-        // viem.keccak256 returns a 0x-prefixed hex string; strip 0x then lower
-        const d = keccak256(new TextEncoder().encode(fk));
-        const digest = (d.startsWith('0x') ? d.slice(2) : d).toLowerCase();
-        const prefix = digest.slice(0, 34);
-        hashMap[prefix] = normalized;
-      } catch (e) {
-        // fallback to node crypto sha3-256 if available
-        try {
-          const digest = crypto.createHash('sha3-256').update(fk).digest('hex').toLowerCase();
-          const prefix = digest.slice(0, 34);
-          hashMap[prefix] = normalized;
-        } catch (e2) {
-          // give up for this fk
-        }
-      }
+      // Solidity library identifiers use keccak256, not SHA3-256.
+      const prefix = keccak256(new TextEncoder().encode(fk)).slice(2, 36).toLowerCase();
+      hashMap[prefix] = normalized;
 
       // if inline comment maps exist pointing to this fully-qualified name, add them too
       // (some artifacts encode the mapping via comments)
@@ -301,10 +289,11 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
   } else if (hasHash && hasName) {
     // both styles present: handle names first then hashes
     out = out.replace(namePlaceholderRe, (m, name: string) => {
-      let provided = linkReferenceMap[name];
+      let provided = Object.hasOwn(linkReferenceMap, name) ? linkReferenceMap[name] : undefined;
       if (!provided) {
-        const found = Object.keys(linkReferenceMap).find(k => k.endsWith(`:${name}`));
-        if (found) provided = linkReferenceMap[found];
+        const matches = Object.keys(linkReferenceMap).filter(k => k.endsWith(`:${name}`));
+        if (matches.length > 1) throw new Error(`Ambiguous library mapping for '${name}'; use an explicit short-name mapping`);
+        if (matches.length === 1) provided = linkReferenceMap[matches[0]];
       }
       if (!provided) throw new Error(`Missing link mapping for library '${name}'`);
       return normalizeAddr(provided);
@@ -330,18 +319,8 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
       const addr = linkReferenceMap[fk];
       if (!addr) continue;
       const normalized = normalizeAddr(addr);
-      try {
-        const d = keccak256(new TextEncoder().encode(fk));
-        const digest = (d.startsWith('0x') ? d.slice(2) : d).toLowerCase();
-        const prefix = digest.slice(0, 34);
-        hashMap[prefix] = normalized;
-      } catch (e) {
-        try {
-          const digest = crypto.createHash('sha3-256').update(fk).digest('hex').toLowerCase();
-          const prefix = digest.slice(0, 34);
-          hashMap[prefix] = normalized;
-        } catch (e2) {}
-      }
+      const prefix = keccak256(new TextEncoder().encode(fk)).slice(2, 36).toLowerCase();
+      hashMap[prefix] = normalized;
 
       for (const [ph, fq] of Object.entries(inlineMap)) {
         if (fq === fk) hashMap[ph] = normalized;
@@ -360,5 +339,12 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
     throw new Error('Bytecode still contains placeholders after linking');
   }
 
+  assertHexBytecode(out);
   return `0x${out}`;
+}
+
+function assertHexBytecode(bytecode: string): void {
+  if (!/^(?:[0-9a-fA-F]{2})+$/.test(bytecode)) {
+    throw new Error('Bytecode must contain a non-empty sequence of hexadecimal bytes');
+  }
 }

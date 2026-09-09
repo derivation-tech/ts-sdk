@@ -29,3 +29,5 @@ Submission errors now retain their observed prepare/sign/send phase. Local prepa
 LoggerFactory.setLogger now consistently overrides a name across all log levels, including cached defaults. Injected loggers retain their own settings, and clear removes both injected and generated instances.
 
 Structured artifact links now prefer exact source-qualified library names over explicit short-name fallbacks. Mappings for other source files no longer silently link the first same-named library.
+
+Deployment bytecode is validated before submission, including preloaded artifacts and calls without library mappings. Raw compiler mapping comments are stripped from linked output; Solidity library hashes use keccak256 exclusively.

@@ -42,6 +42,17 @@ function setup(status: 'success' | 'reverted' = 'success') {
 }
 
 describe('Node deployment helpers', () => {
+    test('rejects invalid raw and preloaded artifact bytecode before submission', async () => {
+        const { publicClient, walletClient, send } = setup();
+        await expect(deployBytecode(publicClient, walletClient, { abi: [], bytecode: '0x60zz' })).rejects.toThrow(
+            'hexadecimal bytes'
+        );
+        await expect(
+            deployArtifact(publicClient, walletClient, { artifact: { abi: [], bytecode: '0x123' } })
+        ).rejects.toThrow('hexadecimal bytes');
+        expect(send).not.toHaveBeenCalled();
+    });
+
     test('forwards constructor, gas, fee and wait overrides', async () => {
         const { publicClient, walletClient, send, wait } = setup();
         const transaction = { nonce: 7, gas: 100_000n, maxFeePerGas: 10n, maxPriorityFeePerGas: 2n };

@@ -153,3 +153,9 @@ Anchored deployment commands, Safe workflows or hardware signing.
 For structured compiler references, use `Source.sol:Library` keys. Exact source-qualified
 keys take precedence over explicit `Library` fallbacks. A key for another source file
 is no longer accepted merely because its library name matches.
+
+Deployment helpers now reject empty, odd-length or non-hexadecimal bytecode before
+submission. Raw bytecode may include compiler `//` mapping comments; they are removed
+from the linked output. SHA3-256 is not used as a fallback for Solidity library hashes.
+Name-style raw placeholders reject multiple source-qualified matches unless an
+explicit short-name mapping selects the intended library.
