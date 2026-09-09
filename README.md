@@ -21,6 +21,8 @@ pnpm run clean
 
 Build `viem-ledger` before verifying `viem-kit` in a fresh checkout, since core tests and type checks exercise the optional integration. Core examples are in [`packages/viem-kit/examples`](./packages/viem-kit/examples/); `verify` type-checks them. Review credentials and transaction behavior before running an example against a network.
 
+CI verifies the locked viem version and also installs the exact minimum version declared by the core peer dependency into an isolated directory. Both run the same tarball consumer checks for ESM, CommonJS, browser bundling, and loading without Ledger.
+
 See the [core coding practices](./packages/viem-kit/CODING_PRACTICES.md) and [migration guide](./packages/viem-kit/MIGRATION.md).
 
 ## Adding a package

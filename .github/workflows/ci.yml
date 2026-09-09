@@ -26,3 +26,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm -C packages/viem-ledger run build
       - run: pnpm -C packages/viem-kit run verify
+      - name: Install minimum supported viem
+        shell: bash
+        run: |
+          minimum="$(node <<'NODE'
+          const range = require('./packages/viem-kit/package.json').peerDependencies.viem;
+          if (!/^\^\d+\.\d+\.\d+$/.test(range)) throw new Error('Expected an exact caret viem peer range');
+          console.log(range.slice(1));
+          NODE
+          )"
+          npm install --prefix "$RUNNER_TEMP/viem-minimum" --ignore-scripts --no-audit --no-fund "viem@$minimum"
+      - name: Verify minimum viem consumer
+        run: pnpm -C packages/viem-kit run verify:consumer "$RUNNER_TEMP/viem-minimum/node_modules/viem"
