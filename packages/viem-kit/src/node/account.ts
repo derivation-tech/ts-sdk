@@ -193,22 +193,7 @@ export function expandSignerIdPattern(signerIdPattern: string): string[] {
                 const trimmedName = name.trim();
 
                 if (suffix.includes('-')) {
-                    // Handle ledger path ranges (e.g., ledger:m/.../5-7 or ledger:0-2)
-                    const dashIndex = suffix.indexOf('-');
-                    const hasPath = suffix.includes('/');
-                    const basePathPart = hasPath ? suffix.slice(0, suffix.lastIndexOf('/') + 1) : '';
-                    const startToken = hasPath
-                        ? suffix.slice(suffix.lastIndexOf('/') + 1, dashIndex)
-                        : suffix.slice(0, dashIndex);
-                    const endToken = suffix.slice(dashIndex + 1);
-                    const startNum = parseInt(startToken);
-                    const endNum = parseInt(endToken);
-                    let start = Number.isNaN(startNum) ? 0 : startNum;
-                    let end = Number.isNaN(endNum) ? start : endNum;
-                    if (end < start) [start, end] = [end, start];
-                    for (let i = start; i <= end; i++) {
-                        result.push(`${trimmedName}:${hasPath ? `${basePathPart}${i}` : i}`);
-                    }
+                    appendRange(result, trimmedName, suffix);
                 } else {
                     // ledger:0, ledger:m/44'/60'/0'/0/0, etc. - keep as-is
                     result.push(part);
@@ -228,22 +213,7 @@ export function expandSignerIdPattern(signerIdPattern: string): string[] {
             const trimmedName = name.trim();
 
             if (range.includes('-')) {
-                // Handle ranges (e.g., alice:m/.../0-2 or alice:0-10)
-                const dashIndex = range.indexOf('-');
-                const hasPath = range.includes('/');
-                const basePathPart = hasPath ? range.slice(0, range.lastIndexOf('/') + 1) : '';
-                const startToken = hasPath
-                    ? range.slice(range.lastIndexOf('/') + 1, dashIndex)
-                    : range.slice(0, dashIndex);
-                const endToken = range.slice(dashIndex + 1);
-                const startNum = parseInt(startToken);
-                const endNum = parseInt(endToken);
-                let start = Number.isNaN(startNum) ? 0 : startNum;
-                let end = Number.isNaN(endNum) ? start : endNum;
-                if (end < start) [start, end] = [end, start];
-                for (let i = start; i <= end; i++) {
-                    result.push(`${trimmedName}:${hasPath ? `${basePathPart}${i}` : i}`);
-                }
+                appendRange(result, trimmedName, range);
             } else if (range.includes('/')) {
                 // Explicit path, keep as-is
                 result.push(`${trimmedName}:${range}`);
@@ -258,4 +228,21 @@ export function expandSignerIdPattern(signerIdPattern: string): string[] {
     }
 
     return result;
+}
+
+function appendRange(result: string[], trimmedName: string, range: string): void {
+    // Handle ledger path ranges (e.g., ledger:m/.../5-7 or ledger:0-2)
+    const dashIndex = range.indexOf('-');
+    const hasPath = range.includes('/');
+    const basePathPart = hasPath ? range.slice(0, range.lastIndexOf('/') + 1) : '';
+    const startToken = hasPath ? range.slice(range.lastIndexOf('/') + 1, dashIndex) : range.slice(0, dashIndex);
+    const endToken = range.slice(dashIndex + 1);
+    const startNum = parseInt(startToken);
+    const endNum = parseInt(endToken);
+    let start = Number.isNaN(startNum) ? 0 : startNum;
+    let end = Number.isNaN(endNum) ? start : endNum;
+    if (end < start) [start, end] = [end, start];
+    for (let i = start; i <= end; i++) {
+        result.push(`${trimmedName}:${hasPath ? `${basePathPart}${i}` : i}`);
+    }
 }
