@@ -1,6 +1,6 @@
 # viem-kit typed API and execution refactor
 
-Date: 2026-09-07
+Date: 2026-09-09
 Baseline: `origin/main` at `3834a96` (viem-kit 0.2.2).
 
 ## Objective and consumer evidence
@@ -85,8 +85,13 @@ submitted hash and cause so callers can reconcile instead of resubmitting.
 
 Preserve the existing raw reverted-receipt return contract. Add an explicit
 `assertTransactionSuccess(receipt)` helper for fail-closed deployment/CLI callers.
-Submission failures are conservatively classified as unknown after entering the
-wallet send operation; retain the cause and never retry automatically.
+For local accounts, observe viem's actual prepare, sign and raw-send boundaries.
+Preparation and signing failures are `not-sent`; entering raw send makes a failure
+`unknown`. Preserve phase, public request identity, allocated nonce, signed hash
+when available, and cause. Reuse viem's preparation, serialization and transport
+behavior. Opaque RPC-wallet sends remain `unknown` after entering the wallet action;
+do not infer broadcast status from error strings. Contract writes, local batches
+and deployments share these submission facts and never retry automatically.
 
 ### Diagnostics are observational
 
@@ -94,8 +99,29 @@ Synchronous and asynchronous hook failures, parser resolver failures, and logger
 failures cannot turn a broadcast or receipt into a transaction failure. Support
 Promise-returning hooks and catch rejected error-reporting hooks too. Hook calls
 do not block transaction progress; async consumers own their delivery guarantees.
-Revert replay is best-effort diagnostic evidence at the receipt block, not proof
-of the historical intra-block execution state.
+Transaction descriptions, event/error parsers and revert replay must also remain
+independent of sending and receipt completion when their promises never settle.
+`onSent` reports the hash immediately; `onDescription` delivers the eventual
+transaction description. Receipt diagnostics begin only after the original intent
+passes replacement checks. `onReverted` delivers available error detail even if
+replay or parsing exceeds its diagnostic budget.
+
+Expose `SentTransaction.diagnostics` for CLI callers to await separately from the
+receipt. Bound transaction-description and receipt-diagnostic work independently
+with `options.diagnostics.timeout` (default 5 seconds per stage) and an optional
+AbortSignal. Timeout or cancellation stops SDK waiting and suppresses late
+diagnostic hooks, without changing transaction outcomes or cancelling a broadcast.
+The diagnostics promise resolves after receipt handling with a completion status;
+it never converts a receipt failure into a second unhandled rejection. The deadline
+does not interrupt synchronous JavaScript or forcibly abort consumer-owned I/O.
+Hooks remain unawaited, so external log delivery is still the caller's responsibility.
+Revert replay is best-effort evidence at the receipt block, not proof of the
+historical intra-block execution state.
+
+`LoggerFactory.setLogger(name, logger)` overrides lookup for that name at every
+level, including after a default logger was cached. Default level/timestamp options
+configure SDK-created console loggers; they do not mutate injected loggers.
+`clear()` removes both injected and generated loggers.
 
 ### Local batch boundary
 
@@ -154,6 +180,15 @@ spec records the complete scope rather than a later phase's starting point.
   or args fail typechecking. Known chain mismatches fail before sending.
 - Async and throwing observers/resolvers/loggers preserve sent hashes/receipts;
   actual and submitted hashes remain distinguishable after replacement.
+- Never-settling transaction/event/error parsers and revert replay cannot hide the
+  hash or receipt. Explicit diagnostic waiting times out or cancels, clears its
+  resources, and suppresses late diagnostic delivery. Replacement receipts never
+  enter the original request's event/error parsers.
+- Real viem local-account execution proves estimate-gas failure and signing refusal
+  send no raw transaction. A lost raw-send response remains unknown with its signed
+  hash and nonce. Batch and deployment failures expose the same evidence.
+- Injected loggers are honored before/after default caching, across levels and
+  names, and cleared without mutating consumer-owned logger settings.
 - Reverted receipts, cancellation, wait timeout and unknown submission have
   explicit, tested semantics with reconciliation evidence.
 - Invalid later batch entries broadcast nothing; later dynamic failures preserve
