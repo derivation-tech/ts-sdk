@@ -47,7 +47,6 @@ export const WRAPPED_NATIVE_TOKENS: Record<number, Erc20TokenInfo> = {
     84532: { address: '0x4200000000000000000000000000000000000006', symbol: 'WETH', name: 'Wrapped Ether', decimals: 18 }, // Base Sepolia
     168587773: { address: '0x4200000000000000000000000000000000000023', symbol: 'WETH', name: 'Wrapped Ether', decimals: 18 }, // Blast Sepolia
     10143: { address: '0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541', symbol: 'WMON', name: 'Wrapped MON', decimals: 18 }, // Monad Testnet
-    20250903: { address: '0xd7d13F2D4EBC0E43fa65bB16e831eB2068a2f4ae', symbol: 'WMOCKF', name: 'Wrapped MOCKF', decimals: 18 }, // ABC
     143: { address: '0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A', symbol: 'WMON', name: 'Wrapped MON', decimals: 18 }, // Monad Mainnet
 
     // Local

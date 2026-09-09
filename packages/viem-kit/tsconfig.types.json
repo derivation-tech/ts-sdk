@@ -12,7 +12,6 @@
         "src/abis/index.ts",
         "src/contracts/index.ts",
         "src/utils/index.ts",
-        "src/chains/index.ts",
         "src/node/index.ts"
     ]
 }

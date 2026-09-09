@@ -34,7 +34,6 @@ export {
     type TransactionSubmissionPhase,
 } from './utils/tx';
 export { decodeContractError } from './utils/contract-error';
-export { abctest } from './chains/abctest';
 export * as ERC20 from './contracts/erc20';
 export * as WETH from './contracts/weth';
 export * as Multicall from './contracts/multicall';

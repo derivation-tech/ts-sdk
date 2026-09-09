@@ -8,11 +8,6 @@ import type { Erc20TokenInfo } from '../types';
  */
 // prettier-ignore
 export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
-    // ABC (Chain ID: 20250903)
-    20250903: [
-        { symbol: "USDM", name: "USD Mock Token", address: "0x8da593B1084727DD82212A0b812415851F29cdec", decimals: 6 },
-    ],
-
     // Monad mainnet
     143: [
         { symbol: "AUSD", name: "AUSD", address: "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a", decimals: 6 },

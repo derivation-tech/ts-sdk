@@ -35,3 +35,5 @@ Deployment bytecode is validated before submission, including preloaded artifact
 Balance multicall helpers now reject failed RPC or contract calls instead of substituting zero balances. Batch sizes must be positive safe integers; successful bigint arrays retain their ordering.
 
 The draft `./utils` receipt helpers `waitForParsedReceipt` and `diagnoseReceipt` are no longer public exports. Consumers use `SentTransaction.receipt` and `SentTransaction.diagnostics`, or `waitForTransactionOutcome` when only a submitted hash is available. Other transaction exports are preserved through an explicit public list.
+
+Remove the retired ABC testnet, its token defaults and examples, the `abctest` root export, and the ABC-only `./chains` entry. Consumers must remove ABC imports and configuration entries; explicit caller-owned Chain objects remain supported.

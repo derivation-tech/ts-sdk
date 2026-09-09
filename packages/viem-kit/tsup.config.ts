@@ -1,14 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-    entry: [
-        'src/index.ts',
-        'src/abis/index.ts',
-        'src/contracts/index.ts',
-        'src/utils/index.ts',
-        'src/chains/index.ts',
-        'src/node/index.ts',
-    ],
+    entry: ['src/index.ts', 'src/abis/index.ts', 'src/contracts/index.ts', 'src/utils/index.ts', 'src/node/index.ts'],
     outDir: 'dist',
     format: ['cjs', 'esm'],
     target: 'es2022',

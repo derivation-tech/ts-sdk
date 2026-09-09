@@ -1,16 +1,10 @@
 import type { Chain } from 'viem';
 import * as chains from 'viem/chains';
-import type { Chain as ViemChain } from 'viem';
-import { abctest } from './chains/abctest';
 import { ChainKit } from './chain-kit';
-
-const localChains: Record<string, ViemChain> = {
-    abctest,
-};
 
 function resolveChain(input: number | string | Chain): Chain | undefined {
     if (typeof input === 'object') return input;
-    const entries = Object.entries({ ...chains, ...localChains }) as Array<[string, ViemChain]>;
+    const entries = Object.entries(chains) as Array<[string, Chain]>;
     return entries.find(([name, chain]) =>
         typeof input === 'number' ? chain?.id === input : name.toLowerCase() === input.toLowerCase()
     )?.[1];

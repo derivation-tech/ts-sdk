@@ -175,3 +175,12 @@ bounded `sent.diagnostics` promise. For an already-submitted hash without parser
 diagnostics, use `waitForTransactionOutcome`. Transaction helpers and their
 public types use an explicit export list; internal receipt routines are not part
 of the supported API.
+
+## Retired ABC testnet
+
+The `abctest` root export and the ABC-only `@derivation-tech/viem-kit/chains`
+subpath are removed, together with ABC's built-in token metadata and dedicated
+examples. Remove those imports and ABC entries from consumer chain maps.
+`ChainKitRegistry.for('abctest')` and its former numeric ID no longer resolve.
+Import supported chain definitions from `viem/chains`; application-owned chains
+can still be passed as explicit `Chain` objects.

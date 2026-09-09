@@ -8,6 +8,8 @@ assert.equal(typeof utils.sendContractTransaction, 'function');
 assert.equal(typeof node.getAccount, 'function');
 assert.equal(typeof node.deployArtifact, 'function');
 assert.equal('getAccount' in core, false);
+assert.equal('abctest' in core, false);
+assert.throws(() => require.resolve('@derivation-tech/viem-kit/chains'), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' });
 assert.equal('ArtifactHelper' in utils, false);
 assert.equal('diagnoseReceipt' in utils, false);
 assert.equal('waitForParsedReceipt' in utils, false);

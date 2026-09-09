@@ -18,7 +18,6 @@ pnpm add @derivation-tech/viem-kit viem
 | `@derivation-tech/viem-kit/utils`     | Transactions, errors, address book and logging                                                |
 | `@derivation-tech/viem-kit/abis`      | WETH and Multicall ABIs                                                                       |
 | `@derivation-tech/viem-kit/contracts` | ERC20, WETH and Multicall helpers                                                             |
-| `@derivation-tech/viem-kit/chains`    | Additional chain definitions                                                                  |
 | `@derivation-tech/viem-kit/node`      | Environment accounts, signer address resolution, artifacts, Foundry and deployment helpers    |
 
 All entries support ESM and CommonJS. Core entries can be bundled for browsers
