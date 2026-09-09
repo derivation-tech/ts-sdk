@@ -102,7 +102,7 @@
     "scripts": {
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
         "build": "tsup --config tsup.config.ts && tsc -p tsconfig.types.json && node scripts/create-esm-declarations.mjs",
-        "build:clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsup --config tsup.config.ts && tsc -p tsconfig.types.json && node scripts/create-esm-declarations.mjs",
+        "build:clean": "pnpm run clean && pnpm run build",
         "build:bundle": "tsup --config tsup.config.ts",
         "build:types": "tsc -p tsconfig.types.json && node scripts/create-esm-declarations.mjs",
         "build:check": "tsc --noEmit -p tsconfig.json",
@@ -117,9 +117,9 @@
         "lint:fix": "eslint . --fix",
         "publint": "publint --pack npm",
         "attw": "attw --pack .",
-        "verify": "pnpm run lint && pnpm run format:check && pnpm run verify:types && pnpm exec jest --config jest.config.cjs --runInBand && pnpm run build && pnpm run typecheck:consumer && pnpm run verify:consumer && pnpm run publint && pnpm run attw",
+        "verify": "pnpm run lint && pnpm run format:check && pnpm run verify:types && pnpm exec jest --config jest.config.cjs --runInBand && pnpm run build:clean && pnpm run typecheck:consumer && pnpm run verify:consumer && pnpm run publint && pnpm run attw",
         "pack": "npm pack",
-        "prepack": "npm run build && npm run build:check",
+        "prepack": "pnpm run build:clean && pnpm run build:check",
         "postpublish": "node ../../scripts/slack-notify.js",
         "verify:consumer": "node scripts/verify-consumer.mjs"
     },
