@@ -224,7 +224,7 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
   };
 
 
-  if (hasName && !hasHash) {
+  if (hasName) {
     // replace __LibName__ occurrences
     out = out.replace(namePlaceholderRe, (m, name: string) => {
       // try direct lib name, then file:lib keys
@@ -237,7 +237,8 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
       if (!provided) throw new Error(`Missing link mapping for library '${name}'`);
       return normalizeAddr(provided);
     });
-  } else if (hasHash && !hasName) {
+  }
+  if (hasHash) {
     // hash-style: require keys to be File:LibName
     const fileKeys = Object.keys(linkReferenceMap).filter(k => k.includes(':'));
     if (fileKeys.length === 0) throw new Error('Hash-style placeholders detected: linkReferenceMap must use FilePath:LibName keys');
@@ -280,52 +281,6 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
     }
 
     // Replace occurrences
-    out = out.replace(hashPlaceholderRe, (m, hexId: string) => {
-      const key = hexId.toLowerCase();
-      const found = hashMap[key] || hashMap[key.slice(0, 34)] || hashMap[key.slice(0, 40)];
-      if (!found) throw new Error(`Unmapped hash placeholder: ${hexId}`);
-      return found;
-    });
-  } else if (hasHash && hasName) {
-    // both styles present: handle names first then hashes
-    out = out.replace(namePlaceholderRe, (m, name: string) => {
-      let provided = Object.hasOwn(linkReferenceMap, name) ? linkReferenceMap[name] : undefined;
-      if (!provided) {
-        const matches = Object.keys(linkReferenceMap).filter(k => k.endsWith(`:${name}`));
-        if (matches.length > 1) throw new Error(`Ambiguous library mapping for '${name}'; use an explicit short-name mapping`);
-        if (matches.length === 1) provided = linkReferenceMap[matches[0]];
-      }
-      if (!provided) throw new Error(`Missing link mapping for library '${name}'`);
-      return normalizeAddr(provided);
-    });
-
-    // then hashes (require file:lib keys)
-    const fileKeys = Object.keys(linkReferenceMap).filter(k => k.includes(':'));
-    if (fileKeys.length === 0) throw new Error('Hash-style placeholders detected: linkReferenceMap must use FilePath:LibName keys');
-    const hashMap: Record<string, string> = {};
-    // parse inline comment mappings as before
-    const inlineMap: Record<string, string> = {};
-    try {
-      const commentRe = /\/\/\s*(__\$([0-9a-fA-F]+)\$__)\s*->\s*([^\s]+)/g;
-      let cm: RegExpExecArray | null;
-      while ((cm = commentRe.exec(raw))) {
-        const placeholder = cm[2].toLowerCase();
-        const fq = cm[3];
-        inlineMap[placeholder] = fq;
-      }
-    } catch (e) {}
-
-    for (const fk of fileKeys) {
-      const addr = linkReferenceMap[fk];
-      if (!addr) continue;
-      const normalized = normalizeAddr(addr);
-      const prefix = keccak256(new TextEncoder().encode(fk)).slice(2, 36).toLowerCase();
-      hashMap[prefix] = normalized;
-
-      for (const [ph, fq] of Object.entries(inlineMap)) {
-        if (fq === fk) hashMap[ph] = normalized;
-      }
-    }
     out = out.replace(hashPlaceholderRe, (m, hexId: string) => {
       const key = hexId.toLowerCase();
       const found = hashMap[key] || hashMap[key.slice(0, 34)] || hashMap[key.slice(0, 40)];
