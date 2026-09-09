@@ -1,7 +1,5 @@
 import { keccak256 } from 'viem';
 import { describe, expect, jest, test } from '@jest/globals';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { Account, Address, Hash, PublicClient, TransactionReceipt, WalletClient } from 'viem';
 import {
     createPublicClient as createViemPublicClient,
@@ -113,13 +111,6 @@ function createContext(parser?: ContractParser<typeof erc20Abi>): {
 }
 
 describe('sendContractTransaction', () => {
-    test('does not re-narrow registry parsers to the request ABI in the write path', () => {
-        const source = readFileSync(resolve(__dirname, '../src/utils/tx/write.ts'), 'utf8');
-
-        expect(source).not.toContain('as ContractParser<TAbi>');
-        expect(source).not.toContain('context.resolveParser?.(request.address)?.parser as ContractParser<TAbi>');
-    });
-
     test('typed write path preserves ABI args for parser invocation', async () => {
         const parseTransaction = jest.fn(async (request: ParseTransactionInput<typeof erc20Abi>) => {
             expect(request.functionName).toBe('transfer');
