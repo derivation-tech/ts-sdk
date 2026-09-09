@@ -1,9 +1,8 @@
 import type { Abi, Account, Address, Hash, Hex, TransactionReceipt } from 'viem';
 import type { DecodedContractError } from '../../types';
 import { decodeContractError } from '../contract-error';
-import { runDiagnostics, validateDiagnosticOptions } from './diagnostics';
+import { runDiagnostics } from './diagnostics';
 import { safeNotifyLifecycleHook } from './hooks';
-import { waitForTransactionOutcome } from './outcome';
 import { parseErrorDescription, parseEventDescription } from './parsing';
 import type {
     SendTransactionOptions,
@@ -30,20 +29,6 @@ function errorMessage(error: DecodedContractError): string {
         case 'unknown':
             return error.message;
     }
-}
-
-export async function waitForParsedReceipt<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
-    context: TxContext,
-    submittedHash: Hash,
-    request: TypedWriteRequest<TAbi, TFunctionName>,
-    calldata: Hex,
-    account: Account | Address,
-    options: SendTransactionOptions = {}
-): Promise<TransactionReceipt> {
-    validateDiagnosticOptions(options);
-    const receipt = await waitForTransactionOutcome(context.publicClient, submittedHash, options);
-    void diagnoseReceipt(context, submittedHash, receipt, request, calldata, account, options);
-    return receipt;
 }
 
 export async function diagnoseReceipt<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(

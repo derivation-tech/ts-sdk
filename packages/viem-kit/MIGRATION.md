@@ -166,3 +166,12 @@ Multicall balance helpers now reject RPC errors or failed individual calls rathe
 than returning zero balances. Successful results keep the existing bigint arrays
 and ordering, including genuine zero balances. Callers must handle query failure
 separately from an empty balance. Batch sizes must be positive safe integers.
+
+## Receipt diagnostics exports
+
+The draft `./utils` exports `waitForParsedReceipt` and `diagnoseReceipt` are no
+longer public. Use `sendContractTransaction` to obtain `sent.receipt` and the separate,
+bounded `sent.diagnostics` promise. For an already-submitted hash without parser
+diagnostics, use `waitForTransactionOutcome`. Transaction helpers and their
+public types use an explicit export list; internal receipt routines are not part
+of the supported API.

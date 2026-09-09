@@ -1,5 +1,35 @@
-export * from './tx/types';
-export * from './tx/write';
-export * from './tx/receipt';
-export * from './tx/outcome';
-export * from './tx/batch';
+export {
+    BatchTransactionError,
+    defineWriteRequest,
+    type BatchTransactionOptions,
+    type BatchTransactionPhase,
+    type BatchTransactionProgress,
+    type BatchTransactionResult,
+    type DefinedWriteRequest,
+    type ReceiptWaitOptions,
+    type RuntimeWriteRequest,
+    type SendTransactionOptions,
+    type SentTransaction,
+    type TransactionSubmissionPhase,
+    type TxContext,
+    type TxDiagnosticStatus,
+    type TxDiagnosticsResult,
+    type TxLifecycleHooks,
+    type TxObserverErrorEvent,
+    type TxObserverPhase,
+    type TxReplacementEvent,
+    type TypedWriteRequest,
+    type WriteArgs,
+    type WriteFunctionName,
+} from './tx/types';
+export { sendContractTransaction } from './tx/write';
+export {
+    assertTransactionSuccess,
+    TransactionReceiptError,
+    TransactionReplacementError,
+    TransactionRevertedError,
+    TransactionSubmissionError,
+    waitForTransactionOutcome,
+    type TransactionIdentity,
+} from './tx/outcome';
+export { batchSendLocalTransactions } from './tx/batch';

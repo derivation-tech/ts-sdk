@@ -24,7 +24,13 @@ import {
     WRAPPED_NATIVE_TOKENS,
 } from '@derivation-tech/viem-kit';
 import type { TypedWriteRequest } from '@derivation-tech/viem-kit';
+import * as utils from '@derivation-tech/viem-kit/utils';
 import { ArtifactHelper, getAccount } from '@derivation-tech/viem-kit/node';
+
+// @ts-expect-error Receipt diagnosis is internal; consumers await sent.diagnostics.
+assert.equal(utils.diagnoseReceipt, undefined);
+// @ts-expect-error Receipt waiting uses sent.receipt or waitForTransactionOutcome.
+assert.equal(utils.waitForParsedReceipt, undefined);
 
 // Signature and event shape from Anchored's AncFundController ABI at f9fd04e.
 // Addresses and RPC responses below are synthetic; this fixture never uses a network transport.
