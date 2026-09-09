@@ -25,3 +25,5 @@ Package verification now includes an isolated tarball consumer modeled on Anchor
 Never-settling transaction/event/error parsers and revert replay no longer block submission or receipt completion. Transaction descriptions use onDescription; SentTransaction.diagnostics offers a separate bounded, cancellable wait for CLI output, with late diagnostic delivery suppressed after cutoff.
 
 Submission errors now retain their observed prepare/sign/send phase. Local preparation and signing failures are not-sent; raw-send and opaque RPC-wallet failures remain unknown, with known nonce and signed hash evidence retained. Contract writes, batches and deployment helpers share this path. Local sends observe viem native actions, so custom sendTransaction/deployContract overrides should move to preparation, signing or raw-send customization.
+
+LoggerFactory.setLogger now consistently overrides a name across all log levels, including cached defaults. Injected loggers retain their own settings, and clear removes both injected and generated instances.

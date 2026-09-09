@@ -82,10 +82,13 @@ export class ConsoleLogger implements BaseLogger {
  */
 export class LoggerFactory {
     private static loggers: Map<string, BaseLogger> = new Map();
+    private static injectedLoggers: Map<string, BaseLogger> = new Map();
     private static defaultLevel: LogLevel = LogLevel.Info;
     private static enableTimestamp: boolean = false;
 
     static getLogger(name: string, level?: LogLevel): BaseLogger {
+        const injected = this.injectedLoggers.get(name);
+        if (injected) return injected;
         const logLevel = level ?? this.defaultLevel;
         const key = `${name}-${logLevel}`;
 
@@ -96,7 +99,7 @@ export class LoggerFactory {
     }
 
     static setLogger(name: string, logger: BaseLogger): void {
-        this.loggers.set(name, logger);
+        this.injectedLoggers.set(name, logger);
     }
 
     static setDefaultLevel(level: LogLevel): void {
@@ -109,5 +112,6 @@ export class LoggerFactory {
 
     static clear(): void {
         this.loggers.clear();
+        this.injectedLoggers.clear();
     }
 }

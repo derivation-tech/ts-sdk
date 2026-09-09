@@ -171,6 +171,12 @@ Local-account customization belongs in `prepareTransactionRequest`, the account'
 `sendTransaction` action to observe these boundaries. RPC-wallet accounts continue
 through `walletClient.sendTransaction`. Clients and accounts are never mutated.
 
+Use `LoggerFactory.setLogger(name, logger)` to inject output for a name (for
+example, `${kit.chain.name}::Tx`). An injected logger takes precedence across log
+levels, including after defaults have been cached. Factory level/timestamp settings
+configure SDK-created console loggers and do not mutate injected loggers.
+`LoggerFactory.clear()` removes both injected and generated instances.
+
 ## Parsers
 
 ```ts
