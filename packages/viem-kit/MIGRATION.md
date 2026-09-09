@@ -61,8 +61,19 @@ Preserve explicit success assertions in commands that currently check
 `receipt.status`. Raw send APIs still return reverted receipts. Deployment helpers
 assert success themselves. Do not catch a timeout and simply call send again:
 `TransactionReceiptError.hash` and `TransactionSubmissionError.cause/request`
-exist to support reconciliation. Local batch errors additionally retain the
-hash of the signed payload even when the RPC response is lost.
+exist to support reconciliation. Submission errors now also expose `phase`,
+`outcome` and optional `hash`: local prepare/sign failures are `not-sent`, while raw
+send and opaque RPC-wallet failures remain `unknown`. A known nonce and standard
+EVM signed hash survive a lost raw-send response; hashes from custom chain
+serializers are retained only when returned by RPC. Batch errors use the same
+submission error as their cause and preserve previous progress.
+
+Local-account execution now observes viem's native send action. Move custom
+`walletClient.sendTransaction` wrappers into `prepareTransactionRequest`, local
+account signing or `sendRawTransaction` if they must affect local sends. Node
+deployment helpers encode constructor calldata and use this same path; custom
+`deployContract` overrides no longer intercept them. RPC-wallet sends continue
+using the supplied client's `sendTransaction` action.
 
 ## Parser migration
 

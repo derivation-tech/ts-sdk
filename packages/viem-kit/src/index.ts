@@ -30,6 +30,8 @@ export {
     type TypedWriteRequest,
     type WriteFunctionName,
     type WriteArgs,
+    type TransactionIdentity,
+    type TransactionSubmissionPhase,
 } from './utils/tx';
 export { decodeContractError } from './utils/contract-error';
 export { abctest } from './chains/abctest';

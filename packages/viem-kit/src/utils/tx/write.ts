@@ -6,9 +6,10 @@ import { encodeWriteRequestData } from './calldata';
 import { resolveTxExecutionContext } from './context';
 import { runDiagnostics, validateDiagnosticOptions } from './diagnostics';
 import { safeNotifyLifecycleHook } from './hooks';
-import { TransactionSubmissionError, waitForTransactionOutcome } from './outcome';
+import { waitForTransactionOutcome } from './outcome';
 import { parseTransactionDescription } from './parsing';
 import { diagnoseReceipt } from './receipt';
+import { submitTransaction } from './submission';
 import type { SendTransactionOptions, SentTransaction, TxContext, TypedWriteRequest, WriteFunctionName } from './types';
 
 function errorMessage(error: DecodedContractError): string {
@@ -41,13 +42,13 @@ async function sendTypedContractTransaction<TAbi extends Abi, TFunctionName exte
         address,
         ...transaction
     } = request;
-    return context.walletClient.sendTransaction({
+    return submitTransaction(context.walletClient, {
         ...transaction,
         account,
         chain,
         to: address,
         data: calldata,
-    } as Parameters<typeof context.walletClient.sendTransaction>[0]);
+    } as Parameters<typeof submitTransaction>[1]);
 }
 
 export async function sendContractTransaction<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
@@ -71,18 +72,8 @@ export async function sendContractTransaction<TAbi extends Abi, TFunctionName ex
         hash = await sendTypedContractTransaction(context, request, calldata, account, chain);
     } catch (error) {
         const decoded = decodeContractError(error, request.abi);
-        log(undefined, `Tx submission not confirmed: ${errorMessage(decoded)}`);
-        throw new TransactionSubmissionError(
-            {
-                from: typeof account === 'string' ? account : account.address,
-                to: request.address,
-                data: calldata,
-                chainId: chain?.id,
-                nonce: request.nonce,
-                value: request.value,
-            },
-            error
-        );
+        log(undefined, `Tx submission failed: ${errorMessage(decoded)}`);
+        throw error;
     }
 
     log(hash, `Sent tx: ${hash}`);

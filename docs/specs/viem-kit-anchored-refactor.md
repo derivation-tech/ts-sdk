@@ -87,8 +87,8 @@ Preserve the existing raw reverted-receipt return contract. Add an explicit
 `assertTransactionSuccess(receipt)` helper for fail-closed deployment/CLI callers.
 For local accounts, observe viem's actual prepare, sign and raw-send boundaries.
 Preparation and signing failures are `not-sent`; entering raw send makes a failure
-`unknown`. Preserve phase, public request identity, allocated nonce, signed hash
-when available, and cause. Reuse viem's preparation, serialization and transport
+`unknown`. Preserve phase, public request identity, known nonce, signed hash
+when computable, and cause. Reuse viem's preparation, serialization and transport
 behavior. Opaque RPC-wallet sends remain `unknown` after entering the wallet action;
 do not infer broadcast status from error strings. Contract writes, local batches
 and deployments share these submission facts and never retry automatically.
@@ -127,7 +127,9 @@ configure SDK-created console loggers; they do not mutate injected loggers.
 
 Validate all static accounts, chains and calldata before the first broadcast.
 All preparation/sign/send/wait failures include batch progress. Before raw send,
-compute and retain the signed transaction hash; an RPC error may mean acceptance
+compute and retain the standard EVM signed transaction hash (excluding blob
+sidecars); custom chain serializers may define a different hash and therefore
+retain only the RPC hash when returned. An RPC error may mean acceptance
 is unknown and must not erase that hash or trigger an automatic retry.
 
 Allow an explicitly shared viem `NonceManager` for concurrent batch calls;

@@ -36,7 +36,7 @@ function setup(status: 'success' | 'reverted' = 'success') {
         effectiveGasPrice: 1n,
         type: 'eip1559',
     };
-    const send = jest.spyOn(walletClient, 'deployContract').mockResolvedValue(hash);
+    const send = jest.spyOn(walletClient, 'sendTransaction').mockResolvedValue(hash);
     const wait = jest.spyOn(publicClient, 'waitForTransactionReceipt').mockResolvedValue(receipt);
     return { publicClient, walletClient, send, wait, receipt };
 }
@@ -58,9 +58,8 @@ describe('Node deployment helpers', () => {
         expect(send).toHaveBeenCalledWith(
             expect.objectContaining({
                 ...transaction,
-                abi,
-                bytecode,
-                args: [42n],
+                to: null,
+                data: encodeDeployData({ abi, bytecode, args: [42n] }),
                 account: walletClient.account,
                 chain: mainnet,
             })
@@ -75,7 +74,7 @@ describe('Node deployment helpers', () => {
             account: sender,
             transport: custom({ request: async () => undefined }),
         });
-        const send = jest.spyOn(wallet, 'deployContract');
+        const send = jest.spyOn(wallet, 'sendTransaction');
         await expect(deployBytecode(publicClient, wallet, { abi, bytecode, constructorArgs: [1n] })).rejects.toThrow(
             'Chain mismatch'
         );

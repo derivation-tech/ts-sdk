@@ -76,6 +76,7 @@ export type {
     TxObserverPhase,
     ReceiptWaitOptions,
     TxReplacementEvent,
+    TransactionSubmissionPhase,
     TypedWriteRequest,
     WriteArgs,
     WriteFunctionName,

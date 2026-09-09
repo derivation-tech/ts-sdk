@@ -1,5 +1,5 @@
 import type { Account, Address, Chain, Hex, LocalAccount, PublicClient, WalletClient } from 'viem';
-import { isAddressEqual, keccak256 } from 'viem';
+import { isAddressEqual } from 'viem';
 import { encodeRuntimeWriteRequestData } from './calldata';
 import { resolveTxExecutionContext } from './context';
 import type {
@@ -11,7 +11,8 @@ import type {
 } from './types';
 import { BatchTransactionError } from './types';
 import { safeNotifyLifecycleHook } from './hooks';
-import { TransactionReplacementError, waitForTransactionOutcome } from './outcome';
+import { TransactionReplacementError, TransactionSubmissionError, waitForTransactionOutcome } from './outcome';
+import { submitTransaction } from './submission';
 
 function requireLocalAccount(client: WalletClient, index: number): LocalAccount {
     const account = client.account;
@@ -56,8 +57,7 @@ async function allocateNonce(
     return nonce;
 }
 
-async function prepareRequest(
-    client: WalletClient,
+function submissionRequest(
     account: LocalAccount,
     request: DefinedWriteRequest,
     chain: Chain | undefined,
@@ -75,14 +75,14 @@ async function prepareRequest(
         dataSuffix: _dataSuffix,
         ...transaction
     } = request;
-    return client.prepareTransactionRequest({
+    return {
         ...transaction,
         account,
         chain,
         to: address,
         data,
         nonce,
-    });
+    } as Parameters<typeof submitTransaction>[1];
 }
 
 function progressSnapshot(progress: readonly BatchTransactionProgress[]): BatchTransactionProgress[] {
@@ -129,7 +129,6 @@ export async function batchSendLocalTransactions(
     const nextNonceByAccount = new Map<string, number>();
 
     for (const [index, { request, client, account, chain, data }] of calls.entries()) {
-        let phase: BatchTransactionPhase = 'prepare';
         const entry: BatchTransactionProgress = { index, submission: 'not-sent' };
         progress.push(entry);
         try {
@@ -140,27 +139,40 @@ export async function batchSendLocalTransactions(
                       client: publicClient,
                   })
                 : await allocateNonce(publicClient, chain, account, nextNonceByAccount);
-            const prepared = await prepareRequest(client, account, request, chain, entry.nonce, data);
-
-            phase = 'sign';
-            const raw = await account.signTransaction(prepared as Parameters<LocalAccount['signTransaction']>[0]);
-            entry.hash = keccak256(raw);
-
-            phase = 'send';
-            entry.submission = 'unknown';
-            const returnedHash = await publicClient.sendRawTransaction({ serializedTransaction: raw });
-            if (returnedHash.toLowerCase() !== entry.hash)
-                throw new Error('RPC returned a hash that does not match the signed transaction');
+            entry.hash = await submitTransaction(
+                client,
+                submissionRequest(account, request, chain, entry.nonce, data),
+                (raw) => publicClient.sendRawTransaction(raw)
+            );
             entry.submission = 'submitted';
             const hash = entry.hash;
             safeNotifyLifecycleHook(options.hooks, 'sent', hash, () => options.hooks?.onSent?.({ hash }));
         } catch (error) {
+            const failure =
+                error instanceof TransactionSubmissionError
+                    ? error
+                    : new TransactionSubmissionError(
+                          {
+                              from: account.address,
+                              to: request.address,
+                              data,
+                              chainId: chain?.id,
+                              nonce: entry.nonce,
+                              value: request.value,
+                          },
+                          error,
+                          { phase: 'prepare' }
+                      );
+            entry.submission = failure.outcome;
+            entry.hash = failure.hash;
+            entry.nonce = failure.request.nonce ?? entry.nonce;
+            const phase: BatchTransactionPhase = failure.phase;
             throw new BatchTransactionError(
                 `Batch transaction ${index} failed during ${phase}`,
                 phase,
                 index,
                 progressSnapshot(progress),
-                { cause: error }
+                { cause: failure }
             );
         }
     }

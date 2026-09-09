@@ -120,14 +120,15 @@ but does not disable explicitly supplied hooks.
 Wait options are viem's `confirmations`, `timeout`, `pollingInterval` and
 `checkReplacement`; omitted settings use viem defaults.
 
-| Result                                       | Contract                                                                                                        |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Successful original transaction or repricing | Returns the receipt                                                                                             |
-| Reverted original transaction                | Returns the raw reverted receipt; `assertTransactionSuccess` throws `TransactionRevertedError` retaining it     |
-| Cancellation or different-intent replacement | Throws `TransactionReplacementError` with original hash, reason and replacement receipt                         |
-| Receipt timeout/RPC failure                  | Throws `TransactionReceiptError` with submitted hash and cause                                                  |
-| Failure inside wallet submission             | Conservatively throws `TransactionSubmissionError` with `outcome: 'unknown'`, public request identity and cause |
-| Static validation/encoding failure           | Fails before calling the wallet                                                                                 |
+| Result                                       | Contract                                                                                                                                |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Successful original transaction or repricing | Returns the receipt                                                                                                                     |
+| Reverted original transaction                | Returns the raw reverted receipt; `assertTransactionSuccess` throws `TransactionRevertedError` retaining it                             |
+| Cancellation or different-intent replacement | Throws `TransactionReplacementError` with original hash, reason and replacement receipt                                                 |
+| Receipt timeout/RPC failure                  | Throws `TransactionReceiptError` with submitted hash and cause                                                                          |
+| Local preparation/signing failure            | Throws `TransactionSubmissionError` with `phase: 'prepare'` or `'sign'` and `outcome: 'not-sent'`                                       |
+| Raw-send or opaque RPC-wallet failure        | Throws `TransactionSubmissionError` with `phase: 'send'`, `outcome: 'unknown'`, request identity, cause and signed hash when computable |
+| Static validation/encoding failure           | Fails before calling the wallet                                                                                                         |
 
 Receipt hooks carry both `submittedHash` and the actual receipt `hash`.
 `onReplaced` includes viem's replacement details. A successful cancellation
@@ -158,7 +159,17 @@ not an exact replay of intra-block execution state.
 
 The SDK never retries submission automatically. A wait failure or unknown send
 result requires reconciliation; it is not evidence that a transaction was never
-accepted. For RPC-wallet sends a hash may be unavailable after an error.
+accepted. Local-account sends observe viem's native prepare/sign/raw-send actions and retain
+known nonces plus standard EVM signed hashes, including the body hash for EIP-4844
+network payloads with sidecars. For custom chain serializers, the SDK does not
+assume a hash algorithm: the hash is available only after a successful RPC response.
+Opaque RPC-wallet failures remain unknown even when an error message sounds like a
+preflight rejection. All submission errors retain their original cause.
+
+Local-account customization belongs in `prepareTransactionRequest`, the account's
+`signTransaction`, or `sendRawTransaction`; the SDK invokes viem's native
+`sendTransaction` action to observe these boundaries. RPC-wallet accounts continue
+through `walletClient.sendTransaction`. Clients and accounts are never mutated.
 
 ## Parsers
 
@@ -221,7 +232,8 @@ Successful entries remain `{ index, hash, receipt }`. `BatchTransactionError`
 retains `phase`, `index`, `cause` and `progress`; entries include reserved nonces,
 signed hashes, known receipts and `submission` states (`not-sent`, `unknown`,
 `submitted`). Raw hashes are calculated before RPC submission. An inconsistent
-RPC response preserves the signed hash and reports an unknown result.
+RPC response preserves the computable signed hash and reports an unknown result.
+Custom chain serializers follow the hash-evidence limit described above.
 
 After a preparation or signing failure, a shared manager may retain a consumed
 nonce. Reconcile all active calls before explicit nonce reuse or creating a fresh

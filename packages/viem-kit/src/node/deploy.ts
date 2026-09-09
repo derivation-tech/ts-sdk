@@ -4,7 +4,8 @@ import { loadArtifact, linkBytecode, type Artifact } from './artifact-helper';
 import { LoggerFactory } from '../utils/logger';
 import { resolveTxExecutionContext } from '../utils/tx/context';
 import { safeNotifyLifecycleHook } from '../utils/tx/hooks';
-import { assertTransactionSuccess, TransactionSubmissionError, waitForTransactionOutcome } from '../utils/tx/outcome';
+import { assertTransactionSuccess, waitForTransactionOutcome } from '../utils/tx/outcome';
+import { submitTransaction } from '../utils/tx/submission';
 import type { SendTransactionOptions } from '../utils/tx/types';
 
 export type DeploymentTransactionOverrides = Pick<
@@ -50,26 +51,13 @@ async function deploy(
         );
     };
 
-    let hash: Hash;
-    try {
-        hash = await walletClient.deployContract({
-            ...transaction,
-            ...request,
-            account,
-            chain,
-        } as Parameters<WalletClient['deployContract']>[0]);
-    } catch (error) {
-        throw new TransactionSubmissionError(
-            {
-                from: typeof account === 'string' ? account : account.address,
-                data,
-                chainId: chain?.id,
-                nonce: transaction.nonce,
-                value: transaction.value,
-            },
-            error
-        );
-    }
+    const hash = await submitTransaction(walletClient, {
+        ...transaction,
+        account,
+        chain,
+        to: null,
+        data,
+    } as Parameters<typeof submitTransaction>[1]);
     log(hash, `Deploying ${label}: ${hash} ...`);
     safeNotifyLifecycleHook(options.hooks, 'sent', hash, () =>
         options.hooks?.onSent?.({ hash, description: `Deploy ${label}` })

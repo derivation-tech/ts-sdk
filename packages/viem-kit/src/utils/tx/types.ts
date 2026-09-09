@@ -166,7 +166,9 @@ export type SentTransaction = {
     diagnostics: Promise<TxDiagnosticsResult>;
 };
 
-export type BatchTransactionPhase = 'prepare' | 'sign' | 'send' | 'receipt';
+export type TransactionSubmissionPhase = 'prepare' | 'sign' | 'send';
+
+export type BatchTransactionPhase = TransactionSubmissionPhase | 'receipt';
 
 export type BatchTransactionOptions = SendTransactionOptions & {
     /** Share one manager across concurrent calls in the same chain/RPC environment. */

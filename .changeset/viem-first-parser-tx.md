@@ -23,3 +23,5 @@ WETH helpers use the kit's explicit wrapped-native metadata and the chain's nati
 Package verification now includes an isolated tarball consumer modeled on Anchored's typed FundController administration flow, CJS/ESM loading without Ledger, and a browser bundle. A migration guide covers the consumer's fee, metadata, parser, import and transaction-outcome changes.
 
 Never-settling transaction/event/error parsers and revert replay no longer block submission or receipt completion. Transaction descriptions use onDescription; SentTransaction.diagnostics offers a separate bounded, cancellable wait for CLI output, with late diagnostic delivery suppressed after cutoff.
+
+Submission errors now retain their observed prepare/sign/send phase. Local preparation and signing failures are not-sent; raw-send and opaque RPC-wallet failures remain unknown, with known nonce and signed hash evidence retained. Contract writes, batches and deployment helpers share this path. Local sends observe viem native actions, so custom sendTransaction/deployContract overrides should move to preparation, signing or raw-send customization.

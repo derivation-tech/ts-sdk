@@ -8,16 +8,19 @@ import {
     encodeEventTopics,
     encodeFunctionData,
     getAbiItem,
+    keccak256,
     parseAbi,
     toHex,
 } from 'viem';
 import type { Address, Hash } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import {
     assertTransactionSuccess,
     ChainKit,
     createContractParser,
     sendContractTransaction,
     TransactionRevertedError,
+    TransactionSubmissionError,
     WRAPPED_NATIVE_TOKENS,
 } from '@derivation-tech/viem-kit';
 import type { TypedWriteRequest } from '@derivation-tech/viem-kit';
@@ -164,6 +167,55 @@ await assert.rejects(
 assert.equal(transactions.length, 2);
 assert.deepEqual(ArtifactHelper.loadABI(JSON.stringify(abi)), abi);
 await assert.rejects(getAccount(kit, 'ledger'), /not installed/);
+
+// Exercise native local-account stages against whichever viem peer is installed.
+for (const failure of ['prepare', 'send'] as const) {
+    const rawTransactions: Hash[] = [];
+    const localTransport = custom(
+        {
+            async request({ method, params }) {
+                if (method === 'eth_fillTransaction') throw { code: -32601, message: 'Method not found' };
+                if (method === 'eth_estimateGas') {
+                    if (failure === 'prepare') throw { code: 3, message: 'execution reverted', data: '0x' };
+                    return '0x10000';
+                }
+                if (method === 'eth_sendRawTransaction') {
+                    rawTransactions.push((params as [Hash])[0]);
+                    throw new Error('response lost after acceptance');
+                }
+                throw new Error(`Unexpected local RPC: ${method}`);
+            },
+        },
+        { retryCount: 0 }
+    );
+    const localAccount = privateKeyToAccount(`0x${'01'.padStart(64, '0')}`);
+    const localWallet = createWalletClient({ chain, account: localAccount, transport: localTransport });
+    const localPublic = createPublicClient({ chain, transport: localTransport });
+    await assert.rejects(
+        sendContractTransaction(
+            { publicClient: localPublic, walletClient: localWallet },
+            {
+                address: controller,
+                abi,
+                functionName: 'setFundMinSubscriptionUsd',
+                args: [7, 1_000],
+                nonce: 7,
+                type: 'legacy',
+                gasPrice: 1n,
+            },
+            { silent: true }
+        ),
+        (error: unknown) => {
+            assert.ok(error instanceof TransactionSubmissionError);
+            assert.equal(error.phase, failure);
+            assert.equal(error.outcome, failure === 'prepare' ? 'not-sent' : 'unknown');
+            assert.equal(error.request.nonce, 7);
+            assert.equal(error.hash, rawTransactions[0] ? keccak256(rawTransactions[0]) : undefined);
+            return true;
+        }
+    );
+    assert.equal(rawTransactions.length, failure === 'prepare' ? 0 : 1);
+}
 
 function checkInvalidArgs() {
     const invalid = {

@@ -1,23 +1,36 @@
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem';
 import { safeNotifyLifecycleHook } from './hooks';
-import type { SendTransactionOptions } from './types';
+import type { SendTransactionOptions, TransactionSubmissionPhase } from './types';
+
+export type TransactionIdentity = {
+    from: Address;
+    to?: Address;
+    data: Hex;
+    chainId?: number;
+    nonce?: number;
+    value?: bigint;
+};
 
 export class TransactionSubmissionError extends Error {
-    readonly outcome = 'unknown';
+    readonly outcome: 'not-sent' | 'unknown';
+    readonly phase: TransactionSubmissionPhase;
+    readonly hash?: Hash;
 
     constructor(
-        public readonly request: {
-            from: Address;
-            to?: Address;
-            data: Hex;
-            chainId?: number;
-            nonce?: number;
-            value?: bigint;
-        },
-        cause: unknown
+        public readonly request: TransactionIdentity,
+        cause: unknown,
+        evidence: { phase: TransactionSubmissionPhase; hash?: Hash } = { phase: 'send' }
     ) {
-        super('Transaction submission outcome is unknown; reconcile before retrying', { cause });
+        super(
+            evidence.phase === 'send'
+                ? 'Transaction submission outcome is unknown; reconcile before retrying'
+                : `Transaction ${evidence.phase} failed before broadcast`,
+            { cause }
+        );
         this.name = 'TransactionSubmissionError';
+        this.phase = evidence.phase;
+        this.outcome = evidence.phase === 'send' ? 'unknown' : 'not-sent';
+        this.hash = evidence.hash;
     }
 }
 
