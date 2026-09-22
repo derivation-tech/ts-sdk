@@ -9,10 +9,6 @@ type ResolvedParser<TAbi extends Abi> =
     | { source: 'request'; parser: ContractParser<TAbi> }
     | { source: 'registry'; parser: ContractParser };
 
-function isParserEventArgs(value: unknown): value is readonly unknown[] | Record<string, unknown> {
-    return Array.isArray(value) || (typeof value === 'object' && value !== null);
-}
-
 function toParserArgs(args: unknown): readonly unknown[] {
     if (args === undefined) return [];
     if (!Array.isArray(args)) {
@@ -91,12 +87,13 @@ export async function parseEventDescription<TAbi extends Abi, TFunctionName exte
             abi: resolved.parser.abi,
             data: log.data,
             topics: log.topics as [Hex, ...Hex[]],
-            strict: false,
+            strict: true,
         });
-        if (!decodedLog.eventName || !isParserEventArgs(decodedLog.args)) return undefined;
+        if (!decodedLog.eventName) return undefined;
         const input: ParseEventInput<Abi> = {
             eventName: decodedLog.eventName,
-            args: decodedLog.args,
+            // viem represents a successfully decoded zero-argument event with undefined args.
+            args: decodedLog.args ?? [],
         };
         if (resolved.source === 'request') {
             return await resolved.parser.parseEvent?.(narrowEventInput<TAbi>(input));

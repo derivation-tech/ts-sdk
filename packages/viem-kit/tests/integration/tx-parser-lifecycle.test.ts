@@ -10,6 +10,7 @@ import {
     parseAbi,
 } from 'viem';
 import { mainnet } from 'viem/chains';
+import { createParserRegistry } from '../../src/parsers/registry';
 import type { ContractParser } from '../../src/types';
 import { sendContractTransaction, TransactionReceiptError } from '../../src/utils/tx';
 
@@ -19,6 +20,7 @@ const hash = '0x3333333333333333333333333333333333333333333333333333333333333333
 const abi = parseAbi([
     'function setValue(uint256 value)',
     'event ValueSet(uint256 value)',
+    'event Ping()',
     'error ValueRejected(uint256 value)',
 ]);
 
@@ -324,5 +326,71 @@ describe('diagnostic liveness', () => {
         expect(onDescription).toHaveBeenCalledWith({ hash, description: 'admin call' });
         expect(parseEvent).not.toHaveBeenCalled();
         expect(jest.getTimerCount()).toBe(0);
+    });
+});
+
+describe('event decoding boundaries', () => {
+    test.each(['request', 'registry'] as const)('delivers zero-argument events to the %s parser', async (source) => {
+        const receipt = makeReceipt('success', [
+            {
+                address: target,
+                topics: [encodeEventTopics({ abi, eventName: 'Ping' })[0]],
+                data: '0x',
+                blockHash: hash,
+                blockNumber: 10n,
+                transactionHash: hash,
+                transactionIndex: 0,
+                logIndex: 0,
+                removed: false,
+            },
+        ]);
+        const { publicClient, walletClient } = setup(receipt);
+        const parseEvent = jest.fn(async () => 'ping');
+        const parser: ContractParser<typeof abi> = { abi, parseEvent };
+        const registry = createParserRegistry();
+        registry.registerParser(target, parser);
+        const onEvent = jest.fn(() => undefined);
+        const onParseError = jest.fn(() => undefined);
+        const sent = await sendContractTransaction(
+            {
+                publicClient,
+                walletClient,
+                resolveParser: source === 'registry' ? (address) => registry.resolveParser(address) : undefined,
+            },
+            { ...request(parser), parser: source === 'request' ? parser : undefined },
+            { silent: true, hooks: { onEvent, onParseError } }
+        );
+        await sent.receipt;
+        await sent.diagnostics;
+        expect(parseEvent).toHaveBeenCalledWith({ eventName: 'Ping', args: [] });
+        expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ description: 'ping' }));
+        expect(onParseError).not.toHaveBeenCalled();
+    });
+
+    test('reports incomplete event data without invoking a parser with missing required arguments', async () => {
+        const receipt = makeReceipt('success', [
+            {
+                address: target,
+                topics: [encodeEventTopics({ abi, eventName: 'ValueSet' })[0]],
+                data: '0x',
+                blockHash: hash,
+                blockNumber: 10n,
+                transactionHash: hash,
+                transactionIndex: 0,
+                logIndex: 0,
+                removed: false,
+            },
+        ]);
+        const { publicClient, walletClient } = setup(receipt);
+        const parseEvent = jest.fn(async () => 'invalid');
+        const onParseError = jest.fn(() => undefined);
+        const sent = await sendContractTransaction({ publicClient, walletClient }, request({ abi, parseEvent }), {
+            silent: true,
+            hooks: { onParseError },
+        });
+        await expect(sent.receipt).resolves.toBe(receipt);
+        await sent.diagnostics;
+        expect(parseEvent).not.toHaveBeenCalled();
+        expect(onParseError).toHaveBeenCalledWith(expect.objectContaining({ phase: 'event' }));
     });
 });

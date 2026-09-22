@@ -60,3 +60,5 @@ Ledger personal signing preserves raw Hex bytes, matching raw Uint8Array semanti
 Signer indices and Ledger path components now reject malformed, fractional and out-of-range values. Invalid LEDGER_INDEX throws instead of silently selecting account zero. Pattern expansion is limited to 1,000 IDs and preserves bare credential names so private-key accounts work.
 
 FoundryHelper now delegates to ArtifactHelper, including source-qualified linking and bytecode validation. All linking paths require exact 20-byte addresses and valid integer offsets; short or oversized addresses no longer silently change during linking.
+
+Zero-argument events now reach request and registered parsers with an empty args array. Event decoding requires complete ABI data before invoking typed handlers; malformed logs report a diagnostic error without rejecting the receipt.

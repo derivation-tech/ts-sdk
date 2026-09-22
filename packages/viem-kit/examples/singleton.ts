@@ -118,14 +118,14 @@ async function example2_sendTxWithParsing() {
                 abi: parser.abi,
                 data: log.data,
                 topics: log.topics,
-                strict: false,
+                strict: true,
             });
 
             // Use parser to format (includes decimals!)
-            if (!decoded.eventName || !decoded.args) continue;
+            if (!decoded.eventName) continue;
             const formatted = await parser.parseEvent({
                 eventName: decoded.eventName,
-                args: decoded.args,
+                args: decoded.args ?? [],
             });
 
             console.log(`Event #${log.logIndex}:`, formatted);

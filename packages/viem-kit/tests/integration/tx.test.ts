@@ -113,8 +113,6 @@ function createContext(parser?: ContractParser<typeof erc20Abi>): {
 describe('sendContractTransaction', () => {
     test('typed write path preserves ABI args for parser invocation', async () => {
         const parseTransaction = jest.fn(async (request: ParseTransactionInput<typeof erc20Abi>) => {
-            expect(request.functionName).toBe('transfer');
-            expect(request.args).toEqual([receiverAddress, 123n]);
             return `transfer:${request.args[0]}:${request.args[1]}`;
         });
         const parser: ContractParser<typeof erc20Abi> = {
@@ -136,6 +134,11 @@ describe('sendContractTransaction', () => {
         expect(sent.hash).toBe(txHash);
         expect(receipt.status).toBe('success');
         expect(parseTransaction).toHaveBeenCalledTimes(1);
+        expect(parseTransaction).toHaveBeenCalledWith({
+            functionName: 'transfer',
+            args: [receiverAddress, 123n],
+            value: undefined,
+        });
         expect(walletClient.sendTransaction).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: tokenAddress,
@@ -150,8 +153,6 @@ describe('sendContractTransaction', () => {
 
     test('uses parser carried by typed write request without registry lookup', async () => {
         const parseTransaction = jest.fn(async (request: ParseTransactionInput<typeof erc20Abi>) => {
-            expect(request.functionName).toBe('transfer');
-            expect(request.args).toEqual([receiverAddress, 123n]);
             return `direct-parser:${request.args[1]}`;
         });
         const parser: ContractParser<typeof erc20Abi> = {
@@ -169,8 +170,15 @@ describe('sendContractTransaction', () => {
             account: receiverAddress,
         });
 
+        await sent.receipt;
+        await sent.diagnostics;
         expect(sent.hash).toBe(txHash);
         expect(parseTransaction).toHaveBeenCalledTimes(1);
+        expect(parseTransaction).toHaveBeenCalledWith({
+            functionName: 'transfer',
+            args: [receiverAddress, 123n],
+            value: undefined,
+        });
     });
 
     test('does not log send success or failure when silent is enabled', async () => {
