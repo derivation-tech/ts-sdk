@@ -91,15 +91,7 @@ export type TxContext = {
 };
 
 export type TxObserverPhase =
-    | 'sent'
-    | 'description'
-    | 'diagnostics'
-    | 'receipt'
-    | 'reverted'
-    | 'event'
-    | 'parseError'
-    | 'log'
-    | 'replaced';
+    'sent' | 'description' | 'diagnostics' | 'receipt' | 'reverted' | 'event' | 'parseError' | 'log' | 'replaced';
 
 export type TxObserverErrorEvent = {
     phase: TxObserverPhase;

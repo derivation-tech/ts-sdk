@@ -6,8 +6,7 @@ import { safeNotifyLifecycleHook } from './hooks';
 import type { SendTransactionOptions, TxContext, TypedWriteRequest, WriteFunctionName } from './types';
 
 type ResolvedParser<TAbi extends Abi> =
-    | { source: 'request'; parser: ContractParser<TAbi> }
-    | { source: 'registry'; parser: ContractParser };
+    { source: 'request'; parser: ContractParser<TAbi> } | { source: 'registry'; parser: ContractParser };
 
 function toParserArgs(args: unknown): readonly unknown[] {
     if (args === undefined) return [];
