@@ -1,7 +1,8 @@
 # @derivation-tech/viem-ledger
 
 Ledger-backed viem local accounts for Node.js applications. The account supports
-transaction, personal-message and EIP-712 signing through a connected Ledger.
+transaction, personal-message and EIP-712 signing through Ledger's Device Management
+Kit, Ethereum Signer Kit and Node HID transport.
 
 ## Installation and account creation
 
@@ -14,13 +15,18 @@ app. Calling `ledgerToAccount` opens the device connection and reads the account
 creating a wallet client alone does not broadcast a transaction.
 
 ```ts
-import { ledgerToAccount } from '@derivation-tech/viem-ledger';
+import { ledgerToAccount, disconnectLedger } from '@derivation-tech/viem-ledger';
 import { createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
 
-export async function createLedgerWallet(rpcUrl: string) {
-    const account = await ledgerToAccount({ signerId: 'ledger:0' });
-    return createWalletClient({ account, chain: base, transport: http(rpcUrl) });
+export async function readLedgerAddress(rpcUrl: string) {
+    try {
+        const account = await ledgerToAccount({ signerId: 'ledger:0' });
+        const wallet = createWalletClient({ account, chain: base, transport: http(rpcUrl) });
+        return await wallet.getAddresses();
+    } finally {
+        await disconnectLedger();
+    }
 }
 ```
 
@@ -64,24 +70,64 @@ export LEDGER_PATH="m/44'/60'/5'/0/0"
 
 Pass an `AddressValidation` enum value as `addressValidation`:
 
-| Policy                                 | Address confirmation                                             |
-| -------------------------------------- | ---------------------------------------------------------------- |
-| `never`                                | No additional address-display confirmation                       |
-| `initializationOnly`                   | Confirm the address when creating the account                    |
-| `firstTransactionPerAddress` (default) | Confirm before the first signing operation on the cached account |
-| `everyTransaction`                     | Confirm before every signing operation                           |
+| Policy                                 | Address confirmation                                       |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `never`                                | No additional address-display confirmation                 |
+| `initializationOnly`                   | Confirm the address when creating the account              |
+| `firstTransactionPerAddress` (default) | Confirm before the first signing operation on this account |
+| `everyTransaction`                     | Confirm before every signing operation                     |
 
 The signing-operation policies also apply to personal-message and typed-data
 signing. They control address display; they do not remove the device's signing
-confirmation. Without an injected `transport`, accounts are cached by resolved
-path and validation policy, and the transport is shared. Supplying a transport
-bypasses the account cache.
+confirmation. Reuse the returned account to retain its validation state; account
+objects are no longer cached globally. The default HID session is shared. Signing
+operations on the same session are serialized, including address confirmation.
+A changed address fails before signing.
 
-The helper retries `TransportLocked` failures and warns when the Ethereum app or
-arbitrary-data setting is unsuitable. Transaction resolution requests ERC20/plugin
-metadata and can fall back to signing without resolution. Inspect the device
-prompt before approving; successful account creation does not validate later
-contract-signing behavior.
+Each SDK action has a 120-second deadline, configurable with `timeoutMs`. Pending
+status updates do not extend it. A timeout, stop, rejection or incomplete stream
+rejects the call and cancels the action; the adapter never retries a signature or
+retries with reduced signing metadata. Transaction context resolution and device
+prompts are managed by Ledger's SDK. Review the actual device prompt before approving.
+
+EIP-712 signing now sends the full domain, types and message to the device SDK;
+hash-only signing is removed. Message bigint values are preserved. The SDK's domain
+API requires a numeric chain ID, so chain IDs beyond JavaScript's safe integer range
+are rejected instead of rounded. An optional caller-owned `originToken` is forwarded
+to Ledger's default context module. Clear-signing features depend on Ledger services,
+the token, device firmware and Ethereum app support.
+
+## Connection ownership and migration
+
+This release replaces the legacy `@ledgerhq/hw-app-eth` and `hw-transport-*` packages.
+The old `transport` option is removed. Existing `signerId`, `path`, `index` and address
+validation options remain supported. The returned object remains a viem local account.
+
+Without `session`, discovery selects the first available USB Ledger and has a
+10-second discovery deadline (unavailable devices may fail sooner). Call and await `disconnectLedger()` when finished, before
+opening another default connection. It waits for queued work and closes only the
+helper-owned connection. After unplugging or switching devices, disconnect and create
+a new account; old accounts do not silently switch devices.
+
+Applications that already manage device selection can supply a connected DMK session:
+
+```ts
+const account = await ledgerToAccount({
+    session: { dmk, sessionId },
+    signerId: 'ledger:0',
+    originToken,
+});
+```
+
+Here `dmk`, `sessionId` and `originToken` belong to the application. The application
+must disconnect its session and close its DMK instance; `disconnectLedger()` does
+not close injected sessions. Compile consumers with a modern module resolution mode
+such as `NodeNext` or `bundler` to resolve the SDK's package exports.
+
+Automated tests mock SDK/device actions and independently verify signatures with
+viem. Real-device acceptance remains necessary for address confirmation, message and
+EIP-712 prompts, transaction signing, rejection and unplug/reconnect behavior. Tests
+do not broadcast transactions or prove hardware compatibility.
 
 ## Multiple accounts
 

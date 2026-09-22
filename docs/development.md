@@ -86,8 +86,10 @@ The tests are organized by the contract they verify:
   transaction lifecycle, deployment, multicall and account registration.
   Run with `pnpm -C packages/viem-kit run test:integration`.
 - `packages/viem-ledger/tests`: Node.js native tests against the built Ledger adapter, including
-  path selection, message signatures, confirmation policies and retry behavior. Device methods
-  use an injected transport; no hardware is required. Ledger also runs publint and attw.
+  path selection, message/EIP-712/transaction signatures, confirmation policies, cancellation,
+  serialized session access and connection cleanup. Tests inject a DMK session and mock SDK
+  actions; no hardware or network is required. Ledger also runs publint and attw. Real-device
+  signing prompts and reconnect behavior require separate hardware acceptance.
 - `tests/typecheck` and `tests/consumer-node-next`: compile-time ABI constraints and public ESM/CJS declarations.
 - `tests/consumer-package`: a generic contract exercised through the packed package, including
   ESM, CJS, browser bundling and the absence of optional Ledger dependencies.

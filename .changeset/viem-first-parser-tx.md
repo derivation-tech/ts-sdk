@@ -55,7 +55,7 @@ Invalid direct-address resolution errors now preserve the original viem validati
 
 Public entry points now share runtime classes and logger state within each module format. Errors thrown by Node deployment helpers can be caught using the root or utils error classes.
 
-Ledger personal signing preserves raw Hex bytes, matching raw Uint8Array semantics. Address confirmation now rejects a changed device account before signing. Ledger package checks exercise the built adapter with an injected transport and no hardware or network.
+Ledger personal signing preserves raw Hex bytes, matching raw Uint8Array semantics. Address confirmation now rejects a changed device account before signing. Ledger package checks exercise the built adapter with an injected DMK session and no hardware or network.
 
 Signer indices and Ledger path components now reject malformed, fractional and out-of-range values. Invalid LEDGER_INDEX throws instead of silently selecting account zero. Pattern expansion is limited to 1,000 IDs and preserves bare credential names so private-key accounts work.
 
@@ -64,3 +64,5 @@ FoundryHelper now delegates to ArtifactHelper, including source-qualified linkin
 Zero-argument events now reach request and registered parsers with an empty args array. Event decoding requires complete ABI data before invoking typed handlers; malformed logs report a diagnostic error without rejecting the receipt.
 
 Signer-aware address resolution preserves derivation errors as cause and points to supported address-book APIs. Transaction examples use the shared account helper or viem directly, require RUN_TX=1, and take an explicit RECIPIENT instead of deployment-specific defaults.
+
+Migrate viem-ledger from LedgerJS to Device Management Kit, Ethereum Signer Kit and Node HID transport. Replace the `transport` option with a caller-owned `session: { dmk, sessionId }`, or retain default USB discovery. Default sessions remain shared, but account objects are no longer cached: reuse an account to preserve its address-confirmation state. Call `disconnectLedger()` to close the helper-owned connection; injected connections remain caller-owned. Signatures use bounded, serialized device actions without automatic retry. EIP-712 passes full structured data instead of precomputed hashes; domain chain IDs outside the safe integer range are rejected. Consumers using the new session option need modern TypeScript module resolution for Ledger SDK package exports. Hardware acceptance is separate from mock-based tests.

@@ -1,152 +1,35 @@
-import Eth from '@ledgerhq/hw-app-eth';
-import ledgerService from '@ledgerhq/hw-app-eth/lib/services/ledger';
-import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
-import type Transport from '@ledgerhq/hw-transport';
-import type { Hex, LocalAccount, TransactionSerializable, TypedDataDefinition } from 'viem';
+import type { Hex, LocalAccount, TransactionSerializable, TypedData, TypedDataDefinition, TypedDataDomain } from 'viem';
 import {
     getTypesForEIP712Domain,
+    hexToBytes,
     isAddressEqual,
-    hashDomain,
-    hashStruct,
     serializeSignature,
     serializeTransaction,
-    toHex,
+    validateTypedData,
 } from 'viem';
 import { toAccount } from 'viem/accounts';
+import { SignerEthBuilder, type TypedData as LedgerTypedData } from '@ledgerhq/device-signer-kit-ethereum';
 import { AddressValidation, DEFAULT_BASE_PATH } from './constants';
 import { parseLedgerPath, type ParsedLedgerPath } from './parse';
+import { getDefaultSession, inSession, runAction, type LedgerSession } from './session';
 
-export type LedgerAccount = LocalAccount<'ledger'> & {
-    source: 'ledger';
-    type: 'local'; // viem LocalAccount keeps type 'local'; expose explicitly to avoid misclassification
-    publicKey?: Hex;
-};
-
-type LedgerError = { id?: string; message?: string };
-
-const accountCache = new Map<string, Promise<LedgerAccount>>();
-let transportPromise: Promise<Transport> | null = null;
-let ethInstancePromise: Promise<Eth> | null = null;
-
-const ensure0x = (value: string): `0x${string}` => {
-    return (value.startsWith('0x') ? value.toLowerCase() : `0x${value.toLowerCase()}`) as `0x${string}`;
-};
-
-const normalizeV = (value: string | number): bigint => {
-    if (typeof value === 'number') return BigInt(value);
-    const hex = value.startsWith('0x') ? value : `0x${value}`;
-    return BigInt(hex);
-};
-
-const getTransport = async (transport?: Transport): Promise<Transport> => {
-    if (transport) return transport;
-    if (!transportPromise) {
-        transportPromise = TransportNodeHid.create().catch((err) => {
-            transportPromise = null;
-            throw err;
-        });
-    }
-    return transportPromise;
-};
-
-const getEth = async (transport?: Transport): Promise<Eth> => {
-    if (transport) return new Eth(transport);
-    if (!ethInstancePromise) {
-        ethInstancePromise = getTransport()
-            .then((t) => new Eth(t))
-            .catch((err) => {
-                ethInstancePromise = null;
-                throw err;
-            });
-    }
-    return ethInstancePromise;
-};
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const withRetry = async <T>(fn: () => Promise<T>): Promise<T> => {
-    const maxAttempts = 50;
-    for (let i = 0; i < maxAttempts; i++) {
-        try {
-            return await fn();
-        } catch (err: any) {
-            if (err?.id === 'TransportLocked') {
-                if (i === maxAttempts - 1) throw wrapLedgerError(err);
-                await sleep(100);
-                continue;
-            }
-            throw wrapLedgerError(err);
-        }
-    }
-    throw new Error('Ledger operation timed out (device busy)');
-};
-
-const wrapLedgerError = (err: unknown): Error => {
-    const error = err as LedgerError;
-    if (error?.id === 'TransportLocked') {
-        return new Error('Ledger device is busy. Please confirm or unlock the device.');
-    }
-    if (error?.message === 'NoDevice' || error?.message?.includes('No device')) {
-        return new Error('Ledger device not found. Connect and unlock the device, then open the Ethereum app.');
-    }
-    return error instanceof Error ? error : new Error(String(err));
-};
-
-const readAppName = async (eth: Eth): Promise<string> => {
-    const response = await eth.transport.send(0xb0, 0x01, 0x00, 0x00);
-    const names: string[] = [];
-    let i = 1;
-    while (i < response.length + 1) {
-        const len = response[i];
-        i += 1;
-        const bufValue = response.subarray(i, i + len);
-        i += len;
-        names.push(bufValue.toString('ascii').trim());
-    }
-    return (names[0] || '').toLowerCase();
-};
-
-const assertAppReady = async (eth: Eth) => {
-    const config = await eth.getAppConfiguration();
-    const appName = await readAppName(eth);
-    if (appName && appName !== 'ethereum') {
-        console.warn(`Ledger app is '${appName}', expected 'ethereum'. Some features may fail.`);
-    }
-    if (!config.arbitraryDataEnabled) {
-        console.warn(
-            'Ledger arbitrary data is disabled; contract interactions may fail. Enable it in the app settings.'
-        );
-    }
-};
-
-const shouldValidateNow = (policy: AddressValidation, validated: boolean): boolean => {
-    switch (policy) {
-        case AddressValidation.never:
-            return false;
-        case AddressValidation.initializationOnly:
-            return false;
-        case AddressValidation.firstTransactionPerAddress:
-            return !validated;
-        case AddressValidation.everyTransaction:
-            return true;
-        default:
-            return false;
-    }
-};
-
-const resolveValidationPolicy = (policy?: AddressValidation): AddressValidation => {
-    if (!policy) return AddressValidation.firstTransactionPerAddress;
-    return policy;
-};
+export type LedgerAccount = LocalAccount<'ledger'> & { source: 'ledger'; type: 'local'; publicKey?: Hex };
 
 export interface LedgerToAccountOptions {
     signerId?: string;
     path?: string;
     basePath?: string;
     index?: number;
-    transport?: Transport;
+    /** Caller-owned DMK connection. Omit to use the shared Node HID connection. */
+    session?: LedgerSession;
+    /** Caller-owned Ledger origin token used by the default context module. */
+    originToken?: string;
+    /** Maximum duration of each device action, including on-device confirmation. Default: 120 seconds. */
+    timeoutMs?: number;
     addressValidation?: AddressValidation;
 }
+
+const ensure0x = (value: string): Hex => (value.startsWith('0x') ? value : `0x${value}`) as Hex;
 
 export const deriveLedgerPath = (options: LedgerToAccountOptions): ParsedLedgerPath => {
     // Priority 1: Use signerId if provided
@@ -175,150 +58,88 @@ export const deriveLedgerPath = (options: LedgerToAccountOptions): ParsedLedgerP
 };
 
 export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<LedgerAccount> {
-    const parsed = options.path
-        ? deriveLedgerPath({ ...options, signerId: undefined, path: options.path })
-        : deriveLedgerPath(options);
-    const policy = resolveValidationPolicy(options.addressValidation);
-    const useCache = !options.transport;
-    const cacheKey = useCache ? `${parsed.path}|${policy}` : undefined;
-
-    if (useCache && cacheKey) {
-        const cached = accountCache.get(cacheKey);
-        if (cached) return cached;
+    const parsed = options.path ? deriveLedgerPath({ ...options, signerId: undefined }) : deriveLedgerPath(options);
+    const timeoutMs = options.timeoutMs ?? 120_000;
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647) {
+        throw new Error('Ledger timeoutMs must be a positive 32-bit integer');
     }
-
-    const ledgerPromise: Promise<LedgerAccount> = (async () => {
-        try {
-            const eth = await getEth(options.transport);
-            await assertAppReady(eth);
-            let alreadyValidated = policy === AddressValidation.never ? true : false;
-
-            const { address, publicKey } = await withRetry(() =>
-                eth.getAddress(parsed.path, policy === AddressValidation.initializationOnly)
-            );
-            if (policy === AddressValidation.initializationOnly) {
-                alreadyValidated = true;
+    const policy = options.addressValidation ?? AddressValidation.firstTransactionPerAddress;
+    const session = options.session ?? (await getDefaultSession());
+    const signer = new SignerEthBuilder({ ...session, originToken: options.originToken }).build();
+    const path = parsed.path.replace(/^m\//, '');
+    let validated = policy === AddressValidation.never || policy === AddressValidation.initializationOnly;
+    const { address, publicKey } = await inSession(session, () =>
+        runAction(
+            signer.getAddress(path, { checkOnDevice: policy === AddressValidation.initializationOnly }),
+            timeoutMs
+        )
+    );
+    const ensureValidated = async () => {
+        if (policy === AddressValidation.everyTransaction || !validated) {
+            const confirmed = await runAction(signer.getAddress(path, { checkOnDevice: true }), timeoutMs);
+            if (!isAddressEqual(confirmed.address, address)) {
+                throw new Error('Ledger address changed; reconnect and create a new account before signing.');
             }
-
-            const ensureValidated = async () => {
-                if (shouldValidateNow(policy, alreadyValidated)) {
-                    const confirmed = await withRetry(() => eth.getAddress(parsed.path, true));
-                    if (!isAddressEqual(ensure0x(confirmed.address), ensure0x(address))) {
-                        throw new Error('Ledger address changed; reconnect and create a new account before signing.');
-                    }
-                    alreadyValidated = true;
-                }
-            };
-
-            const ledgerAccount = toAccount({
-                address: ensure0x(address),
-                publicKey: ensure0x(publicKey) as Hex,
-                async signTransaction(tx: TransactionSerializable) {
-                    await ensureValidated();
-                    const unsigned = serializeTransaction(tx).slice(2);
-                    // Try to resolve transaction for clear signing; fall back to null for unsupported chains
-                    let resolution: Awaited<ReturnType<typeof ledgerService.resolveTransaction>> | null = null;
-                    try {
-                        resolution = await ledgerService.resolveTransaction(
-                            unsigned,
-                            {},
-                            { externalPlugins: true, erc20: true }
-                        );
-                    } catch {
-                        // Resolution failed (chain not supported by Ledger backend) - use blind signing
-                    }
-                    // Try signing with resolution; if INCORRECT_DATA error, retry without resolution (blind signing)
-                    let sig: { r: string; s: string; v: string | number };
-                    try {
-                        sig = await withRetry(() => eth.signTransaction(parsed.path, unsigned, resolution));
-                    } catch (err: any) {
-                        const statusCode = err?.statusCode ?? err?.cause?.statusCode;
-                        if (statusCode === 0x6a80 && resolution !== null) {
-                            // INCORRECT_DATA - resolution incompatible with chain, retry with blind signing
-                            sig = await withRetry(() => eth.signTransaction(parsed.path, unsigned, null));
-                        } else {
-                            throw err;
-                        }
-                    }
-                    return serializeTransaction(tx, {
-                        r: ensure0x(sig.r),
-                        s: ensure0x(sig.s),
-                        v: normalizeV(sig.v),
-                    });
-                },
-                async signMessage({ message }) {
-                    await ensureValidated();
-                    const hex =
-                        typeof message === 'string'
-                            ? toHex(message)
-                            : typeof message.raw === 'string'
-                              ? message.raw
-                              : toHex(message.raw);
-                    const sig = await withRetry(() => eth.signPersonalMessage(parsed.path, hex.slice(2)));
-                    return serializeSignature({
-                        r: ensure0x(sig.r),
-                        s: ensure0x(sig.s),
-                        v: normalizeV(sig.v),
-                    });
-                },
-                async signTypedData<
-                    const typedData extends TypedDataDefinition | Record<string, unknown>,
-                    primaryType extends keyof typedData | 'EIP712Domain' = keyof typedData,
-                >(parameters: TypedDataDefinition<typedData, primaryType>) {
-                    await ensureValidated();
-                    const { domain, types, primaryType, message } = parameters;
-
-                    // Runtime validation
-                    if (!types) {
-                        throw new Error('TypedData types are required');
-                    }
-                    if (!message) {
-                        throw new Error('TypedData message is required');
-                    }
-
-                    // Type assertions are necessary here due to complex viem generic types
-                    // The runtime checks above ensure type safety
-                    type MessageTypeProperty = { name: string; type: string };
-                    const allTypes = {
-                        EIP712Domain: getTypesForEIP712Domain({ domain: domain || {} }),
-                        ...(types as Record<string, MessageTypeProperty[]>),
-                    };
-
-                    const domainSep = hashDomain({
-                        domain: domain || {},
-                        types: allTypes as Record<string, MessageTypeProperty[]>,
-                    });
-                    const messageHash = hashStruct({
-                        data: message as Record<string, unknown>,
-                        primaryType: primaryType as string,
-                        types: allTypes as Record<string, MessageTypeProperty[]>,
-                    });
-                    const sig = await withRetry(() => eth.signEIP712HashedMessage(parsed.path, domainSep, messageHash));
-                    return serializeSignature({
-                        r: ensure0x(sig.r),
-                        s: ensure0x(sig.s),
-                        v: normalizeV(sig.v),
-                    });
-                },
-            }) as LedgerAccount;
-
-            const result: LedgerAccount = {
-                ...ledgerAccount,
-                type: 'local',
-                source: 'ledger' as const,
-                publicKey: ensure0x(publicKey) as Hex,
-            };
-            return result;
-        } catch (err) {
-            throw wrapLedgerError(err);
+            validated = true;
         }
-    })();
-
-    if (useCache && cacheKey) {
-        accountCache.set(cacheKey, ledgerPromise);
-        ledgerPromise.catch(() => {
-            accountCache.delete(cacheKey);
-        });
-    }
-    return ledgerPromise;
+    };
+    const account = toAccount({
+        address,
+        async signTransaction(tx: TransactionSerializable) {
+            return inSession(session, async () => {
+                await ensureValidated();
+                const signature = await runAction(
+                    signer.signTransaction(path, hexToBytes(serializeTransaction(tx))),
+                    timeoutMs
+                );
+                return serializeTransaction(tx, { ...signature, v: BigInt(signature.v) });
+            });
+        },
+        async signMessage({ message }) {
+            const bytes =
+                typeof message === 'string'
+                    ? new TextEncoder().encode(message)
+                    : typeof message.raw === 'string'
+                      ? hexToBytes(message.raw)
+                      : message.raw;
+            return inSession(session, async () => {
+                await ensureValidated();
+                const signature = await runAction(signer.signMessage(path, bytes), timeoutMs);
+                return serializeSignature({ ...signature, v: BigInt(signature.v) });
+            });
+        },
+        async signTypedData<
+            const typedData extends TypedData | Record<string, unknown>,
+            primaryType extends keyof typedData | 'EIP712Domain' = keyof typedData,
+        >(parameters: TypedDataDefinition<typedData, primaryType>) {
+            // Erase viem's generic message schema at the SDK boundary after validation.
+            const { types = {}, primaryType, message } = parameters;
+            const domain = (parameters.domain ?? {}) as TypedDataDomain;
+            validateTypedData(parameters);
+            const chainId = domain.chainId === undefined ? undefined : Number(domain.chainId);
+            if (chainId !== undefined && (!Number.isSafeInteger(chainId) || chainId < 0)) {
+                throw new Error('Ledger typed-data chainId must be a non-negative safe integer');
+            }
+            const payload: LedgerTypedData = {
+                domain: { ...domain, chainId },
+                types: Object.fromEntries(
+                    Object.entries({
+                        EIP712Domain: getTypesForEIP712Domain({ domain }),
+                        ...(types as TypedData),
+                    }).map(([name, fields]) => [
+                        name,
+                        fields.map((field: { name: string; type: string }) => ({ ...field })),
+                    ])
+                ),
+                primaryType: String(primaryType),
+                message: message ?? {},
+            };
+            return inSession(session, async () => {
+                await ensureValidated();
+                const signature = await runAction(signer.signTypedData(path, payload), timeoutMs);
+                return serializeSignature({ ...signature, v: BigInt(signature.v) });
+            });
+        },
+    });
+    return { ...account, source: 'ledger', publicKey: ensure0x(publicKey) };
 }

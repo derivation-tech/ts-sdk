@@ -22,9 +22,11 @@
         "attw": "npm --ignore-scripts exec -- attw --pack . --entrypoints ."
     },
     "dependencies": {
-        "@ledgerhq/hw-app-eth": "^6.32.0",
-        "@ledgerhq/hw-transport": "^6.31.14",
-        "@ledgerhq/hw-transport-node-hid": "^6.27.12"
+        "@ledgerhq/device-management-kit": "1.9.1",
+        "@ledgerhq/device-signer-kit-ethereum": "1.18.1",
+        "@ledgerhq/device-transport-kit-node-hid": "1.0.1",
+        "@ledgerhq/context-module": "^2.6.0",
+        "rxjs": "7.8.2"
     },
     "devDependencies": {
         "viem": "catalog:",
@@ -39,5 +41,6 @@
     },
     "engines": {
         "node": ">=22"
-    }
+    },
+    "type": "commonjs"
 }

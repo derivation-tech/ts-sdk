@@ -3,3 +3,5 @@ export type { LedgerAccount, LedgerToAccountOptions } from './ledger';
 export { deriveLedgerPath, ledgerToAccount } from './ledger';
 export type { ParsedLedgerPath } from './parse';
 export { parseLedgerPath } from './parse';
+export { disconnectLedger } from './session';
+export type { LedgerSession } from './session';
