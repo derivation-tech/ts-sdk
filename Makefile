@@ -19,8 +19,7 @@ changeset-dry-run:
 	PACKAGES="$(PACKAGES)" SUMMARY="$(SUMMARY)" SUMMARY_FILE="$(SUMMARY_FILE)" BUMP="$(BUMP)" DRY_RUN=true $(CHANGESET_SCRIPT)
 
 version:
-	pnpm changeset version
-	pnpm install
+	pnpm run release:version
 
 publish:
 	pnpm changeset publish

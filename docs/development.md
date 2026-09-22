@@ -160,8 +160,8 @@ scaffolds; existing packages are not regenerated.
 
 ## Releases
 
-[Changesets configuration](../.changeset/config.json) controls versioning. Packages
-are not a fixed version group. Historical package changelogs record release notes;
+[Changesets configuration](../.changeset/config.json) controls versioning. The workspace
+uses Changesets 3 with `changesets/action@v2`. Packages are not a fixed version group. Historical package changelogs record release notes;
 pending changesets are release inputs, not evidence of publication.
 
 | Command                                                                                           | Effect                                                          |
@@ -177,3 +177,19 @@ Without `PACKAGES`, the helper includes every workspace package using `BUMP`
 (default `patch`). Versioning changes tracked files; publishing writes to the
 registry. The core postpublish hook can notify Slack through `SLACK_WEBHOOK_URL`
 and optional `SLACK_MESSAGE_SUFFIX`.
+
+`make version` delegates to `pnpm run release:version`, which applies pending changesets
+and refreshes only the lockfile with lifecycle scripts disabled. The release workflow uses
+the same command so the release PR includes a matching lockfile. With no pending changesets,
+Changesets 3 returns exit code 1; the command stops before lockfile refresh or publication.
+Use `pnpm run release:dry` to inspect the plan first.
+
+Changesets 3 gives peer-dependent packages a patch bump by default. Add an explicit major
+changeset when the consumer API is incompatible; the current core/Ledger migration already
+marks both packages as major. Private workspace packages are not versioned by default.
+
+Registry selection comes from npm configuration. The release workflow writes a temporary
+scoped `.npmrc` from `NPM_REGISTRY_URL`, uses `NODE_AUTH_TOKEN` for registry authentication,
+and passes the GitHub token through the Action's `github-token` input. Local versioning and
+packing can be rehearsed in a disposable checkout without registry credentials; actual
+publication and GitHub release/PR creation require the configured CI credentials.
