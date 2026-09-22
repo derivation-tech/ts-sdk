@@ -4,8 +4,8 @@ Run the commands below from the workspace root unless a different directory is s
 
 ## Prerequisites and installation
 
-Use Node.js 22 for the development workflow used by CI, and pnpm 9.5 or newer
-for workspace catalogs. Package runtimes support Node.js 18 or newer; the full
+Use Node.js 22 for the development workflow used by CI and the pnpm version pinned
+in the root `packageManager` field. Workspace development requires Node.js 20.9 or newer. Package runtimes support Node.js 18 or newer; the full
 verification toolchain includes `attw`, which requires Node.js 20 or newer.
 
 ```sh

@@ -34,29 +34,9 @@
         "typescript": "catalog:",
         "typescript-eslint": "^8.70.0"
     },
-    "jest": {
-        "collectCoverageFrom": [
-            "**/*.(t|j)s"
-        ],
-        "coverageDirectory": "../coverage",
-        "moduleFileExtensions": [
-            "js",
-            "json",
-            "ts"
-        ],
-        "moduleNameMapper": {
-            "^~/(.*)$": "<rootDir>/$1"
-        },
-        "rootDir": "src",
-        "testEnvironment": "node",
-        "testRegex": ".*\\.spec\\.ts$",
-        "transform": {
-            "^.+\\.(t|j)s$": "ts-jest"
-        }
-    },
     "engines": {
-        "node": ">=18",
-        "pnpm": ">=8"
+        "node": ">=20.9.0",
+        "pnpm": ">=10 <11"
     },
     "pnpm": {
         "peerDependencyRules": {
@@ -64,5 +44,6 @@
                 "eslint": "^9.2.0"
             }
         }
-    }
+    },
+    "packageManager": "pnpm@10.34.5"
 }

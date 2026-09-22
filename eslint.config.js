@@ -4,7 +4,16 @@ const typescript = require('typescript-eslint');
 
 module.exports = [
     {
-        ignores: ['**/dist/*', '**/jest.config.*', '**/eslint.config.*', 'templates', '**/*.d.ts'],
+        ignores: [
+            '**/dist/**',
+            '**/coverage/**',
+            '.nx/**',
+            '.worktrees/**',
+            '**/jest.config.*',
+            '**/eslint.config.*',
+            'templates',
+            '**/*.d.ts',
+        ],
     },
     eslint.configs.recommended,
     ...typescript.configs.recommended,
@@ -12,13 +21,6 @@ module.exports = [
         rules: {
             'no-empty': 'off',
             'no-console': 'off',
-            'ts/consistent-type-imports': 'off',
-            'node/prefer-global/process': 'off',
-            'node/prefer-global/buffer': 'off',
-            'regexp/no-super-linear-backtracking': 'off',
-            'regexp/no-contradiction-with-assertion': 'off',
-            'regexp/no-unused-capturing-group': 'off',
-            'regexp/no-useless-quantifier': 'off',
             '@typescript-eslint/no-unsafe-function-type': 'off',
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-unused-vars': 'off',
