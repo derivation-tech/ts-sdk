@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import type { Account, Address, Hash, PublicClient, TransactionReceipt, WalletClient } from 'viem';
+import type { Account, Address, Hash, PublicClient, WalletClient } from 'viem';
 import {
     createPublicClient as createViemPublicClient,
     createWalletClient as createViemWalletClient,
@@ -28,11 +28,11 @@ const erc20Abi = [
 ] as const;
 
 type TestPublicClient = PublicClient & {
-    waitForTransactionReceipt: jest.Mock<() => Promise<TransactionReceipt>>;
+    waitForTransactionReceipt: jest.Mock<PublicClient['waitForTransactionReceipt']>;
 };
 
 type TestWalletClient = WalletClient & {
-    sendTransaction: jest.Mock<() => Promise<Hash>>;
+    sendTransaction: jest.Mock<WalletClient['sendTransaction']>;
 };
 
 function mockTransport() {
@@ -49,7 +49,7 @@ function createContext(walletChain: typeof mainnet | typeof sepolia): {
             transport: mockTransport(),
         }),
         {
-            waitForTransactionReceipt: jest.fn<() => Promise<TransactionReceipt>>(async () => {
+            waitForTransactionReceipt: jest.fn<PublicClient['waitForTransactionReceipt']>(async () => {
                 return {
                     transactionHash: txHash,
                     blockNumber: 1n,
@@ -76,7 +76,7 @@ function createContext(walletChain: typeof mainnet | typeof sepolia): {
             transport: mockTransport(),
         }),
         {
-            sendTransaction: jest.fn<() => Promise<Hash>>(async () => txHash),
+            sendTransaction: jest.fn<WalletClient['sendTransaction']>(async () => txHash),
         }
     ) as TestWalletClient;
 

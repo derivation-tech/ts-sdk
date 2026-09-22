@@ -9,13 +9,17 @@
         "README.md"
     ],
     "scripts": {
-        "build": "tsc -p tsconfig.json",
-        "clean": "rm -rf dist",
-        "prepublishOnly": "npm run build",
+        "build": "pnpm run clean && tsc -p tsconfig.json",
+        "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
         "test": "node --test tests/*.test.cjs",
         "format": "prettier --write \"{src,tests}/**/*.{ts,cjs}\" \"*.{json,md}\"",
         "format:check": "prettier --check \"{src,tests}/**/*.{ts,cjs}\" \"*.{json,md}\"",
-        "verify": "pnpm run format:check && pnpm run test"
+        "verify": "pnpm run lint && pnpm run format:check && pnpm run build && pnpm run verify:checks",
+        "prepack": "pnpm run build",
+        "lint": "eslint . --max-warnings=0",
+        "verify:checks": "pnpm run test && pnpm run publint && pnpm run attw",
+        "publint": "publint --pack npm",
+        "attw": "npm --ignore-scripts exec -- attw --pack . --entrypoints ."
     },
     "dependencies": {
         "@ledgerhq/hw-app-eth": "^6.32.0",
@@ -26,7 +30,9 @@
         "viem": "catalog:",
         "@types/node": "catalog:",
         "typescript": "catalog:",
-        "prettier": "catalog:"
+        "prettier": "catalog:",
+        "publint": "0.3.24",
+        "@arethetypeswrong/cli": "0.18.5"
     },
     "peerDependencies": {
         "viem": "^2.43.3"

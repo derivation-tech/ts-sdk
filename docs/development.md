@@ -32,7 +32,7 @@ Keep one tool responsible for each job:
 | TypeScript (`tsc`)         | Check source, examples, test fixtures and consumer declaration compatibility        |
 | ESLint + typescript-eslint | Catch code-quality problems, including unhandled and misused Promises in SDK source |
 | Prettier                   | Format files; `eslint-config-prettier` disables conflicting lint rules              |
-| Jest                       | Run unit and integration behavior tests                                             |
+| Jest 30                    | Run unit and integration behavior tests                                             |
 | tsdown                     | Produce the ESM and CJS bundles                                                     |
 | Changesets                 | Describe release changes and apply package versions                                 |
 
@@ -61,7 +61,9 @@ compatibility promise.
 
 Use `pnpm run verify` for the complete workspace gate, `pnpm run build` to build
 all packages, and `pnpm test` to build prerequisites and run package tests.
-These commands use pnpm workspace dependency ordering and stop on failure.
+These commands use pnpm workspace dependency ordering and stop on failure. Root verification
+runs lint and formatting once, builds each package once, then runs `verify:checks` on those
+builds. Package-level `verify` remains standalone; `verify:checks` requires a current build.
 
 | Command                                                                                                 | Effect                                                                                                                        |
 | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -74,6 +76,8 @@ These commands use pnpm workspace dependency ordering and stop on failure.
 | `pnpm run format`                                                                                       | Rewrite files with the available package formatters                                                                           |
 | `pnpm run clean`                                                                                        | Remove package build outputs                                                                                                  |
 
+Jest APIs and types are imported explicitly from `@jest/globals`; avoid a second set of ambient Jest types. Mock signatures use the API under test, so argument assertions are checked by TypeScript.
+
 The tests are organized by the contract they verify:
 
 - `tests/unit`: registries, token metadata, parser behavior, artifact linking and signer/path parsing.
@@ -81,10 +85,13 @@ The tests are organized by the contract they verify:
 - `tests/integration`: SDK helpers composed with viem clients, local signing, mocked RPC,
   transaction lifecycle, deployment, multicall and account registration.
   Run with `pnpm -C packages/viem-kit run test:integration`.
+- `packages/viem-ledger/tests`: Node.js native tests against the built Ledger adapter, including
+  path selection, message signatures, confirmation policies and retry behavior. Device methods
+  use an injected transport; no hardware is required. Ledger also runs publint and attw.
 - `tests/typecheck` and `tests/consumer-node-next`: compile-time ABI constraints and public ESM/CJS declarations.
 - `tests/consumer-package`: a generic contract exercised through the packed package, including
   ESM, CJS, browser bundling and the absence of optional Ledger dependencies.
-  Run `build:clean` before `verify:consumer`.
+  Run `build` before `verify:consumer`.
 
 `verify` runs both runtime suites, type checks and packed consumers. Integration tests
 use synthetic data and mocked transports: they do not require RPC credentials, a running
@@ -98,7 +105,8 @@ behavior before running them.
 `build` removes `dist` before producing shared ESM/CJS chunks and declarations,
 so deleted sources cannot leave stale artifacts. `build:clean` is an explicit clean-build alias.
 The `prepack` lifecycle also builds and type-checks before packaging. Consumer checks pack with
-`--offline --ignore-scripts` after this explicit build.
+`--offline --ignore-scripts` after this explicit build. publint and attw also skip lifecycle hooks,
+so package validation does not repeat builds. A normal `npm pack` still runs `prepack`.
 
 To check an already-built package against a separately installed viem peer:
 

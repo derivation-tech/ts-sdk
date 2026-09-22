@@ -32,13 +32,15 @@ const erc20Abi = [
 ] as const;
 
 type TestPublicClient = PublicClient & {
-    getTransactionCount: jest.Mock<() => Promise<number>>;
-    sendRawTransaction: jest.Mock<() => Promise<Hash>>;
-    waitForTransactionReceipt: jest.Mock<() => Promise<TransactionReceipt>>;
+    getTransactionCount: jest.Mock<PublicClient['getTransactionCount']>;
+    sendRawTransaction: jest.Mock<PublicClient['sendRawTransaction']>;
+    waitForTransactionReceipt: jest.Mock<PublicClient['waitForTransactionReceipt']>;
 };
 
 type TestWalletClient = WalletClient & {
-    prepareTransactionRequest: jest.Mock<() => Promise<{ to: Address }>>;
+    prepareTransactionRequest: jest.Mock<
+        (_request: Parameters<WalletClient['prepareTransactionRequest']>[0]) => Promise<{ to: Address }>
+    >;
 };
 
 function mockTransport() {
@@ -67,13 +69,13 @@ function makeReceipt(hash: Hash): TransactionReceipt {
 function createTestPublicClient(): TestPublicClient {
     const client = createViemPublicClient({ chain: mainnet, transport: mockTransport() });
     return Object.assign(client, {
-        getTransactionCount: jest.fn<() => Promise<number>>(async () => 7),
+        getTransactionCount: jest.fn<PublicClient['getTransactionCount']>(async () => 7),
         sendRawTransaction: jest
-            .fn<() => Promise<Hash>>()
+            .fn<PublicClient['sendRawTransaction']>()
             .mockResolvedValueOnce(firstHash)
             .mockResolvedValueOnce(secondHash),
         waitForTransactionReceipt: jest
-            .fn<() => Promise<TransactionReceipt>>()
+            .fn<PublicClient['waitForTransactionReceipt']>()
             .mockResolvedValueOnce(makeReceipt(firstHash))
             .mockResolvedValueOnce(makeReceipt(secondHash)),
     });
@@ -82,7 +84,9 @@ function createTestPublicClient(): TestPublicClient {
 function createTestWalletClient(account: LocalAccount): TestWalletClient {
     const client = createViemWalletClient({ account, chain: mainnet, transport: mockTransport() });
     return Object.assign(client, {
-        prepareTransactionRequest: jest.fn<() => Promise<{ to: Address }>>(async () => ({ to: tokenAddress })),
+        prepareTransactionRequest: jest.fn<
+            (_request: Parameters<WalletClient['prepareTransactionRequest']>[0]) => Promise<{ to: Address }>
+        >(async () => ({ to: tokenAddress })),
     });
 }
 

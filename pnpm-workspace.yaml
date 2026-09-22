@@ -9,3 +9,5 @@ catalog:
     "typescript": "5.9.3"
     "prettier": "3.6.2"
     "ts-jest": "29.4.12"
+    "jest": "30.5.2"
+    "@jest/globals": "30.5.2"

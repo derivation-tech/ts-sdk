@@ -1,3 +1,4 @@
+import type { TxLifecycleHooks } from '../../src/utils/tx';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { Address, Chain, Hash, Hex, TransactionReceipt } from 'viem';
 import { concatHex, createPublicClient, createWalletClient, custom, encodeFunctionData, parseAbi } from 'viem';
@@ -51,7 +52,7 @@ function setup(status: 'success' | 'reverted' = 'success', chain: Chain = mainne
 describe('transaction lifecycle observers', () => {
     test('does not reject an already-sent transaction when onSent throws', async () => {
         const { publicClient, walletClient, sendTransaction } = setup();
-        const onObserverError = jest.fn(() => undefined);
+        const onObserverError = jest.fn<NonNullable<TxLifecycleHooks['onObserverError']>>(() => undefined);
         const hooks = {
             onSent: () => {
                 throw new Error('observer failed');
@@ -185,9 +186,11 @@ describe('transaction outcome contracts', () => {
 
     test('isolates rejected async hooks including the observer-error hook', async () => {
         const { publicClient, walletClient, receipt } = setup();
-        const onObserverError = jest.fn(async (_event: import('../../src/utils/tx').TxObserverErrorEvent) => {
-            throw new Error('report failed');
-        });
+        const onObserverError = jest.fn<NonNullable<TxLifecycleHooks['onObserverError']>>(
+            async (_event: import('../../src/utils/tx').TxObserverErrorEvent) => {
+                throw new Error('report failed');
+            }
+        );
         const sent = await sendContractTransaction({ publicClient, walletClient }, writeRequest, {
             silent: true,
             hooks: {
@@ -219,7 +222,7 @@ describe('transaction outcome contracts', () => {
         const logger = jest.spyOn(LoggerFactory, 'getLogger').mockImplementation(() => {
             throw new Error('log failed');
         });
-        const onObserverError = jest.fn(() => undefined);
+        const onObserverError = jest.fn<NonNullable<TxLifecycleHooks['onObserverError']>>(() => undefined);
         try {
             const sent = await sendContractTransaction({ publicClient, walletClient }, writeRequest, {
                 hooks: { onObserverError },
@@ -235,7 +238,7 @@ describe('transaction outcome contracts', () => {
     test('retains a receipt when parser resolution and parse-error observers fail', async () => {
         const { publicClient, walletClient, receipt } = setup('reverted');
         jest.spyOn(publicClient, 'call').mockRejectedValue(new Error('reverted'));
-        const onObserverError = jest.fn(() => undefined);
+        const onObserverError = jest.fn<NonNullable<TxLifecycleHooks['onObserverError']>>(() => undefined);
         const sent = await sendContractTransaction(
             {
                 publicClient,
@@ -302,8 +305,8 @@ describe('transaction outcome contracts', () => {
                 });
                 return replacementReceipt;
             });
-            const onReceipt = jest.fn(() => undefined);
-            const onReplaced = jest.fn(() => undefined);
+            const onReceipt = jest.fn<NonNullable<TxLifecycleHooks['onReceipt']>>(() => undefined);
+            const onReplaced = jest.fn<NonNullable<TxLifecycleHooks['onReplaced']>>(() => undefined);
             const sent = await sendContractTransaction({ publicClient, walletClient }, writeRequest, {
                 silent: true,
                 hooks: { onReceipt, onReplaced },

@@ -1,3 +1,4 @@
+import type { TxLifecycleHooks } from '../../src/utils/tx';
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import type { Address, Hash, TransactionReceipt } from 'viem';
 import {
@@ -81,9 +82,9 @@ describe('request parser lifecycle', () => {
             },
         ]);
         const { publicClient, walletClient } = setup(receipt);
-        const parseEvent = jest.fn(async () => 'value:7');
+        const parseEvent = jest.fn<NonNullable<ContractParser<typeof abi>['parseEvent']>>(async () => 'value:7');
         const parser: ContractParser<typeof abi> = { abi, parseEvent };
-        const onEvent = jest.fn(() => undefined);
+        const onEvent = jest.fn<NonNullable<TxLifecycleHooks['onEvent']>>(() => undefined);
 
         const sent = await sendContractTransaction({ publicClient, walletClient, chain: mainnet }, request(parser), {
             silent: true,
@@ -107,9 +108,9 @@ describe('request parser lifecycle', () => {
         const { publicClient, walletClient } = setup(receipt);
         const revertData = encodeErrorResult({ abi, errorName: 'ValueRejected', args: [7n] });
         jest.spyOn(publicClient, 'call').mockRejectedValue({ data: revertData });
-        const parseError = jest.fn(async () => 'rejected:7');
+        const parseError = jest.fn<NonNullable<ContractParser<typeof abi>['parseError']>>(async () => 'rejected:7');
         const parser: ContractParser<typeof abi> = { abi, parseError };
-        const onReverted = jest.fn(() => undefined);
+        const onReverted = jest.fn<NonNullable<TxLifecycleHooks['onReverted']>>(() => undefined);
 
         const sent = await sendContractTransaction({ publicClient, walletClient, chain: mainnet }, request(parser), {
             silent: true,
@@ -135,7 +136,7 @@ describe('request parser lifecycle', () => {
                 throw new Error('error parser failed');
             },
         };
-        const onParseError = jest.fn(() => undefined);
+        const onParseError = jest.fn<NonNullable<TxLifecycleHooks['onParseError']>>(() => undefined);
 
         const sent = await sendContractTransaction({ publicClient, walletClient, chain: mainnet }, request(parser), {
             silent: true,
@@ -165,7 +166,7 @@ describe('request parser lifecycle', () => {
             },
         ]);
         const { publicClient, walletClient } = setup(receipt);
-        const onParseError = jest.fn(() => undefined);
+        const onParseError = jest.fn<NonNullable<TxLifecycleHooks['onParseError']>>(() => undefined);
         const sent = await sendContractTransaction(
             {
                 publicClient,
@@ -206,8 +207,8 @@ describe('diagnostic liveness', () => {
     test('returns the hash and receipt while a transaction parser never settles', async () => {
         const receipt = makeReceipt('success');
         const { publicClient, walletClient } = setup(receipt);
-        const onSent = jest.fn(() => undefined);
-        const onDescription = jest.fn(() => undefined);
+        const onSent = jest.fn<NonNullable<TxLifecycleHooks['onSent']>>(() => undefined);
+        const onDescription = jest.fn<NonNullable<TxLifecycleHooks['onDescription']>>(() => undefined);
         const sent = await sendContractTransaction(
             { publicClient, walletClient },
             request({ abi, parseTransaction: () => new Promise(() => undefined) }),
@@ -241,8 +242,8 @@ describe('diagnostic liveness', () => {
                 jest.spyOn(publicClient, 'call').mockRejectedValue({
                     data: encodeErrorResult({ abi, errorName: 'ValueRejected', args: [7n] }),
                 });
-            const onReverted = jest.fn(() => undefined);
-            const onEvent = jest.fn(() => undefined);
+            const onReverted = jest.fn<NonNullable<TxLifecycleHooks['onReverted']>>(() => undefined);
+            const onEvent = jest.fn<NonNullable<TxLifecycleHooks['onEvent']>>(() => undefined);
             const sent = await sendContractTransaction({ publicClient, walletClient }, request(parser), {
                 silent: true,
                 diagnostics: { timeout: 25 },
@@ -267,7 +268,7 @@ describe('diagnostic liveness', () => {
         });
         const controller = new AbortController();
         const remove = jest.spyOn(controller.signal, 'removeEventListener');
-        const onDescription = jest.fn(() => undefined);
+        const onDescription = jest.fn<NonNullable<TxLifecycleHooks['onDescription']>>(() => undefined);
         const sent = await sendContractTransaction(
             { publicClient, walletClient },
             request({ abi, parseTransaction: () => description }),
@@ -287,14 +288,14 @@ describe('diagnostic liveness', () => {
     test('suppresses a late event-parser rejection after cancellation', async () => {
         const { publicClient, walletClient } = setup(makeReceipt('success', [eventLog]));
         let reject!: (error: Error) => void;
-        const parseEvent = jest.fn(
+        const parseEvent = jest.fn<NonNullable<ContractParser<typeof abi>['parseEvent']>>(
             () =>
                 new Promise<string>((_resolve, fail) => {
                     reject = fail;
                 })
         );
         const controller = new AbortController();
-        const onParseError = jest.fn(() => undefined);
+        const onParseError = jest.fn<NonNullable<TxLifecycleHooks['onParseError']>>(() => undefined);
         const sent = await sendContractTransaction({ publicClient, walletClient }, request({ abi, parseEvent }), {
             silent: true,
             diagnostics: { signal: controller.signal },
@@ -314,8 +315,8 @@ describe('diagnostic liveness', () => {
     test('skips receipt parsing on a wait failure and resolves diagnostic completion', async () => {
         const { publicClient, walletClient } = setup(makeReceipt('success', [eventLog]));
         jest.spyOn(publicClient, 'waitForTransactionReceipt').mockRejectedValue(new Error('timeout'));
-        const parseEvent = jest.fn(async () => 'event');
-        const onDescription = jest.fn(() => undefined);
+        const parseEvent = jest.fn<NonNullable<ContractParser<typeof abi>['parseEvent']>>(async () => 'event');
+        const onDescription = jest.fn<NonNullable<TxLifecycleHooks['onDescription']>>(() => undefined);
         const sent = await sendContractTransaction(
             { publicClient, walletClient },
             request({ abi, parseEvent, parseTransaction: async () => 'admin call' }),
@@ -345,12 +346,12 @@ describe('event decoding boundaries', () => {
             },
         ]);
         const { publicClient, walletClient } = setup(receipt);
-        const parseEvent = jest.fn(async () => 'ping');
+        const parseEvent = jest.fn<NonNullable<ContractParser<typeof abi>['parseEvent']>>(async () => 'ping');
         const parser: ContractParser<typeof abi> = { abi, parseEvent };
         const registry = createParserRegistry();
         registry.registerParser(target, parser);
-        const onEvent = jest.fn(() => undefined);
-        const onParseError = jest.fn(() => undefined);
+        const onEvent = jest.fn<NonNullable<TxLifecycleHooks['onEvent']>>(() => undefined);
+        const onParseError = jest.fn<NonNullable<TxLifecycleHooks['onParseError']>>(() => undefined);
         const sent = await sendContractTransaction(
             {
                 publicClient,
@@ -382,8 +383,8 @@ describe('event decoding boundaries', () => {
             },
         ]);
         const { publicClient, walletClient } = setup(receipt);
-        const parseEvent = jest.fn(async () => 'invalid');
-        const onParseError = jest.fn(() => undefined);
+        const parseEvent = jest.fn<NonNullable<ContractParser<typeof abi>['parseEvent']>>(async () => 'invalid');
+        const onParseError = jest.fn<NonNullable<TxLifecycleHooks['onParseError']>>(() => undefined);
         const sent = await sendContractTransaction({ publicClient, walletClient }, request({ abi, parseEvent }), {
             silent: true,
             hooks: { onParseError },

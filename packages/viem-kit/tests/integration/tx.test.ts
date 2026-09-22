@@ -1,3 +1,4 @@
+import type { TxLifecycleHooks } from '../../src/utils/tx';
 import { keccak256 } from 'viem';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { Account, Address, Hash, PublicClient, TransactionReceipt, WalletClient } from 'viem';
@@ -33,15 +34,17 @@ const erc20Abi = [
 ] as const;
 
 type TestPublicClient = PublicClient & {
-    waitForTransactionReceipt: jest.Mock<() => Promise<TransactionReceipt>>;
+    waitForTransactionReceipt: jest.Mock<PublicClient['waitForTransactionReceipt']>;
     call: jest.Mock<() => Promise<never>>;
-    getTransactionCount: jest.Mock<() => Promise<number>>;
-    sendRawTransaction: jest.Mock<() => Promise<Hash>>;
+    getTransactionCount: jest.Mock<PublicClient['getTransactionCount']>;
+    sendRawTransaction: jest.Mock<PublicClient['sendRawTransaction']>;
 };
 
 type TestWalletClient = WalletClient & {
-    sendTransaction: jest.Mock<() => Promise<Hash>>;
-    prepareTransactionRequest: jest.Mock<() => Promise<{ to: Address }>>;
+    sendTransaction: jest.Mock<WalletClient['sendTransaction']>;
+    prepareTransactionRequest: jest.Mock<
+        (_request: Parameters<WalletClient['prepareTransactionRequest']>[0]) => Promise<{ to: Address }>
+    >;
 };
 
 function mockTransport() {
@@ -73,10 +76,12 @@ function createTestPublicClient(): TestPublicClient {
         transport: mockTransport(),
     });
     return Object.assign(client, {
-        waitForTransactionReceipt: jest.fn<() => Promise<TransactionReceipt>>(async () => makeReceipt('success')),
+        waitForTransactionReceipt: jest.fn<PublicClient['waitForTransactionReceipt']>(async () =>
+            makeReceipt('success')
+        ),
         call: jest.fn<() => Promise<never>>(),
-        getTransactionCount: jest.fn<() => Promise<number>>(async () => 0),
-        sendRawTransaction: jest.fn<() => Promise<Hash>>(async () => txHash),
+        getTransactionCount: jest.fn<PublicClient['getTransactionCount']>(async () => 0),
+        sendRawTransaction: jest.fn<PublicClient['sendRawTransaction']>(async () => txHash),
     });
 }
 
@@ -87,7 +92,7 @@ function createTestWalletClient(account: Account | Address | undefined = receive
         transport: mockTransport(),
     });
     return Object.assign(client, {
-        sendTransaction: jest.fn(async () => txHash),
+        sendTransaction: jest.fn<WalletClient['sendTransaction']>(async () => txHash),
         prepareTransactionRequest: jest.fn(async () => ({ to: tokenAddress })),
     });
 }
@@ -225,7 +230,7 @@ describe('sendContractTransaction', () => {
             errorName: 'Error',
             args: ['bad transfer'],
         });
-        const onReverted = jest.fn(() => undefined);
+        const onReverted = jest.fn<NonNullable<TxLifecycleHooks['onReverted']>>(() => undefined);
         const { context, publicClient } = createContext({ abi: erc20Abi });
         const waitForReceipt = publicClient.waitForTransactionReceipt;
         const call = publicClient.call;
