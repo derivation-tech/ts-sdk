@@ -33,18 +33,28 @@ jobs:
       - name: Install minimum supported viem
         shell: bash
         run: |
-          minimum="$(node <<'NODE'
-          const range = require('./packages/viem-kit/package.json').peerDependencies.viem;
+          for package in viem-kit viem-ledger; do
+            minimum="$(node - "$package" <<'NODE'
+          const range = require(`./packages/${process.argv[2]}/package.json`).peerDependencies.viem;
           if (!/^\^\d+\.\d+\.\d+$/.test(range)) throw new Error('Expected an exact caret viem peer range');
           console.log(range.slice(1));
           NODE
-          )"
-          npm install --prefix "$RUNNER_TEMP/viem-minimum" --ignore-scripts --no-audit --no-fund "viem@$minimum"
+            )"
+            npm install --prefix "$RUNNER_TEMP/$package-minimum" --ignore-scripts --no-audit --no-fund "viem@$minimum"
+          done
       - name: Verify minimum viem consumer
-        run: pnpm -C packages/viem-kit run verify:consumer "$RUNNER_TEMP/viem-minimum/node_modules/viem"
+        run: pnpm -C packages/viem-kit run verify:consumer "$RUNNER_TEMP/viem-kit-minimum/node_modules/viem"
+      - name: Verify minimum viem Ledger compatibility
+        run: pnpm -C packages/viem-ledger run verify:compatibility "$RUNNER_TEMP/viem-ledger-minimum/node_modules/viem"
       - name: Verify Node 22 consumers
         env:
           NODE22: ${{ steps.node22.outputs.path }}
         run: |
           "$NODE22" packages/viem-kit/scripts/verify-consumer.mjs
-          "$NODE22" packages/viem-kit/scripts/verify-consumer.mjs "$RUNNER_TEMP/viem-minimum/node_modules/viem"
+          "$NODE22" packages/viem-kit/scripts/verify-consumer.mjs "$RUNNER_TEMP/viem-kit-minimum/node_modules/viem"
+      - name: Verify Node 22 Ledger compatibility
+        env:
+          NODE22: ${{ steps.node22.outputs.path }}
+        run: |
+          "$NODE22" packages/viem-ledger/scripts/verify-compatibility.cjs
+          "$NODE22" packages/viem-ledger/scripts/verify-compatibility.cjs "$RUNNER_TEMP/viem-ledger-minimum/node_modules/viem"

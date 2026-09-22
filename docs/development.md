@@ -132,7 +132,18 @@ To check a separate Node runtime against the same build:
 [CI](../.github/workflows/ci.yml) runs full verification on the pinned Node.js 24 version, then runs
 the packed consumer on Node.js 22 and 24 with both the locked viem version and
 the exact lower bound of the declared peer range. The consumer checks ESM, CJS,
-browser bundling and loading without Ledger.
+browser bundling and loading without Ledger. The same Node/viem matrix also runs the
+Ledger adapter's existing tests through `verify:compatibility`. This copies the built adapter
+and tests into a temporary directory with the selected peer, without changing the workspace
+installation. Each package's minimum viem version comes from its own peer range.
+
+```sh
+pnpm -C packages/viem-ledger run verify:compatibility
+/path/to/node22 packages/viem-ledger/scripts/verify-compatibility.cjs /path/to/viem
+```
+
+Build Ledger first. These checks do not access a device or broadcast transactions;
+real-device acceptance remains separate.
 
 ### Documentation changes
 
