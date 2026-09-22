@@ -16,8 +16,9 @@
         "release:dry": "changeset status",
         "format:check": "pnpm -r --if-present run format:check",
         "build": "pnpm -r run build",
-        "verify": "pnpm run lint && pnpm run format:check && pnpm run build && pnpm -r --if-present run verify:checks",
-        "release:version": "changeset version && pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile"
+        "verify": "pnpm run lint && pnpm run format:check && pnpm run test:release && pnpm run build && pnpm -r --if-present run verify:checks",
+        "release:version": "changeset version && pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile",
+        "test:release": "node --test scripts/tests/release.test.cjs"
     },
     "devDependencies": {
         "@changesets/cli": "^3.0.3",

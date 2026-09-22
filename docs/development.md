@@ -68,7 +68,7 @@ compatibility promise.
 Use `pnpm run verify` for the complete workspace gate, `pnpm run build` to build
 all packages, and `pnpm test` to build prerequisites and run package tests.
 These commands use pnpm workspace dependency ordering and stop on failure. Root verification
-runs lint and formatting once, builds each package once, then runs `verify:checks` on those
+runs lint and formatting once, checks release behavior, builds each package once, then runs `verify:checks` on those
 builds. Package-level `verify` remains standalone; `verify:checks` requires a current build.
 
 | Command                                                                                                 | Effect                                                                                                                        |
@@ -156,6 +156,26 @@ Check local links and heading anchors, type-check TypeScript examples, and inspe
 the packed file list when changing published guides. A guide linked from a package
 README must also be present in the package. Record validation results against the
 commit tested; package checks and downstream acceptance do not establish publication.
+
+### Release regression checks
+
+`pnpm run test:release` exercises the installed Changesets CLI and the same
+`release:version` command used by CI. It is part of `pnpm run verify`, so pull requests
+and the release workflow both run it before building or publishing.
+
+The tests use disposable Git workspaces with the repository's release configuration,
+commands and internal dependency relationships. Registry dependencies are omitted and
+fixture versions are fixed, making the checks independent of network access, package
+caches and the current pending changesets. They verify:
+
+- Native non-interactive changeset creation, including repeated package flags and multiline summaries.
+- A Ledger major release automatically patch-bumps its peer consumer; an explicit major overrides that policy.
+- Peer ranges and changelogs update, while the private root version stays unchanged.
+- An intentionally stale lockfile is repaired, then passes an offline frozen-lockfile check.
+- An empty release fails without changing manifests, changelogs or the lockfile, and skips lockfile refresh.
+
+The checks never invoke publish or modify the checkout's release files. They do not
+validate registry credentials, GitHub release PR creation or hardware behavior.
 
 ## Adding a package
 
