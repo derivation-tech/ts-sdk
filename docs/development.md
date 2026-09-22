@@ -13,23 +13,27 @@ compilation does not assume APIs specific to Node.js 24.
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm -C packages/viem-ledger run build
-pnpm -C packages/viem-kit run verify
+pnpm run verify
 ```
 
-Build Ledger first in a fresh checkout: viem-kit's type checks exercise the optional
-integration. The consumer tests themselves load the core and Node entries without
+The root `build`, `test` and `verify` commands build workspace dependencies in order.
+When running viem-kit checks directly in a fresh checkout, build Ledger first:
+viem-kit's type checks exercise the optional integration. The consumer tests themselves load the core and Node entries without
 Ledger installed. `pnpm install` installs dependencies and runs workspace lifecycle
 hooks; it is not a validation-only command.
 
 ## Validation
+
+Use `pnpm run verify` for the complete workspace gate, `pnpm run build` to build
+all packages, and `pnpm test` to build prerequisites and run package tests.
+These commands use pnpm workspace dependency ordering and stop on failure.
 
 | Command                                                                                            | Effect                                                                                                                        |
 | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm -C packages/viem-kit run verify`                                                             | Lint, format check, source/test/example types, Jest, clean build, NodeNext consumer types, packed consumers, publint and attw |
 | `pnpm -C packages/viem-kit exec jest --config jest.config.cjs --runInBand tests/unit/chain-kit.test.ts` | One existing behavior suite; replace the path for the code being changed                                                      |
 | `pnpm -C packages/viem-kit run verify:types`                                                       | Source, all unit/integration tests, type fixtures and example type checks                                                                                          |
-| `pnpm run nx`                                                                                      | Build all workspace packages                                                                                                  |
+| `pnpm run build`                                                                                      | Build all workspace packages                                                                                                  |
 | `pnpm run lint`                                                                                    | Check code with ESLint                                                                                                        |
 | `pnpm run format:check`                                                                            | Run the available package format checks                                                                                       |
 | `pnpm run format`                                                                                  | Rewrite files with the available package formatters                                                                           |

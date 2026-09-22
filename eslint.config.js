@@ -7,7 +7,6 @@ module.exports = [
         ignores: [
             '**/dist/**',
             '**/coverage/**',
-            '.nx/**',
             '.worktrees/**',
             '**/jest.config.*',
             '**/eslint.config.*',

@@ -29,8 +29,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -C packages/viem-ledger run build
-      - run: pnpm -C packages/viem-kit run verify
+      - run: pnpm run verify
       - name: Install minimum supported viem
         shell: bash
         run: |

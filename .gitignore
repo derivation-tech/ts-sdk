@@ -14,7 +14,6 @@ coverage/
 *.lcov
 *.tsbuildinfo
 *.tgz
-.nx/
 .cache/
 .eslintcache
 
