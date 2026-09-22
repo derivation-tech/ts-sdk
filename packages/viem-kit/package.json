@@ -83,7 +83,8 @@
     "files": [
         "dist",
         "README.md",
-        "MIGRATION.md"
+        "MIGRATION.md",
+        "docs"
     ],
     "scripts": {
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
@@ -97,8 +98,8 @@
         "typecheck:consumer": "tsc --noEmit -p tests/consumer-node-next/tsconfig.json",
         "verify:types": "pnpm run build:check && pnpm run typecheck:test && pnpm run typecheck:examples",
         "test": "jest --config jest.config.cjs",
-        "format": "prettier --write \"{src,tests,examples,scripts}/**/*.{ts,js,cjs,mjs,json,md}\" \"*.{ts,js,cjs,mjs,json,md}\"",
-        "format:check": "prettier --check \"{src,tests,examples,scripts}/**/*.{ts,js,cjs,mjs,json,md}\" \"*.{ts,js,cjs,mjs,json,md}\"",
+        "format": "prettier --write \"{src,tests,examples,scripts,docs}/**/*.{ts,js,cjs,mjs,json,md}\" \"*.{ts,js,cjs,mjs,json,md}\"",
+        "format:check": "prettier --check \"{src,tests,examples,scripts,docs}/**/*.{ts,js,cjs,mjs,json,md}\" \"*.{ts,js,cjs,mjs,json,md}\"",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "publint": "publint --pack npm",

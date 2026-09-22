@@ -1,203 +1,103 @@
-# Migrating Anchored consumers from viem-kit 0.2.1
+# Migrating from viem-kit 0.2.1
 
-This guide describes the planned major API on the refactor branch. It includes
-both the earlier typed parser/transaction migration and the 2026-09-07 execution
-and configuration changes. The package has not been published by this work.
+Use this guide to move a consumer to the typed API documented in this source tree.
+It covers breaking changes tracked by the pending major changeset. Check the
+version and package artifact you are installing; this guide is not a publication
+or downstream deployment record.
 
-The reference consumer is `anchored-contracts` at `f9fd04e` (2026-09-07), using
-viem-kit 0.2.1 and viem 2.44.0. Its real checkout and dependency pins remain
-unchanged. The packed acceptance fixture mirrors an AncFundController
-`setFundMinSubscriptionUsd(uint16,uint32)` call and `FundConfigUpdated` event.
+## Imports and chain ownership
 
-## Replace generic workarounds
+| Previous use                                                                            | Replacement                                                               |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Root/utils imports of `getAccount`, address resolution, artifacts or deployment helpers | Import from `@derivation-tech/viem-kit/node`                              |
+| Positional ChainKit metadata argument                                                   | `new ChainKit(chain, { publicClient, wrappedNativeToken, addressNames })` |
+| Reassign `kit.publicClient`                                                             | Inject the client when constructing a kit                                 |
+| Mutate `WRAPPED_NATIVE_TOKENS`                                                          | Supply `wrappedNativeToken` for that instance; use `null` to disable it   |
+| Same-chain global registry for distinct RPCs or forks                                   | Create one kit per workflow/environment                                   |
+| Assume `wrappedNativeTokenInfo.address` exists                                          | Handle absent metadata or configure it before a WETH operation            |
 
-| Current consumer pattern                                                    | Migration                                                                                                                             |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Mutate `WRAPPED_NATIVE_TOKENS` before registry construction                 | `new ChainKit(chain, { publicClient, wrappedNativeToken })`; omit WETH metadata when unused                                           |
-| Reassign `kit.publicClient`                                                 | Inject the client at construction                                                                                                     |
-| Same-chain global registry for different RPCs/forks                         | Own a kit per workflow/RPC environment                                                                                                |
-| `sendTxWithLog(publicClient, walletClient, kit, request)`                   | `kit.sendTx(walletClient, request, options)` with the injected public client, or `sendContractTransaction(context, request, options)` |
-| Separate `sendTxWithOverrides` path                                         | Put `maxFeePerGas`, `maxPriorityFeePerGas`, `gas` and `nonce` in the typed request; use `options.wait`                                |
-| `TxRequest` or `Parameters<typeof sendTxWithLog>[3]`                        | `TypedWriteRequest<TAbi, TFunctionName>`                                                                                              |
-| Root/utils `getAccount`, address resolution, artifact or deployment imports | Import from `@derivation-tech/viem-kit/node`                                                                                          |
-| Positional ChainKit metadata/address-names arguments                        | Named `ChainKitOptions`                                                                                                               |
-| Unconditional `wrappedNativeTokenInfo.address`                              | Handle missing metadata, or fail at the WETH operation                                                                                |
+See [chain instances](docs/chains-and-parsers.md#chain-instances) for ownership and
+metadata behavior. Application-specific signers, roles and fork policy remain in
+the consumer.
 
-The registry convenience continues to cache default kits by chain ID. It cannot
-separate two same-chain RPC environments. Keep instance ownership explicit in
-Anchored's deployment context instead of changing a global SDK table.
+## Replace the send path
 
-## One typed send path
+Replace `sendTxWithLog(publicClient, walletClient, kit, request)` with
+`kit.sendTx(walletClient, request, options)` when only the receipt is needed, or
+`sendContractTransaction(context, request, options)` when the caller needs the
+submitted hash and separate diagnostic completion.
 
-```ts
-const kit = new ChainKit(chain, { publicClient });
-const request = {
-    address: controller,
-    abi: ancFundControllerAbi,
-    functionName: 'setFundMinSubscriptionUsd',
-    args: [fundId, targetMinSubscriptionUsd],
-    gas: bufferedGas,
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-} satisfies TypedWriteRequest<typeof ancFundControllerAbi, 'setFundMinSubscriptionUsd'>;
+- Replace `TxRequest` with `TypedWriteRequest<TAbi, TFunctionName>`. Use
+  `defineWriteRequest` when assembling heterogeneous local batches.
+- Move fee, gas and nonce overrides into the request; move receipt settings into
+  `options.wait`. Remove duplicate send wrappers once equivalent behavior is tested.
+- Keep receipt-success assertions. Raw send helpers return reverted receipts;
+  deployment helpers reject them.
+- Move local-account customizations out of `walletClient.sendTransaction` and
+  `deployContract` wrappers into preparation, account signing or raw-send actions.
+  RPC-wallet accounts still use the supplied wallet's `sendTransaction` action.
+- Reconcile `TransactionSubmissionError` and `TransactionReceiptError` using their
+  phase, outcome, hash and cause. A timeout or unknown send result is not a safe
+  reason to submit again.
 
-const receipt = assertTransactionSuccess(
-    await kit.sendTx(walletClient, request, {
-        wait: { timeout: 120_000 },
-        hooks: {
-            onEvent: ({ description }) => logger.info(description),
-            onObserverError: ({ phase, error }) => logger.warn(phase, error),
-        },
-    })
-);
-```
+The [transaction guide](docs/transactions.md) defines typed requests, replacement
+semantics, submission evidence and a complete transfer example. Preserve the
+consumer's gas buffering, fee multipliers, dry-run behavior, permission checks and
+post-transaction verification during migration.
 
-The caller still owns gas buffering, fee multipliers, role checks, dry-run behavior,
-Safe proposals, configuration persistence and post-transaction state verification.
-The SDK does not decide these policies. TypeScript preserves uint16/uint32 as
-numbers and uint256 as bigint according to viem's ABI mapping.
+## Parsers and diagnostic waiting
 
-Preserve explicit success assertions in commands that currently check
-`receipt.status`. Raw send APIs still return reverted receipts. Deployment helpers
-assert success themselves. Do not catch a timeout and simply call send again:
-`TransactionReceiptError.hash` and `TransactionSubmissionError.cause/request`
-exist to support reconciliation. Submission errors now also expose `phase`,
-`outcome` and optional `hash`: local prepare/sign failures are `not-sent`, while raw
-send and opaque RPC-wallet failures remain `unknown`. A known nonce and standard
-EVM signed hash survive a lost raw-send response; hashes from custom chain
-serializers are retained only when returned by RPC. Batch errors use the same
-submission error as their cause and preserve previous progress.
+Use `ContractParser<TAbi>` or `createContractParser({ abi, transactions, events,
+errors })`. Keep business formatting in consumer handlers. Narrow
+`DecodedContractError` by `kind` before using variant-specific fields such as
+`name` and `signature`.
 
-Local-account execution now observes viem's native send action. Move custom
-`walletClient.sendTransaction` wrappers into `prepareTransactionRequest`, local
-account signing or `sendRawTransaction` if they must affect local sends. Node
-deployment helpers encode constructor calldata and use this same path; custom
-`deployContract` overrides no longer intercept them. RPC-wallet sends continue
-using the supplied client's `sendTransaction` action.
+Move transaction-description logging from `onSent` to `onDescription`; `onSent`
+reports the hash before asynchronous parsing finishes. For CLI output, handle
+`sent.receipt` and await `sent.diagnostics` in a `finally` block. See
+[hooks and diagnostics](docs/transactions.md#hooks-and-diagnostics) for budgets,
+cancellation and hook delivery semantics.
 
-## Parser migration
+The draft `./utils` exports `waitForParsedReceipt` and `diagnoseReceipt` are removed.
+Use `sent.receipt` and `sent.diagnostics`, or `waitForTransactionOutcome` for an
+already-submitted hash without parser diagnostics.
 
-Transaction descriptions now arrive through `onDescription`, independently of
-`onSent` and receipt completion. Move any description logging out of `onSent`.
-For CLI commands that need event/error output before exiting, use
-`sendContractTransaction`, handle `sent.receipt`, then await `sent.diagnostics`
-separately (including in a `finally` block when success assertions can throw).
-`ChainKit.sendTx` returns the receipt without waiting for diagnostics. Configure
-`options.diagnostics.timeout` or `signal` for the separate diagnostic wait; async
-hook delivery remains the caller's responsibility.
+## Batches, artifacts and balance queries
 
-Use typed `ContractParser<TAbi>` or `createContractParser({ abi, transactions,
-events, errors })`. Existing business formatters can be wired to those handlers;
-keep Anchored's token/role metadata and formatting in Anchored.
+- Share a viem `NonceManager` across concurrent participating local batch calls.
+  Without one, serialize calls and retain exclusive sender ownership. Preserve
+  progress and reserved nonce evidence on failures; see [local batches](docs/transactions.md#local-batches).
+- Use source-qualified `Source.sol:Library` artifact mappings when libraries share
+  a name. Mapping to another source file no longer silently satisfies a reference.
+  Deployment rejects malformed bytecode before submission; see [artifact links](docs/node-tools.md#artifact-library-links).
+- Handle balance-query rejection separately from a zero balance. Multicall balance
+  helpers no longer substitute zero on failure, and batch sizes must be positive
+  safe integers. See [balance queries](docs/chains-and-parsers.md#balance-queries).
 
-The decoded-error contract is a discriminated union. Replace unchecked
-`error.name`, `error.signature` or string tests with `error.kind`:
+## Retired networks and local metadata
 
-```ts
-parseError(error) {
-    if (error.kind === 'custom') {
-        return formatCustomError(error.name, error.args);
-    }
-    return error.message;
-}
-```
+Remove `abctest` imports and ABC entries from consumer chain maps. Both the root
+export and the ABC-only `@derivation-tech/viem-kit/chains` subpath are removed;
+`ChainKitRegistry.for('abctest')` and chain ID 20250903 no longer resolve.
+Import supported chain definitions from `viem/chains` or pass an application-owned
+`Chain` object explicitly.
 
-Request/event parsers may be async and parser failures are reported separately.
-Lifecycle hooks also accept async functions, but are deliberately not awaited.
-Keep external logging delivery outside the transaction-success decision.
+Built-in ERC20 and wrapped-native defaults for Goerli (5), bArtio (80084), ABC
+(20250903) and old local deployments (31337) are removed. This does not filter
+upstream viem chain definitions. For Anvil, register addresses from the actual
+local deployment as described in [local metadata](docs/chains-and-parsers.md#local-deployment-metadata).
 
-Receipt-related hooks expose the actual `hash` and `submittedHash`. Repricing
-continues the original intent; cancellation or a different transaction raises
-`TransactionReplacementError` with the replacement receipt. Review any command
-that previously assumed every successful receipt belonged to its original call.
+## Validate and roll out
 
-## Node and signer boundary
+1. Verify the SDK artifact, then install its tarball in an isolated consumer checkout.
+2. Apply the import, client ownership and transaction/parser changes above.
+3. Run consumer type checks and relevant behavior tests. Exercise deployment or
+   fork flows when the consumer relies on them; a mocked SDK consumer does not
+   establish that those flows work.
+4. Record the tested SDK commit or tarball checksum, dependency versions, consumer
+   revision and commands. Match release and rollout decisions to that evidence.
 
-```ts
-import { getAccount, ArtifactHelper, deployArtifact } from '@derivation-tech/viem-kit/node';
-```
-
-Do not load environment or Ledger helpers from browser code. Importing the Node
-entry does not require Ledger to be installed; requesting Ledger does. Anchored's
-existing signer resolver and fork restrictions are not replaced by this release.
-Environment-account caches now belong to individual kits so each kit registers
-its own derived-account names.
-
-## Batch boundary
-
-Anchored currently does not directly use the SDK batch helper. Other consumers
-should share a native viem `NonceManager` for concurrent batch calls and retain
-exclusive control of the sender. Without it, nonce allocation remains per-call.
-Failures expose reserved nonces and distinguish `not-sent`, `unknown` and
-`submitted`. A shared manager may still reserve a nonce after preparation or
-signing fails; reconcile in-flight work before reuse. SDK code does not provide
-cross-process coordination, persistent intent storage or automatic resubmission.
-
-## Consumer rollout
-
-1. Build this SDK and run `pnpm -C packages/viem-kit run verify`.
-2. Install its local tarball in an isolated Anchored checkout and apply the import,
-   parser and context changes above. Remove the fee-override/global-token patches
-   only after equivalent behavior passes the consumer's tests.
-3. Run Anchored's script tests and typecheck, then its relevant fork/deployment
-   rehearsals under that repository's execution rules.
-4. Publish and update dependency pins only through the separately authorized
-   release workflow. Keep consumers on 0.2.1 until their migration is ready.
-
-The SDK fixture validates the common API contract, package boundaries and native
-viem request formatting. It is not a migration or end-to-end validation of all
-Anchored deployment commands, Safe workflows or hardware signing.
-
-## Artifact library mapping
-
-For structured compiler references, use `Source.sol:Library` keys. Exact source-qualified
-keys take precedence over explicit `Library` fallbacks. A key for another source file
-is no longer accepted merely because its library name matches.
-
-Deployment helpers now reject empty, odd-length or non-hexadecimal bytecode before
-submission. Raw bytecode may include compiler `//` mapping comments; they are removed
-from the linked output. SHA3-256 is not used as a fallback for Solidity library hashes.
-Name-style raw placeholders reject multiple source-qualified matches unless an
-explicit short-name mapping selects the intended library.
-
-## Balance query failures
-
-Multicall balance helpers now reject RPC errors or failed individual calls rather
-than returning zero balances. Successful results keep the existing bigint arrays
-and ordering, including genuine zero balances. Callers must handle query failure
-separately from an empty balance. Batch sizes must be positive safe integers.
-
-## Receipt diagnostics exports
-
-The draft `./utils` exports `waitForParsedReceipt` and `diagnoseReceipt` are no
-longer public. Use `sendContractTransaction` to obtain `sent.receipt` and the separate,
-bounded `sent.diagnostics` promise. For an already-submitted hash without parser
-diagnostics, use `waitForTransactionOutcome`. Transaction helpers and their
-public types use an explicit export list; internal receipt routines are not part
-of the supported API.
-
-## Retired ABC testnet
-
-The `abctest` root export and the ABC-only `@derivation-tech/viem-kit/chains`
-subpath are removed, together with ABC's built-in token metadata and dedicated
-examples. Remove those imports and ABC entries from consumer chain maps.
-`ChainKitRegistry.for('abctest')` and its former numeric ID no longer resolve.
-Import supported chain definitions from `viem/chains`; application-owned chains
-can still be passed as explicit `Chain` objects.
-
-## Retired network token defaults
-
-Built-in ERC20 and wrapped-native defaults for Goerli (5) and Berachain bArtio
-(80084) have been removed. The SDK no longer preloads those historical addresses.
-This does not filter the upstream `viem/chains` catalog or prevent explicit
-caller-owned chain definitions and token registration.
-
-## Local deployment metadata
-
-Chain ID 31337 no longer preloads WETH or the six ERC20 addresses from an old
-local deployment. Anvil support remains available through `viem/chains`.
-After deploying contracts, use `kit.registerErc20Token(...)` and
-`kit.registerWrappedNativeToken(...)` with that deployment's addresses, or pass
-`wrappedNativeToken` when constructing the kit. A fresh local kit contains only
-its native token until metadata is registered; wrapped-native operations require
-an explicitly configured wrapped token.
+The checked-in packed consumer uses an Anchored-shaped administration call as a
+fixture. Its scope is package/API compatibility, not every downstream command or
+hardware signing path. Keep the prior dependency pin and consumer changes available
+for rollback until the migrated consumer passes its acceptance checks.
