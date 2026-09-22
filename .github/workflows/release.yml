@@ -26,20 +26,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Creating .npmrc
-        run: |
-          REGISTRY_URL="${{ secrets.NPM_REGISTRY_URL }}"
-          # Extract hostname from registry URL for auth token key
-          # npm/pnpm auth token key format is //hostname/:_authToken
-          # This works for both simple domains and URLs with paths (e.g., Nexus)
-          # Examples:
-          #   https://registry.example.com -> registry.example.com
-          #   https://nexus.example.com/repository/npm/ -> nexus.example.com
-          REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -E 's|^https?://||' | sed -E 's|/.*||')
-          cat << EOF > "$HOME/.npmrc"
-          @derivation-tech:registry=$REGISTRY_URL
-          //$REGISTRY_HOST/:_authToken=${{ secrets.NPM_TOKEN }}
-          EOF
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
       - name: Build Ledger Dependency
@@ -48,6 +34,21 @@ jobs:
         run: pnpm -C packages/viem-kit run verify
       - name: Build
         run: pnpm run nx
+      - name: Configure publish registry
+        env:
+          NPM_REGISTRY_URL: ${{ secrets.NPM_REGISTRY_URL }}
+        run: |
+          node <<'NODE'
+          const { writeFileSync } = require('node:fs');
+          const { join } = require('node:path');
+          const registry = new URL(process.env.NPM_REGISTRY_URL);
+          if (!['http:', 'https:'].includes(registry.protocol) || registry.username || registry.password || registry.search || registry.hash) {
+            throw new Error('Expected a registry URL without credentials, query or fragment');
+          }
+          registry.pathname = registry.pathname.replace(/\/?$/, '/');
+          const content = `@derivation-tech:registry=${registry.href}\n//${registry.host}${registry.pathname}:_authToken=\${NODE_AUTH_TOKEN}\n`;
+          writeFileSync(join(process.env.RUNNER_TEMP, 'publish.npmrc'), content, { mode: 0o600 });
+          NODE
       - name: Create Release Pull Request or Publish to npm
         id: changesets
         uses: changesets/action@v1
@@ -56,3 +57,5 @@ jobs:
           publish: pnpm changeset publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/publish.npmrc
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
