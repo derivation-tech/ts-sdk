@@ -11,7 +11,11 @@
     "scripts": {
         "build": "tsc -p tsconfig.json",
         "clean": "rm -rf dist",
-        "prepublishOnly": "npm run build"
+        "prepublishOnly": "npm run build",
+        "test": "node --test tests/*.test.cjs",
+        "format": "prettier --write \"{src,tests}/**/*.{ts,cjs}\" \"*.{json,md}\"",
+        "format:check": "prettier --check \"{src,tests}/**/*.{ts,cjs}\" \"*.{json,md}\"",
+        "verify": "pnpm run format:check && pnpm run test"
     },
     "dependencies": {
         "@ledgerhq/hw-app-eth": "^6.32.0",
@@ -21,7 +25,8 @@
     "devDependencies": {
         "viem": "catalog:",
         "@types/node": "catalog:",
-        "typescript": "catalog:"
+        "typescript": "catalog:",
+        "prettier": "catalog:"
     },
     "peerDependencies": {
         "viem": "^2.43.3"

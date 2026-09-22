@@ -54,3 +54,5 @@ Both viem-kit and viem-ledger now require Node.js 22 or newer. Upgrade consumers
 Invalid direct-address resolution errors now preserve the original viem validation error as `cause`, while retaining the public error message.
 
 Public entry points now share runtime classes and logger state within each module format. Errors thrown by Node deployment helpers can be caught using the root or utils error classes.
+
+Ledger personal signing preserves raw Hex bytes, matching raw Uint8Array semantics. Address confirmation now rejects a changed device account before signing. Ledger package checks exercise the built adapter with an injected transport and no hardware or network.

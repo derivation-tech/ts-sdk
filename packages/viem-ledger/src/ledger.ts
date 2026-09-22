@@ -3,7 +3,15 @@ import ledgerService from '@ledgerhq/hw-app-eth/lib/services/ledger';
 import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
 import type Transport from '@ledgerhq/hw-transport';
 import type { Hex, LocalAccount, TransactionSerializable, TypedDataDefinition } from 'viem';
-import { getTypesForEIP712Domain, hashDomain, hashStruct, serializeSignature, serializeTransaction, toHex } from 'viem';
+import {
+    getTypesForEIP712Domain,
+    isAddressEqual,
+    hashDomain,
+    hashStruct,
+    serializeSignature,
+    serializeTransaction,
+    toHex,
+} from 'viem';
 import { toAccount } from 'viem/accounts';
 import { AddressValidation, DEFAULT_BASE_PATH } from './constants';
 import { parseLedgerPath, type ParsedLedgerPath } from './parse';
@@ -44,10 +52,12 @@ const getTransport = async (transport?: Transport): Promise<Transport> => {
 const getEth = async (transport?: Transport): Promise<Eth> => {
     if (transport) return new Eth(transport);
     if (!ethInstancePromise) {
-        ethInstancePromise = getTransport().then((t) => new Eth(t)).catch((err) => {
-            ethInstancePromise = null;
-            throw err;
-        });
+        ethInstancePromise = getTransport()
+            .then((t) => new Eth(t))
+            .catch((err) => {
+                ethInstancePromise = null;
+                throw err;
+            });
     }
     return ethInstancePromise;
 };
@@ -103,7 +113,9 @@ const assertAppReady = async (eth: Eth) => {
         console.warn(`Ledger app is '${appName}', expected 'ethereum'. Some features may fail.`);
     }
     if (!config.arbitraryDataEnabled) {
-        console.warn('Ledger arbitrary data is disabled; contract interactions may fail. Enable it in the app settings.');
+        console.warn(
+            'Ledger arbitrary data is disabled; contract interactions may fail. Enable it in the app settings.'
+        );
     }
 };
 
@@ -163,7 +175,9 @@ export const deriveLedgerPath = (options: LedgerToAccountOptions): ParsedLedgerP
 };
 
 export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<LedgerAccount> {
-    const parsed = options.path ? deriveLedgerPath({ ...options, signerId: undefined, path: options.path }) : deriveLedgerPath(options);
+    const parsed = options.path
+        ? deriveLedgerPath({ ...options, signerId: undefined, path: options.path })
+        : deriveLedgerPath(options);
     const policy = resolveValidationPolicy(options.addressValidation);
     const useCache = !options.transport;
     const cacheKey = useCache ? `${parsed.path}|${policy}` : undefined;
@@ -188,7 +202,10 @@ export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<
 
             const ensureValidated = async () => {
                 if (shouldValidateNow(policy, alreadyValidated)) {
-                    await withRetry(() => eth.getAddress(parsed.path, true));
+                    const confirmed = await withRetry(() => eth.getAddress(parsed.path, true));
+                    if (!isAddressEqual(ensure0x(confirmed.address), ensure0x(address))) {
+                        throw new Error('Ledger address changed; reconnect and create a new account before signing.');
+                    }
                     alreadyValidated = true;
                 }
             };
@@ -202,7 +219,11 @@ export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<
                     // Try to resolve transaction for clear signing; fall back to null for unsupported chains
                     let resolution: Awaited<ReturnType<typeof ledgerService.resolveTransaction>> | null = null;
                     try {
-                        resolution = await ledgerService.resolveTransaction(unsigned, {}, { externalPlugins: true, erc20: true });
+                        resolution = await ledgerService.resolveTransaction(
+                            unsigned,
+                            {},
+                            { externalPlugins: true, erc20: true }
+                        );
                     } catch {
                         // Resolution failed (chain not supported by Ledger backend) - use blind signing
                     }
@@ -228,9 +249,11 @@ export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<
                 async signMessage({ message }) {
                     await ensureValidated();
                     const hex =
-                        typeof message === 'object' && message !== null && 'raw' in message
-                            ? toHex((message as { raw: Hex | Uint8Array }).raw)
-                            : toHex(message);
+                        typeof message === 'string'
+                            ? toHex(message)
+                            : typeof message.raw === 'string'
+                              ? message.raw
+                              : toHex(message.raw);
                     const sig = await withRetry(() => eth.signPersonalMessage(parsed.path, hex.slice(2)));
                     return serializeSignature({
                         r: ensure0x(sig.r),
@@ -240,7 +263,7 @@ export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<
                 },
                 async signTypedData<
                     const typedData extends TypedDataDefinition | Record<string, unknown>,
-                    primaryType extends keyof typedData | 'EIP712Domain' = keyof typedData
+                    primaryType extends keyof typedData | 'EIP712Domain' = keyof typedData,
                 >(parameters: TypedDataDefinition<typedData, primaryType>) {
                     await ensureValidated();
                     const { domain, types, primaryType, message } = parameters;
@@ -270,9 +293,7 @@ export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<
                         primaryType: primaryType as string,
                         types: allTypes as Record<string, MessageTypeProperty[]>,
                     });
-                    const sig = await withRetry(() =>
-                        eth.signEIP712HashedMessage(parsed.path, domainSep, messageHash)
-                    );
+                    const sig = await withRetry(() => eth.signEIP712HashedMessage(parsed.path, domainSep, messageHash));
                     return serializeSignature({
                         r: ensure0x(sig.r),
                         s: ensure0x(sig.s),
