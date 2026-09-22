@@ -1,47 +1,22 @@
 # Derivation Tech TypeScript SDK
 
-A pnpm workspace containing two packages:
+A pnpm workspace for viem application and signer utilities.
 
-- [`@derivation-tech/viem-kit`](./packages/viem-kit/README.md): chain utilities, address books, contract parsers, transaction handling, and Node deployment helpers.
-- [`@derivation-tech/viem-ledger`](./packages/viem-ledger/README.md): optional Ledger account helpers.
+| Package                                                        | Purpose                                                                                             |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [@derivation-tech/viem-kit](packages/viem-kit/README.md)       | Typed contract transactions, receipt diagnostics, token metadata, parsers and Node deployment tools |
+| [@derivation-tech/viem-ledger](packages/viem-ledger/README.md) | Ledger-backed viem accounts for Node applications                                                   |
 
-## Development
+## Working in this repository
 
-Use Node.js 20 or newer for the full verification toolchain (`attw` requires Node 20). Published packages support Node.js 18 or newer. Use pnpm 9.5 or newer for workspace catalog support.
+The [development guide](docs/development.md) covers prerequisites, installation,
+validation, package scaffolding and releases. Package manifests and
+[pnpm-workspace.yaml](pnpm-workspace.yaml) define scripts and dependency ranges;
+[pnpm-lock.yaml](pnpm-lock.yaml) records the resolved dependency versions.
 
-```sh
-pnpm install
-pnpm run nx                         # Build all packages
-pnpm run lint
-pnpm run format                     # Run available package formatters
-pnpm run format:check
-pnpm -C packages/viem-kit run verify # Full core validation
-pnpm run clean
-```
-
-Build `viem-ledger` before verifying `viem-kit` in a fresh checkout, since core tests and type checks exercise the optional integration. Core examples are in [`packages/viem-kit/examples`](./packages/viem-kit/examples/); `verify` type-checks them. Review credentials and transaction behavior before running an example against a network.
-
-CI verifies the locked viem version and also installs the exact minimum version declared by the core peer dependency into an isolated directory. Both run the same tarball consumer checks for ESM, CommonJS, browser bundling, and loading without Ledger on Node.js 18 and 22. The complete development verification runs on Node.js 22; Node.js 18 runs only the consumer checks.
-
-See the [core coding practices](./packages/viem-kit/CODING_PRACTICES.md) and [migration guide](./packages/viem-kit/MIGRATION.md).
-
-## Adding a package
-
-From the workspace root:
-
-```sh
-bash scripts/init.sh package-name
-```
-
-The scaffolder refuses an existing target. Add source and tests to the generated `src/` and `test/` directories, then install workspace dependencies and run the package build and tests.
-
-## Releases
-
-- `make changeset SUMMARY='Describe the change' PACKAGES='@derivation-tech/viem-kit:patch'` writes a changeset. Choose the bump for the actual compatibility impact. Without `PACKAGES`, the helper includes all workspace packages at `BUMP` (default `patch`); packages are not configured as a fixed version group.
-- `make changeset-dry-run ...` previews the changeset. `pnpm run release:dry` reports pending changeset status.
-- `make version` applies versions and refreshes the lockfile.
-- `make publish` or `pnpm run release` publishes versioned packages. `make release` versions and publishes.
-- The core postpublish hook can notify Slack through `SLACK_WEBHOOK_URL`, with optional `SLACK_MESSAGE_SUFFIX`.
+Existing viem-kit consumers should use the [migration guide](packages/viem-kit/MIGRATION.md).
+The [refactor design record](docs/specs/viem-kit-anchored-refactor.md) retains the
+historical design separately from the maintained usage documentation.
 
 ## License
 
