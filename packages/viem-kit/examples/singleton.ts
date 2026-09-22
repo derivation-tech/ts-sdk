@@ -113,7 +113,7 @@ async function example2_sendTxWithParsing() {
     // Parse events using registry
     for (const log of receipt.logs) {
         const parser = baseCtx.getParser(log.address);
-        if (parser) {
+        if (parser?.parseEvent) {
             const decoded = decodeEventLog({
                 abi: parser.abi,
                 data: log.data,
@@ -122,10 +122,10 @@ async function example2_sendTxWithParsing() {
             });
 
             // Use parser to format (includes decimals!)
-            if (!decoded.eventName) continue;
-            const formatted = await parser.parseEvent!({
-                eventName: decoded.eventName as string,
-                args: decoded.args as any,
+            if (!decoded.eventName || !decoded.args) continue;
+            const formatted = await parser.parseEvent({
+                eventName: decoded.eventName,
+                args: decoded.args,
             });
 
             console.log(`Event #${log.logIndex}:`, formatted);
@@ -182,7 +182,7 @@ async function example4_multipleChains() {
 
     console.log(
         '\nAll initialized chains:',
-        ChainKitRegistry.getAll().map((c: any) => c.chain.name)
+        ChainKitRegistry.getAll().map((c) => c.chain.name)
     );
 }
 

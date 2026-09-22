@@ -174,7 +174,7 @@ export function loadArtifact(jsonInput: JsonInput, linkReferenceMap: Record<stri
             try {
                 const vals = Array.from(new Set(Object.values(compTarget)));
                 if (vals.length === 1 && typeof vals[0] === 'string') inferredName = vals[0];
-            } catch (e) {
+            } catch {
                 // ignore
             }
         }
@@ -258,7 +258,7 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
                 const fq = cm[3];
                 inlineMap[placeholder] = fq;
             }
-        } catch (e) {
+        } catch {
             // ignore
         }
 

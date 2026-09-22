@@ -1,50 +1,50 @@
+const { defineConfig, globalIgnores } = require('eslint/config');
 const eslint = require('@eslint/js');
-const prettier = require('eslint-config-prettier');
 const typescript = require('typescript-eslint');
+const prettier = require('eslint-config-prettier/flat');
+const globals = require('globals');
 
-module.exports = [
+module.exports = defineConfig(
+    globalIgnores(['**/dist/**', '**/coverage/**', '.worktrees/**', 'templates/**', '**/*.d.{ts,cts,mts}']),
     {
-        ignores: [
-            '**/dist/**',
-            '**/coverage/**',
-            '.worktrees/**',
-            '**/jest.config.*',
-            '**/eslint.config.*',
-            'templates',
-            '**/*.d.ts',
-        ],
+        files: ['**/*.{js,cjs,mjs}'],
+        extends: [eslint.configs.recommended],
     },
-    eslint.configs.recommended,
-    ...typescript.configs.recommended,
     {
+        files: ['**/*.cjs', '**/*.config.js', 'scripts/**/*.{js,cjs,mjs}', 'packages/*/scripts/**/*.{js,cjs,mjs}'],
+        languageOptions: { globals: globals.node },
+    },
+    {
+        files: ['**/*.{ts,cts,mts}'],
+        extends: [eslint.configs.recommended, typescript.configs.recommended],
         rules: {
-            'no-empty': 'off',
-            'no-console': 'off',
-            '@typescript-eslint/no-unsafe-function-type': 'off',
+            'no-empty': ['error', { allowEmptyCatch: true }],
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_', ignoreRestSiblings: true },
+            ],
             '@typescript-eslint/no-explicit-any': 'off',
-            '@typescript-eslint/no-unused-vars': 'off',
-            '@typescript-eslint/no-require-imports': 'off',
         },
     },
     {
-        files: ['packages/viem-kit/src/**/*.ts'],
-        rules: {
-            '@typescript-eslint/no-explicit-any': 'error',
-        },
-    },
-    {
-        files: ['scripts/**/*.{js,cjs,mjs}'],
+        files: ['packages/*/src/**/*.ts'],
         languageOptions: {
-            globals: {
-                console: 'readonly',
-                process: 'readonly',
-                require: 'readonly',
-                module: 'readonly',
-                __dirname: 'readonly',
-                Buffer: 'readonly',
-            },
+            parserOptions: { projectService: true, tsconfigRootDir: __dirname },
+        },
+        rules: {
+            '@typescript-eslint/no-floating-promises': 'error',
+            '@typescript-eslint/no-misused-promises': 'error',
         },
     },
-    // prettier should be the last config because it disables all formatting rules
-    prettier,
-];
+    {
+        // Keep the core's existing boundary and apply it to the examples users copy.
+        files: ['packages/viem-kit/src/**/*.ts', 'packages/viem-kit/examples/**/*.ts'],
+        rules: { '@typescript-eslint/no-explicit-any': 'error' },
+    },
+    {
+        files: ['packages/*/tests/typecheck/**/*.ts', 'packages/*/tests/consumer-node-next/*.{cts,mts}'],
+        rules: { '@typescript-eslint/no-unused-vars': 'off' },
+    },
+    // Formatting belongs to Prettier; disable conflicting lint rules last.
+    prettier
+);

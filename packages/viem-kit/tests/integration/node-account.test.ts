@@ -1,5 +1,6 @@
 import { expect, it } from '@jest/globals';
 import { getAccount } from '../../src/node/account';
+import { resolveAddress } from '../../src/node/address-resolver';
 import { ChainKit } from '../../src/chain-kit';
 import { mainnet } from 'viem/chains';
 
@@ -18,4 +19,11 @@ it('keeps derived-account registration local to each kit', async () => {
         if (previous === undefined) delete process.env.VIEM_KIT_FIXTURE_PRIVATE_KEY;
         else process.env.VIEM_KIT_FIXTURE_PRIVATE_KEY = previous;
     }
+});
+
+it('preserves the viem validation cause when a direct address is invalid', async () => {
+    await expect(resolveAddress('0x1234', new ChainKit(mainnet))).rejects.toMatchObject({
+        message: 'Invalid Ethereum address format: 0x1234. Expected a valid checksummed address.',
+        cause: expect.objectContaining({ name: 'InvalidAddressError' }),
+    });
 });

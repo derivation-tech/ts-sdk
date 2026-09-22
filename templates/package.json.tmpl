@@ -6,7 +6,7 @@
     "scripts": {
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
         "format": "prettier --write \"{src,test}/**/*.ts\" \"*.{json,md}\"",
-        "lint": "eslint src test",
+        "lint": "eslint src test --max-warnings=0",
         "lint:fix": "eslint src test --fix",
         "test": "jest",
         "test:coverage": "jest --coverage=true --coverage-reporters=text",

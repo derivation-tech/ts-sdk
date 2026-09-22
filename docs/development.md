@@ -6,7 +6,7 @@ Run the commands below from the workspace root unless a different directory is s
 
 Use `nvm install && nvm use` to select the Node.js 24 LTS version pinned in `.nvmrc`.
 CI and release builds read the same file. Use the pnpm version pinned in the root
-`packageManager` field. Workspace tooling requires Node.js 22 or newer.
+`packageManager` field. Workspace tooling requires Node.js 22.13 or newer within 22.x, or Node.js 24 or newer.
 Both SDK packages require Node.js 22 or newer. Node.js 22 and 24 are the supported
 LTS versions covered by the consumer tests. Node type definitions track 22.x so
 compilation does not assume APIs specific to Node.js 24.
@@ -22,22 +22,53 @@ viem-kit's type checks exercise the optional integration. The consumer tests the
 Ledger installed. `pnpm install` installs dependencies and runs workspace lifecycle
 hooks; it is not a validation-only command.
 
+## Tooling responsibilities
+
+Keep one tool responsible for each job:
+
+| Tool                       | Responsibility                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------- |
+| pnpm                       | Install the locked dependency graph and run workspace scripts in dependency order   |
+| TypeScript (`tsc`)         | Check source, examples, test fixtures and consumer declaration compatibility        |
+| ESLint + typescript-eslint | Catch code-quality problems, including unhandled and misused Promises in SDK source |
+| Prettier                   | Format files; `eslint-config-prettier` disables conflicting lint rules              |
+| Jest                       | Run unit and integration behavior tests                                             |
+| tsup                       | Produce the ESM and CJS bundles                                                     |
+| Changesets                 | Describe release changes and apply package versions                                 |
+
+There are currently two packages. Native pnpm recursion handles their build order,
+so the workspace does not need Nx configuration or its task/plugin dependency graph.
+This removes Nx task caching and affected-project selection. Reconsider an orchestrator
+if measured build costs or a larger dependency graph make those features useful.
+
+The ESLint flat config scopes Node globals to scripts and configuration, applies
+recommended TypeScript rules to TypeScript files, and uses `projectService` only for
+SDK source to enable type-aware Promise checks. Compile-time negative fixtures may
+intentionally contain unused aliases. The core's no-`any` rule also covers its examples,
+so copied examples do not silently bypass type checking.
+
+ESLint 10 requires a newer Node 22 patch than the SDK runtime does. The root engine
+range describes development tooling; each published package declares its own runtime
+requirement. Developing on the pinned Node 24 version does not require consumers to
+upgrade to 24. Keep consumer tests on both supported LTS lines before changing that
+compatibility promise.
+
 ## Validation
 
 Use `pnpm run verify` for the complete workspace gate, `pnpm run build` to build
 all packages, and `pnpm test` to build prerequisites and run package tests.
 These commands use pnpm workspace dependency ordering and stop on failure.
 
-| Command                                                                                            | Effect                                                                                                                        |
-| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm -C packages/viem-kit run verify`                                                             | Lint, format check, source/test/example types, Jest, clean build, NodeNext consumer types, packed consumers, publint and attw |
+| Command                                                                                                 | Effect                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm -C packages/viem-kit run verify`                                                                  | Lint, format check, source/test/example types, Jest, clean build, NodeNext consumer types, packed consumers, publint and attw |
 | `pnpm -C packages/viem-kit exec jest --config jest.config.cjs --runInBand tests/unit/chain-kit.test.ts` | One existing behavior suite; replace the path for the code being changed                                                      |
-| `pnpm -C packages/viem-kit run verify:types`                                                       | Source, all unit/integration tests, type fixtures and example type checks                                                                                          |
-| `pnpm run build`                                                                                      | Build all workspace packages                                                                                                  |
-| `pnpm run lint`                                                                                    | Check code with ESLint                                                                                                        |
-| `pnpm run format:check`                                                                            | Run the available package format checks                                                                                       |
-| `pnpm run format`                                                                                  | Rewrite files with the available package formatters                                                                           |
-| `pnpm run clean`                                                                                   | Remove package build outputs                                                                                                  |
+| `pnpm -C packages/viem-kit run verify:types`                                                            | Source, all unit/integration tests, type fixtures and example type checks                                                     |
+| `pnpm run build`                                                                                        | Build all workspace packages                                                                                                  |
+| `pnpm run lint`                                                                                         | Check code with ESLint                                                                                                        |
+| `pnpm run format:check`                                                                                 | Run the available package format checks                                                                                       |
+| `pnpm run format`                                                                                       | Rewrite files with the available package formatters                                                                           |
+| `pnpm run clean`                                                                                        | Remove package build outputs                                                                                                  |
 
 The tests are organized by the contract they verify:
 

@@ -1,4 +1,3 @@
-/* global require, console */
 const assert = require('node:assert/strict');
 const core = require('@derivation-tech/viem-kit');
 const utils = require('@derivation-tech/viem-kit/utils');

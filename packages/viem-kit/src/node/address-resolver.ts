@@ -48,8 +48,10 @@ export async function resolveAddress(
         try {
             const address = getAddress(trimmed as Address);
             return { address, source: 'direct', identifier: trimmed };
-        } catch (err) {
-            throw new Error(`Invalid Ethereum address format: ${trimmed}. Expected a valid checksummed address.`);
+        } catch (cause) {
+            throw new Error(`Invalid Ethereum address format: ${trimmed}. Expected a valid checksummed address.`, {
+                cause,
+            });
         }
     }
 
