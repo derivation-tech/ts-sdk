@@ -54,9 +54,8 @@ try {
     run(process.execPath, ['--disallow-code-generation-from-strings', 'dist/index.mjs']);
     run(process.execPath, ['--disallow-code-generation-from-strings', 'index.cjs']);
 
-    // Reuse the esbuild installation already owned by the pinned tsup toolchain.
-    const tsupRequire = createRequire(require.resolve('tsup/package.json'));
-    const { build } = tsupRequire('esbuild');
+    // Verify browser consumption with an independent bundler.
+    const { build } = await import('esbuild');
     const output = join(temporary, 'browser.cjs');
     const result = await build({
         entryPoints: [join(consumer, 'browser.mjs')],

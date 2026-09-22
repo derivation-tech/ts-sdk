@@ -87,15 +87,15 @@
     ],
     "scripts": {
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-        "build": "tsup --config tsup.config.ts && tsc -p tsconfig.types.json && node scripts/create-esm-declarations.mjs",
+        "build": "tsdown --config tsdown.config.mts && tsc -p tsconfig.types.json && node scripts/create-esm-declarations.mjs",
         "build:clean": "pnpm run clean && pnpm run build",
-        "build:bundle": "tsup --config tsup.config.ts",
+        "build:bundle": "tsdown --config tsdown.config.mts",
         "build:types": "tsc -p tsconfig.types.json && node scripts/create-esm-declarations.mjs",
         "build:check": "tsc --noEmit -p tsconfig.json",
         "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
         "typecheck:examples": "tsc --noEmit -p tsconfig.examples.json",
         "typecheck:consumer": "tsc --noEmit -p tests/consumer-node-next/tsconfig.json",
-        "verify:types": "pnpm run build:check && pnpm run typecheck:test && pnpm run typecheck:examples",
+        "verify:types": "pnpm run build:check && pnpm run typecheck:test && pnpm run typecheck:examples && pnpm run typecheck:build",
         "test": "jest --config jest.config.cjs --runInBand",
         "format": "prettier --write \"{src,tests,examples,scripts,docs}/**/*.{ts,cts,mts,js,cjs,mjs,json,md}\" \"*.{ts,cts,mts,js,cjs,mjs,json,md}\"",
         "format:check": "prettier --check \"{src,tests,examples,scripts,docs}/**/*.{ts,cts,mts,js,cjs,mjs,json,md}\" \"*.{ts,cts,mts,js,cjs,mjs,json,md}\"",
@@ -109,7 +109,8 @@
         "postpublish": "node ../../scripts/slack-notify.js",
         "verify:consumer": "node scripts/verify-consumer.mjs",
         "test:unit": "jest --config jest.config.cjs --runInBand tests/unit",
-        "test:integration": "jest --config jest.config.cjs --runInBand tests/integration"
+        "test:integration": "jest --config jest.config.cjs --runInBand tests/integration",
+        "typecheck:build": "tsc --noEmit --module nodenext --target es2022 --skipLibCheck tsdown.config.mts"
     },
     "devDependencies": {
         "@arethetypeswrong/cli": "0.18.5",
@@ -121,9 +122,10 @@
         "prettier": "catalog:",
         "publint": "0.3.24",
         "ts-jest": "catalog:",
-        "tsup": "^8.5.0",
         "typescript": "catalog:",
-        "viem": "catalog:"
+        "viem": "catalog:",
+        "tsdown": "0.23.0",
+        "esbuild": "0.28.2"
     },
     "peerDependencies": {
         "@derivation-tech/viem-ledger": "^0.2.1",

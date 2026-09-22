@@ -6,7 +6,7 @@ Run the commands below from the workspace root unless a different directory is s
 
 Use `nvm install && nvm use` to select the Node.js 24 LTS version pinned in `.nvmrc`.
 CI and release builds read the same file. Use the pnpm version pinned in the root
-`packageManager` field. Workspace tooling requires Node.js 22.13 or newer within 22.x, or Node.js 24 or newer.
+`packageManager` field. Workspace tooling requires Node.js 22.18+, 24.11+, or 26+; use the pinned Node.js 24 version.
 Both SDK packages require Node.js 22 or newer. Node.js 22 and 24 are the supported
 LTS versions covered by the consumer tests. Node type definitions track 22.x so
 compilation does not assume APIs specific to Node.js 24.
@@ -33,11 +33,15 @@ Keep one tool responsible for each job:
 | ESLint + typescript-eslint | Catch code-quality problems, including unhandled and misused Promises in SDK source |
 | Prettier                   | Format files; `eslint-config-prettier` disables conflicting lint rules              |
 | Jest                       | Run unit and integration behavior tests                                             |
-| tsup                       | Produce the ESM and CJS bundles                                                     |
+| tsdown                     | Produce the ESM and CJS bundles                                                     |
 | Changesets                 | Describe release changes and apply package versions                                 |
 
 There are currently two packages. Native pnpm recursion handles their build order,
 so the workspace does not need Nx configuration or its task/plugin dependency graph.
+tsdown shares code between public entries within each module format. Packed tests check
+error-class identity and logger state, while a separate esbuild consumer checks browser
+compatibility. TypeScript continues to generate declarations using the existing verified recipe.
+
 This removes Nx task caching and affected-project selection. Reconsider an orchestrator
 if measured build costs or a larger dependency graph make those features useful.
 
@@ -47,7 +51,7 @@ SDK source to enable type-aware Promise checks. Compile-time negative fixtures m
 intentionally contain unused aliases. The core's no-`any` rule also covers its examples,
 so copied examples do not silently bypass type checking.
 
-ESLint 10 requires a newer Node 22 patch than the SDK runtime does. The root engine
+ESLint and tsdown require newer Node patches than the SDK runtime does. The root engine
 range describes development tooling; each published package declares its own runtime
 requirement. Developing on the pinned Node 24 version does not require consumers to
 upgrade to 24. Keep consumer tests on both supported LTS lines before changing that
@@ -91,9 +95,9 @@ behavior before running them.
 
 ### Package builds and peer compatibility
 
-`build` supports incremental work. `build:clean` removes `dist` before the same
-build recipe; both `verify` and the `prepack` lifecycle use it to prevent deleted
-source files from leaving stale declarations or bundles. Consumer checks pack with
+`build` removes `dist` before producing shared ESM/CJS chunks and declarations,
+so deleted sources cannot leave stale artifacts. `build:clean` is an explicit clean-build alias.
+The `prepack` lifecycle also builds and type-checks before packaging. Consumer checks pack with
 `--offline --ignore-scripts` after this explicit build.
 
 To check an already-built package against a separately installed viem peer:
