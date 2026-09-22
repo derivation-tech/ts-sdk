@@ -52,3 +52,5 @@ linked output. Solidity hashed placeholders use keccak256, not SHA3-256.
 Submission and receipt errors retain the evidence described in the
 [transaction guide](transactions.md#submission-and-reconciliation). Gas buffering,
 fee policy and permission checks belong to the caller.
+
+`FoundryHelper` delegates to the same loader as `ArtifactHelper`. Library addresses must contain exactly 20 hexadecimal bytes; short values are not padded and oversized values are not truncated.

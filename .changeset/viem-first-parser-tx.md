@@ -58,3 +58,5 @@ Public entry points now share runtime classes and logger state within each modul
 Ledger personal signing preserves raw Hex bytes, matching raw Uint8Array semantics. Address confirmation now rejects a changed device account before signing. Ledger package checks exercise the built adapter with an injected transport and no hardware or network.
 
 Signer indices and Ledger path components now reject malformed, fractional and out-of-range values. Invalid LEDGER_INDEX throws instead of silently selecting account zero. Pattern expansion is limited to 1,000 IDs and preserves bare credential names so private-key accounts work.
+
+FoundryHelper now delegates to ArtifactHelper, including source-qualified linking and bytecode validation. All linking paths require exact 20-byte addresses and valid integer offsets; short or oversized addresses no longer silently change during linking.

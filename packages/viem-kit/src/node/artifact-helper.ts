@@ -111,15 +111,6 @@ export function loadArtifact(jsonInput: JsonInput, linkReferenceMap: Record<stri
     const rawNo0x = raw.startsWith('0x') ? raw.slice(2) : raw;
     let bytecode = rawNo0x;
 
-    // helper: normalize provided address to 40 hex chars (no 0x)
-    const normalize = (a: string) => {
-        if (!a) throw new Error('Empty address provided');
-        const s = a.startsWith('0x') ? a.slice(2) : a;
-        if (!/^[0-9a-fA-F]+$/.test(s)) throw new Error(`Invalid hex address: ${a}`);
-        const low = s.toLowerCase();
-        return low.length > 40 ? low.slice(low.length - 40) : low.padStart(40, '0');
-    };
-
     // 2) If structured refs exist, apply them using linkReferenceMap.
     //    linkReferenceMap keys can be 'LibName' or 'path/To/File.sol:LibName'.
     if (structuredRefs && Object.keys(structuredRefs).length > 0) {
@@ -138,13 +129,19 @@ export function loadArtifact(jsonInput: JsonInput, linkReferenceMap: Record<stri
                     throw new Error(`Missing link reference for ${libName}`);
                 }
 
-                const addr = normalize(provided);
+                const addr = normalizeLibraryAddress(provided);
 
                 // apply all refs for this lib
                 for (const ref of libs[libName]) {
                     const start = ref.start * 2;
                     const len = ref.length * 2;
-                    if (start < 0 || len <= 0 || start + len > bytecode.length) {
+                    if (
+                        !Number.isSafeInteger(ref.start) ||
+                        !Number.isSafeInteger(ref.length) ||
+                        start < 0 ||
+                        len <= 0 ||
+                        start + len > bytecode.length
+                    ) {
                         throw new Error(`Link reference out of bounds for ${libName} in ${jsonSourceLabel}`);
                     }
                     if (len !== 40)
@@ -214,14 +211,6 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
     const hasHash = hashPlaceholderRe.test(out);
     const hasName = namePlaceholderRe.test(out);
 
-    const normalizeAddr = (a: string) => {
-        if (!a) throw new Error('Empty address provided');
-        const s = a.startsWith('0x') ? a.slice(2) : a;
-        if (!/^[0-9a-fA-F]+$/.test(s)) throw new Error(`Invalid hex address: ${a}`);
-        const low = s.toLowerCase();
-        return low.length > 40 ? low.slice(low.length - 40) : low.padStart(40, '0');
-    };
-
     if (hasName) {
         // replace __LibName__ occurrences
         out = out.replace(namePlaceholderRe, (m, name: string) => {
@@ -234,7 +223,7 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
                 if (matches.length === 1) provided = linkReferenceMap[matches[0]];
             }
             if (!provided) throw new Error(`Missing link mapping for library '${name}'`);
-            return normalizeAddr(provided);
+            return normalizeLibraryAddress(provided);
         });
     }
     if (hasHash) {
@@ -265,7 +254,7 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
         for (const fk of fileKeys) {
             const addr = linkReferenceMap[fk];
             if (!addr) continue;
-            const normalized = normalizeAddr(addr);
+            const normalized = normalizeLibraryAddress(addr);
 
             // Solidity library identifiers use keccak256, not SHA3-256.
             const prefix = keccak256(new TextEncoder().encode(fk)).slice(2, 36).toLowerCase();
@@ -302,4 +291,12 @@ function assertHexBytecode(bytecode: string): void {
     if (!/^(?:[0-9a-fA-F]{2})+$/.test(bytecode)) {
         throw new Error('Bytecode must contain a non-empty sequence of hexadecimal bytes');
     }
+}
+
+function normalizeLibraryAddress(address: string): string {
+    const hex = address.startsWith('0x') ? address.slice(2) : address;
+    if (!/^[0-9a-fA-F]{40}$/.test(hex)) {
+        throw new Error(`Library address must contain exactly 20 hexadecimal bytes: ${address}`);
+    }
+    return hex.toLowerCase();
 }
