@@ -62,3 +62,5 @@ Signer indices and Ledger path components now reject malformed, fractional and o
 FoundryHelper now delegates to ArtifactHelper, including source-qualified linking and bytecode validation. All linking paths require exact 20-byte addresses and valid integer offsets; short or oversized addresses no longer silently change during linking.
 
 Zero-argument events now reach request and registered parsers with an empty args array. Event decoding requires complete ABI data before invoking typed handlers; malformed logs report a diagnostic error without rejecting the receipt.
+
+Signer-aware address resolution preserves derivation errors as cause and points to supported address-book APIs. Transaction examples use the shared account helper or viem directly, require RUN_TX=1, and take an explicit RECIPIENT instead of deployment-specific defaults.

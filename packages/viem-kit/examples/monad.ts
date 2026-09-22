@@ -8,7 +8,7 @@ import { monad } from 'viem/chains';
 import { ChainKitRegistry } from '../src/index';
 
 async function monadExample() {
-    console.log('\n🧪 Monad Mainnet Beta Example\n');
+    console.log('\n🧪 Monad Example\n');
 
     // ==========================================
     // METHOD 1: Use viem chain directly
@@ -16,7 +16,6 @@ async function monadExample() {
     const publicClient = createPublicClient({
         chain: monad,
         transport: http(), // Uses default RPC from chain definition
-        pollingInterval: 100, // 50ms blocks, poll frequently
     });
 
     console.log('Chain:', monad.name);
@@ -36,9 +35,7 @@ async function monadExample() {
     const usdc = kit.getErc20TokenInfo('USDC');
     console.log('USDC:', usdc?.address);
 
-    // Register test contracts (add your deployed addresses here)
-    // kit.registerAddress('0x...' as Address, 'TestGate');
-    // kit.registerAddress('0x...' as Address, 'TestInstrument');
+    // Register application contracts with kit.registerAddressName(address, name).
 
     console.log('\nKit chain:', kit.chain.name);
     console.log('Native token:', kit.chain.nativeCurrency.name);

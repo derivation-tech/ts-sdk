@@ -7,7 +7,7 @@
  * - Auto ERC20 parser generation
  */
 
-import { createPublicClient, createWalletClient, http, parseAbi, decodeEventLog } from 'viem';
+import { createPublicClient, createWalletClient, http, parseAbi, decodeEventLog, getAddress } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { ChainKitRegistry, type Address } from '../src/index';
@@ -33,10 +33,7 @@ function initBaseRegistry() {
         decimals: 18,
     });
 
-    // Register contract addresses
-    baseCtx.registerAddressName('0x94CB98AAAa0b2fec6cD97F3A5Adf1Fd22F08cbC7' as Address, 'JPEG-MM');
-    baseCtx.registerAddressName('0xb643cDf292C76a16CC45Ea24768D921Ac02f3944' as Address, 'Asymmetric-MM');
-    baseCtx.registerAddressName('0x208B443983D8BcC8578e9D86Db23FbA547071270' as Address, 'Gate');
+    baseCtx.registerAddressName('0x0000000000000000000000000000000000000001', 'ExampleOwner');
 
     console.log('✅ Base registry initialized');
 }
@@ -60,12 +57,12 @@ async function example1_readBalances() {
         address: baseCtx.getErc20TokenInfo('usdc')!.address,
         abi: parseAbi(['function balanceOf(address) view returns (uint256)']),
         functionName: 'balanceOf',
-        args: ['0xb643cDf292C76a16CC45Ea24768D921Ac02f3944' as Address],
+        args: ['0x0000000000000000000000000000000000000001' as Address],
     });
 
     // Format with decimals from registry
     console.log('Balance:', baseCtx.formatErc20Amount(balance as bigint, 'usdc'));
-    console.log('Address:', baseCtx.getAddressName('0xb643cDf292C76a16CC45Ea24768D921Ac02f3944' as Address));
+    console.log('Address:', baseCtx.getAddressName('0x0000000000000000000000000000000000000001' as Address));
 }
 
 // ==========================================
@@ -79,6 +76,7 @@ async function example2_sendTxWithParsing() {
         return;
     }
 
+    const recipient = getAddress(process.env.RECIPIENT ?? '');
     const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 
     // Direct viem clients
@@ -102,7 +100,7 @@ async function example2_sendTxWithParsing() {
         address: usdc.address,
         abi: parseAbi(['function transfer(address to, uint256 amount) returns (bool)']),
         functionName: 'transfer',
-        args: ['0x...' as Address, baseCtx.parseErc20Amount('100', 'usdc')],
+        args: [recipient, baseCtx.parseErc20Amount('100', 'usdc')],
     });
 
     console.log('TX sent:', hash);
@@ -197,8 +195,8 @@ async function runExamples() {
     await example3_crossFileAccess();
     await example4_multipleChains();
 
-    // example2 needs private key
-    if (process.env.PRIVATE_KEY) {
+    // Sending requires explicit opt-in, PRIVATE_KEY and a valid RECIPIENT.
+    if (process.env.RUN_TX === '1') {
         await example2_sendTxWithParsing();
     }
 

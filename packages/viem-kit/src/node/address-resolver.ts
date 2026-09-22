@@ -77,16 +77,19 @@ export async function resolveAddress(
         const account = await getAccount(kit, trimmed);
         const address = getAddress(account.address as Address);
         return { address, source: 'signer', identifier: trimmed };
-    } catch {
-        if (trimmed.toLowerCase().startsWith('ledger')) {
-            throw new Error(`Failed to resolve address for "${trimmed}": Ledger account could not be derived.`);
+    } catch (cause) {
+        if (/^ledger(?::|$)/i.test(trimmed)) {
+            throw new Error(`Failed to resolve address for "${trimmed}": Ledger account could not be derived.`, {
+                cause,
+            });
         }
 
         const base = trimmed.split(':')[0] || trimmed;
         const upper = base.toUpperCase();
         throw new Error(
-            `Failed to resolve address for "${trimmed}": not in address book and no ${upper}_MNEMONIC or ${upper}_PRIVATE_KEY set. ` +
-                `Add a mapping in ADDRESS_PATH or set credentials.`
+            `Failed to resolve address for "${trimmed}". Register it with kit.registerAddressName, or check ` +
+                `${upper}_MNEMONIC / ${upper}_PRIVATE_KEY and the signer index.`,
+            { cause }
         );
     }
 }

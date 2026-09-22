@@ -34,3 +34,9 @@ it.each(['fixture:typo', 'fixture:1.9', 'fixture:1oops', 'fixture:', 'fixture:-1
         await expect(getAccount(new ChainKit(mainnet), input)).rejects.toThrow(/Invalid|empty/);
     }
 );
+
+it('preserves signer-index errors when resolving a named address', async () => {
+    await expect(resolveAddress('fixture:typo', new ChainKit(mainnet))).rejects.toMatchObject({
+        cause: expect.objectContaining({ message: 'Invalid account index: typo' }),
+    });
+});
