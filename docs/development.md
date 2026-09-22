@@ -175,24 +175,40 @@ scaffolds; existing packages are not regenerated.
 uses Changesets 3 with `changesets/action@v2`. Packages are not a fixed version group. Historical package changelogs record release notes;
 pending changesets are release inputs, not evidence of publication.
 
-| Command                                                                                           | Effect                                                          |
-| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `make changeset SUMMARY='Describe the change' PACKAGES='@derivation-tech/viem-kit:patch'`         | Write a changeset; choose the bump for the compatibility impact |
-| `make changeset-dry-run SUMMARY='Describe the change' PACKAGES='@derivation-tech/viem-kit:patch'` | Preview the changeset without writing it                        |
-| `pnpm run release:dry`                                                                            | Report pending changeset status in this workspace               |
-| `make version`                                                                                    | Apply versions and refresh the lockfile                         |
-| `make publish` or `pnpm run release`                                                              | Publish versioned packages                                      |
-| `make release`                                                                                    | Version and publish                                             |
+Use the native Changesets CLI to choose affected packages and their release types:
 
-Without `PACKAGES`, the helper includes every workspace package using `BUMP`
-(default `patch`). Versioning changes tracked files; publishing writes to the
-registry. The core postpublish hook can notify Slack through `SLACK_WEBHOOK_URL`
-and optional `SLACK_MESSAGE_SUFFIX`.
+```sh
+# Interactive package, bump and summary selection.
+pnpm changeset
 
-`make version` delegates to `pnpm run release:version`, which applies pending changesets
-and refreshes only the lockfile with lifecycle scripts disabled. The release workflow uses
-the same command so the release PR includes a matching lockfile. With no pending changesets,
-Changesets 3 returns exit code 1; the command stops before lockfile refresh or publication.
+# Non-interactive: repeat a bump flag for multiple packages, or combine different bumps.
+pnpm changeset add --patch @derivation-tech/viem-kit --message 'Describe the change'
+pnpm changeset add --major @derivation-tech/viem-kit --major @derivation-tech/viem-ledger --message 'Describe the breaking change and migration'
+
+# Read a longer summary from a local file (POSIX shell).
+pnpm changeset add --patch @derivation-tech/viem-kit --message "$(cat /path/to/summary.md)"
+```
+
+This replaces the custom changeset generator and Makefile. Packages must be selected
+explicitly; there is no implicit patch bump for every package. To review a changeset,
+read the generated `.changeset/*.md` file and inspect the release plan below. Creation
+writes only the changeset; it does not apply versions or publish. The native `add`
+command has no equivalent of the removed helper's `--dry-run`.
+
+| Command                    | Effect                                            |
+| -------------------------- | ------------------------------------------------- |
+| `pnpm run release:dry`      | Report the pending release plan without versioning |
+| `pnpm run release:version`  | Apply versions and refresh the lockfile            |
+| `pnpm run release`          | Publish already-versioned packages                |
+
+Versioning changes tracked files; publishing writes to the registry. Review and verify
+version changes before publishing. The core postpublish hook can notify Slack through
+`SLACK_WEBHOOK_URL` and optional `SLACK_MESSAGE_SUFFIX`.
+
+`pnpm run release:version` applies pending changesets and refreshes only the lockfile
+with lifecycle scripts disabled. The release workflow uses the same command so its PR
+includes a matching lockfile. With no pending changesets, Changesets 3 returns exit code 1
+and the command stops before lockfile refresh. It never invokes publish.
 Use `pnpm run release:dry` to inspect the plan first.
 
 Changesets 3 gives peer-dependent packages a patch bump by default. Add an explicit major
