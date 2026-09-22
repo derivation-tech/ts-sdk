@@ -46,7 +46,7 @@ when they share a chain ID.
 | `@derivation-tech/viem-kit/contracts` | ERC20, WETH and Multicall helpers                                                 |
 | `@derivation-tech/viem-kit/node`      | Environment accounts, address resolution, artifacts, Foundry and deployment tools |
 
-Entries support ESM and CommonJS on Node.js 18 or newer. Core entries can be
+Entries support ESM and CommonJS on Node.js 22 or newer. Core entries can be
 bundled for browsers without Node tooling. Deep imports into `dist` or internal
 files are unsupported. The Node entry loads the optional Ledger peer when a
 Ledger signer is requested.

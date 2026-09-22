@@ -4,9 +4,12 @@ Run the commands below from the workspace root unless a different directory is s
 
 ## Prerequisites and installation
 
-Use Node.js 22 for the development workflow used by CI and the pnpm version pinned
-in the root `packageManager` field. Workspace development requires Node.js 20.9 or newer. Package runtimes support Node.js 18 or newer; the full
-verification toolchain includes `attw`, which requires Node.js 20 or newer.
+Use `nvm install && nvm use` to select the Node.js 24 LTS version pinned in `.nvmrc`.
+CI and release builds read the same file. Use the pnpm version pinned in the root
+`packageManager` field. Workspace tooling requires Node.js 22 or newer.
+Both SDK packages require Node.js 22 or newer. Node.js 22 and 24 are the supported
+LTS versions covered by the consumer tests. Node type definitions track 22.x so
+compilation does not assume APIs specific to Node.js 24.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -67,12 +70,12 @@ pnpm -C packages/viem-kit run verify:consumer /path/to/viem
 To check a separate Node runtime against the same build:
 
 ```sh
-/path/to/node18 packages/viem-kit/scripts/verify-consumer.mjs
-/path/to/node18 packages/viem-kit/scripts/verify-consumer.mjs /path/to/viem
+/path/to/node22 packages/viem-kit/scripts/verify-consumer.mjs
+/path/to/node22 packages/viem-kit/scripts/verify-consumer.mjs /path/to/viem
 ```
 
-[CI](../.github/workflows/ci.yml) runs full verification on Node.js 22, then runs
-the packed consumer on Node.js 18 and 22 with both the locked viem version and
+[CI](../.github/workflows/ci.yml) runs full verification on the pinned Node.js 24 version, then runs
+the packed consumer on Node.js 22 and 24 with both the locked viem version and
 the exact lower bound of the declared peer range. The consumer checks ESM, CJS,
 browser bundling and loading without Ledger.
 

@@ -20,13 +20,13 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v6
         with:
-          node-version: 18
-      - name: Locate Node 18 consumer runtime
-        id: node18
+          node-version: 22
+      - name: Locate Node 22 consumer runtime
+        id: node22
         run: echo "path=$(command -v node)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -C packages/viem-ledger run build
@@ -43,9 +43,9 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/viem-minimum" --ignore-scripts --no-audit --no-fund "viem@$minimum"
       - name: Verify minimum viem consumer
         run: pnpm -C packages/viem-kit run verify:consumer "$RUNNER_TEMP/viem-minimum/node_modules/viem"
-      - name: Verify Node 18 consumers
+      - name: Verify Node 22 consumers
         env:
-          NODE18: ${{ steps.node18.outputs.path }}
+          NODE22: ${{ steps.node22.outputs.path }}
         run: |
-          "$NODE18" packages/viem-kit/scripts/verify-consumer.mjs
-          "$NODE18" packages/viem-kit/scripts/verify-consumer.mjs "$RUNNER_TEMP/viem-minimum/node_modules/viem"
+          "$NODE22" packages/viem-kit/scripts/verify-consumer.mjs
+          "$NODE22" packages/viem-kit/scripts/verify-consumer.mjs "$RUNNER_TEMP/viem-minimum/node_modules/viem"

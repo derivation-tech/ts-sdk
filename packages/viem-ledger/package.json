@@ -20,13 +20,13 @@
     },
     "devDependencies": {
         "viem": "catalog:",
-        "@types/node": "^20.0.0",
+        "@types/node": "catalog:",
         "typescript": "catalog:"
     },
     "peerDependencies": {
         "viem": "^2.43.3"
     },
     "engines": {
-        "node": ">=18"
+        "node": ">=22"
     }
 }

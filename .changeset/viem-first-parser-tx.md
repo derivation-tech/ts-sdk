@@ -1,5 +1,6 @@
 ---
 '@derivation-tech/viem-kit': major
+'@derivation-tech/viem-ledger': major
 ---
 
 Refactor parser and transaction APIs around viem-first typed requests.
@@ -47,3 +48,5 @@ Remove the retired ABC testnet, its token defaults and examples, the `abctest` r
 Remove built-in ERC20 and wrapped-native token defaults for retired Goerli and Berachain bArtio networks. Explicit caller-owned metadata remains supported.
 
 Remove deployment-specific WETH and ERC20 defaults for local chain 31337. Anvil remains supported; consumers register metadata from their own deployment instead of inheriting stale addresses.
+
+Both viem-kit and viem-ledger now require Node.js 22 or newer. Upgrade consumers running Node.js 18 or 20 before adopting this release. Development and release builds use the pinned Node.js 24 LTS runtime; the consumer matrix covers Node.js 22 and 24 against the minimum and locked viem versions. Node type definitions track the Node.js 22 API baseline.

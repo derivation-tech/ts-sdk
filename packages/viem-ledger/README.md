@@ -9,7 +9,7 @@ transaction, personal-message and EIP-712 signing through a connected Ledger.
 pnpm add @derivation-tech/viem-ledger viem
 ```
 
-Use Node.js 18 or newer with USB/HID access. Unlock the device and open the Ethereum
+Use Node.js 22 or newer with USB/HID access. Unlock the device and open the Ethereum
 app. Calling `ledgerToAccount` opens the device connection and reads the account;
 creating a wallet client alone does not broadcast a transaction.
 
