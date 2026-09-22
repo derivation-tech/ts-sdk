@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
-import { ConsoleLogger, LoggerFactory, LogLevel, type BaseLogger } from '../src/utils/logger';
+import { ConsoleLogger, LoggerFactory, LogLevel, type BaseLogger } from '../../src/utils/logger';
 
 function logger(): BaseLogger {
     return {

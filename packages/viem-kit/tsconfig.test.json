@@ -5,6 +5,6 @@
         "rootDir": ".",
         "noEmit": true
     },
-    "include": ["./src/**/*.ts", "./tests/typecheck/**/*.ts"],
+    "include": ["./src/**/*.ts", "./tests/**/*.ts"],
     "exclude": ["node_modules", "dist", "examples"]
 }

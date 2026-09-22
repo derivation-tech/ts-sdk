@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from '@jest/globals';
 import { defineChain } from 'viem';
 import { base } from 'viem/chains';
-import { ChainKitRegistry } from '../src/chain-kit-registry';
-import { getCommonErc20Tokens } from '../src/tokens/erc20';
-import { getWrappedNativeToken } from '../src/tokens/wrapped';
+import { ChainKitRegistry } from '../../src/chain-kit-registry';
+import { getCommonErc20Tokens } from '../../src/tokens/erc20';
+import { getWrappedNativeToken } from '../../src/tokens/wrapped';
 
 describe('ChainKitRegistry', () => {
     afterEach(() => ChainKitRegistry.clear());
@@ -32,11 +32,12 @@ describe('ChainKitRegistry', () => {
         expect(ChainKitRegistry.has(chain.id)).toBe(false);
     });
 
-    test('does not resolve retired ABC names, IDs or default token metadata', () => {
-        expect(() => ChainKitRegistry.for('abctest')).toThrow('Unknown chain');
-        expect(() => ChainKitRegistry.for(20_250_903)).toThrow('Unknown chain');
-        expect(ChainKitRegistry.has('ABCTEST')).toBe(false);
-        expect(getCommonErc20Tokens(20_250_903)).toEqual([]);
-        expect(getWrappedNativeToken(20_250_903)).toBeUndefined();
+    test('rejects unknown names and IDs without creating cached kits or default tokens', () => {
+        expect(() => ChainKitRegistry.for('unknown-fixture')).toThrow('Unknown chain');
+        expect(() => ChainKitRegistry.for(Number.MAX_SAFE_INTEGER)).toThrow('Unknown chain');
+        expect(ChainKitRegistry.has('UNKNOWN-FIXTURE')).toBe(false);
+        expect(ChainKitRegistry.has(Number.MAX_SAFE_INTEGER)).toBe(false);
+        expect(getCommonErc20Tokens(Number.MAX_SAFE_INTEGER)).toEqual([]);
+        expect(getWrappedNativeToken(Number.MAX_SAFE_INTEGER)).toBeUndefined();
     });
 });

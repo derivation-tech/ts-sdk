@@ -1,18 +1,18 @@
 import { describe, expect, test } from '@jest/globals';
 import { encodeErrorResult, parseAbi } from 'viem';
-import { decodeContractError } from '../src/utils/contract-error';
+import { decodeContractError } from '../../src/utils/contract-error';
 
 const ABI = parseAbi(['error OrderImrUnsafe(uint256 amount, uint256 minAmount)', 'error Unauthorized(address caller)']);
 
 describe('decodeContractError', () => {
     test('root error API exposes decodeContractError as the main error decoder', async () => {
-        const root = await import('../src');
+        const root = await import('../../src');
         expect(typeof root.decodeContractError).toBe('function');
         expect('extractContractError' in root).toBe(false);
     });
 
     test('contract-error utility does not expose the old extractContractError compatibility API', async () => {
-        const contractError = await import('../src/utils/contract-error');
+        const contractError = await import('../../src/utils/contract-error');
         expect('extractContractError' in contractError).toBe(false);
     });
 

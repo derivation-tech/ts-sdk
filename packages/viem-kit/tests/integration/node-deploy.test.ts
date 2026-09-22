@@ -2,9 +2,9 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { createPublicClient, createWalletClient, custom, encodeDeployData, parseAbi } from 'viem';
 import type { Address, Hash, TransactionReceipt } from 'viem';
 import { mainnet, sepolia } from 'viem/chains';
-import { deployArtifact, deployBytecode } from '../src/node';
-import { TransactionReceiptError, TransactionRevertedError, TransactionSubmissionError } from '../src/utils/tx';
-import { LoggerFactory } from '../src/utils/logger';
+import { deployArtifact, deployBytecode } from '../../src/node';
+import { TransactionReceiptError, TransactionRevertedError, TransactionSubmissionError } from '../../src/utils/tx';
+import { LoggerFactory } from '../../src/utils/logger';
 
 const sender = '0x0000000000000000000000000000000000000001' as Address;
 const deployed = '0x0000000000000000000000000000000000000002' as Address;

@@ -10,8 +10,8 @@ import {
     parseAbi,
 } from 'viem';
 import { mainnet } from 'viem/chains';
-import type { ContractParser } from '../src/types';
-import { sendContractTransaction, TransactionReceiptError } from '../src/utils/tx';
+import type { ContractParser } from '../../src/types';
+import { sendContractTransaction, TransactionReceiptError } from '../../src/utils/tx';
 
 const sender = '0x0000000000000000000000000000000000000001' as Address;
 const target = '0x0000000000000000000000000000000000000002' as Address;

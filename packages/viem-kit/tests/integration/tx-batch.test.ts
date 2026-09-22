@@ -11,7 +11,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mainnet } from 'viem/chains';
-import { BatchTransactionError, batchSendLocalTransactions, defineWriteRequest } from '../src/utils/tx';
+import { BatchTransactionError, batchSendLocalTransactions, defineWriteRequest } from '../../src/utils/tx';
 
 const tokenAddress = '0x0000000000000000000000000000000000000001' as Address;
 const receiverAddress = '0x0000000000000000000000000000000000000002' as Address;

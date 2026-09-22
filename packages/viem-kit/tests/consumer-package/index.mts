@@ -32,38 +32,35 @@ assert.equal(utils.diagnoseReceipt, undefined);
 // @ts-expect-error Receipt waiting uses sent.receipt or waitForTransactionOutcome.
 assert.equal(utils.waitForParsedReceipt, undefined);
 
-// Signature and event shape from Anchored's AncFundController ABI at f9fd04e.
-// Addresses and RPC responses below are synthetic; this fixture never uses a network transport.
+// Generic contract with narrow integers and tuple events exercises ABI inference.
+// All addresses, chain metadata and RPC responses are synthetic and remain offline.
 const abi = parseAbi([
-    'struct FundConfig { uint16 index; uint16 feeBps; address shareToken; uint64 subscriptionWindow; uint64 currentRedemptionSchedule; uint64 nextRedemptionSchedule; uint32 minSubscriptionUsd; uint32 minRedemptionWholeShares; uint8 flags; }',
-    'function setFundMinSubscriptionUsd(uint16 fundId, uint32 minSubscriptionUsd)',
-    'event FundConfigUpdated(uint16 indexed fundId, FundConfig config)',
+    'struct LimitConfig { uint16 key; uint8 flags; address asset; uint64 duration; uint32 limit; uint256 quota; }',
+    'function setLimit(uint16 key, uint32 limit)',
+    'event LimitUpdated(uint16 indexed key, LimitConfig config)',
 ]);
 const sender = '0x0000000000000000000000000000000000000001' as Address;
-const controller = '0x0000000000000000000000000000000000000002' as Address;
+const target = '0x0000000000000000000000000000000000000002' as Address;
 const token = '0x0000000000000000000000000000000000000003' as Address;
 const hash = `0x${'11'.repeat(32)}` as Hash;
 const chain = defineChain({
-    id: 46630,
-    name: 'Anchored fixture',
+    id: 999_999,
+    name: 'Consumer fixture',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
     rpcUrls: { default: { http: ['https://unused.invalid'] } },
 });
 const config = {
-    index: 7,
-    feeBps: 0,
-    shareToken: token,
-    subscriptionWindow: 0n,
-    currentRedemptionSchedule: 0n,
-    nextRedemptionSchedule: 0n,
-    minSubscriptionUsd: 1_000,
-    minRedemptionWholeShares: 0,
+    key: 7,
     flags: 0,
+    asset: token,
+    duration: 60n,
+    limit: 1_000,
+    quota: 10_000n,
 };
-const event = getAbiItem({ abi, name: 'FundConfigUpdated' });
+const event = getAbiItem({ abi, name: 'LimitUpdated' });
 const log = {
-    address: controller,
-    topics: encodeEventTopics({ abi, eventName: 'FundConfigUpdated', args: { fundId: 7 } }),
+    address: target,
+    topics: encodeEventTopics({ abi, eventName: 'LimitUpdated', args: { key: 7 } }),
     data: encodeAbiParameters([event.inputs[1]], [config]),
     blockHash: hash,
     blockNumber: '0xa',
@@ -90,7 +87,7 @@ const transport = custom({
                 blockNumber: '0xa',
                 transactionIndex: '0x0',
                 from: sender,
-                to: controller,
+                to: target,
                 contractAddress: null,
                 status: reverted ? '0x0' : '0x1',
                 cumulativeGasUsed: '0x5208',
@@ -108,32 +105,31 @@ const publicClient = createPublicClient({ chain, transport, cacheTime: 0 });
 const walletClient = createWalletClient({ chain, account: sender, transport });
 const builtIn = WRAPPED_NATIVE_TOKENS[chain.id];
 const kit = new ChainKit(chain, { publicClient, wrappedNativeToken: null });
-kit.registerAddressName(controller, 'FundController');
-kit.registerErc20Token({ address: token, symbol: 'FUND', name: 'Fund share', decimals: 18 });
+kit.registerAddressName(target, 'LimitController');
+kit.registerErc20Token({ address: token, symbol: 'TEST', name: 'Test token', decimals: 18 });
 const descriptions: string[] = [];
 kit.registerParser(
-    controller,
+    target,
     createContractParser({
         abi,
         transactions: {
-            setFundMinSubscriptionUsd: ({ args }) =>
-                `${kit.getAddressName(controller)}: fund ${args[0]} minimum ${args[1]}`,
+            setLimit: ({ args }) => `${kit.getAddressName(target)}: key ${args[0]} limit ${args[1]}`,
         },
         events: {
-            FundConfigUpdated: ({ args }) => `fund ${args.fundId} minimum ${args.config.minSubscriptionUsd}`,
+            LimitUpdated: ({ args }) => `key ${args.key} limit ${args.config.limit}`,
         },
     })
 );
 const request = {
-    address: controller,
+    address: target,
     abi,
-    functionName: 'setFundMinSubscriptionUsd',
+    functionName: 'setLimit',
     args: [7, 1_000],
     gas: 100_000n,
     nonce: 7,
     maxFeePerGas: 10n,
     maxPriorityFeePerGas: 2n,
-} satisfies TypedWriteRequest<typeof abi, 'setFundMinSubscriptionUsd'>;
+} satisfies TypedWriteRequest<typeof abi, 'setLimit'>;
 const options = {
     silent: true,
     wait: { confirmations: 1, timeout: 120_000, pollingInterval: 1 },
@@ -160,10 +156,10 @@ assert.equal(transactions[0].maxFeePerGas, '0xa');
 assert.equal(transactions[0].maxPriorityFeePerGas, '0x2');
 assert.equal(transactions[0].gas, toHex(100_000n));
 assert.equal(transactions[0].nonce, '0x7');
-assert.deepEqual(descriptions, ['FundController: fund 7 minimum 1000', 'fund 7 minimum 1000']);
+assert.deepEqual(descriptions, ['LimitController: key 7 limit 1000', 'key 7 limit 1000']);
 assert.equal(kit.wrappedNativeTokenInfo, undefined);
 assert.equal(WRAPPED_NATIVE_TOKENS[chain.id], builtIn);
-assert.equal(kit.parseErc20Amount('1.25', 'FUND'), 1_250_000_000_000_000_000n);
+assert.equal(kit.parseErc20Amount('1.25', 'TEST'), 1_250_000_000_000_000_000n);
 
 reverted = true;
 await assert.rejects(
@@ -201,9 +197,9 @@ for (const failure of ['prepare', 'send'] as const) {
         sendContractTransaction(
             { publicClient: localPublic, walletClient: localWallet },
             {
-                address: controller,
+                address: target,
                 abi,
-                functionName: 'setFundMinSubscriptionUsd',
+                functionName: 'setLimit',
                 args: [7, 1_000],
                 nonce: 7,
                 type: 'legacy',
@@ -228,10 +224,8 @@ function checkInvalidArgs() {
         ...request,
         // @ts-expect-error uint32 is a number, not an unchecked string.
         args: [7, '1000'],
-    } satisfies TypedWriteRequest<typeof abi, 'setFundMinSubscriptionUsd'>;
+    } satisfies TypedWriteRequest<typeof abi, 'setLimit'>;
     void invalid;
 }
 void checkInvalidArgs;
-console.log(
-    'Anchored packed ESM consumer: typed admin call, fees, parser, revert assertion and optional Ledger passed'
-);
+console.log('Packed ESM consumer: typed contract call, fees, parser, revert assertion and optional Ledger passed');

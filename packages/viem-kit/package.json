@@ -97,17 +97,19 @@
         "typecheck:consumer": "tsc --noEmit -p tests/consumer-node-next/tsconfig.json",
         "verify:types": "pnpm run build:check && pnpm run typecheck:test && pnpm run typecheck:examples",
         "test": "jest --config jest.config.cjs",
-        "format": "prettier --write \"{src,tests,examples,scripts,docs}/**/*.{ts,js,cjs,mjs,json,md}\" \"*.{ts,js,cjs,mjs,json,md}\"",
-        "format:check": "prettier --check \"{src,tests,examples,scripts,docs}/**/*.{ts,js,cjs,mjs,json,md}\" \"*.{ts,js,cjs,mjs,json,md}\"",
+        "format": "prettier --write \"{src,tests,examples,scripts,docs}/**/*.{ts,cts,mts,js,cjs,mjs,json,md}\" \"*.{ts,cts,mts,js,cjs,mjs,json,md}\"",
+        "format:check": "prettier --check \"{src,tests,examples,scripts,docs}/**/*.{ts,cts,mts,js,cjs,mjs,json,md}\" \"*.{ts,cts,mts,js,cjs,mjs,json,md}\"",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "publint": "publint --pack npm",
         "attw": "attw --pack .",
-        "verify": "pnpm run lint && pnpm run format:check && pnpm run verify:types && pnpm exec jest --config jest.config.cjs --runInBand && pnpm run build:clean && pnpm run typecheck:consumer && pnpm run verify:consumer && pnpm run publint && pnpm run attw",
+        "verify": "pnpm run lint && pnpm run format:check && pnpm run verify:types && pnpm run test:unit && pnpm run test:integration && pnpm run build:clean && pnpm run typecheck:consumer && pnpm run verify:consumer && pnpm run publint && pnpm run attw",
         "pack": "npm pack",
         "prepack": "pnpm run build:clean && pnpm run build:check",
         "postpublish": "node ../../scripts/slack-notify.js",
-        "verify:consumer": "node scripts/verify-consumer.mjs"
+        "verify:consumer": "node scripts/verify-consumer.mjs",
+        "test:unit": "jest --config jest.config.cjs --runInBand tests/unit",
+        "test:integration": "jest --config jest.config.cjs --runInBand tests/integration"
     },
     "devDependencies": {
         "@arethetypeswrong/cli": "0.18.5",

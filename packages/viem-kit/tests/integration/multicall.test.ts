@@ -7,7 +7,7 @@ import {
     getErc20Balances,
     getMultipleErc20Balances,
     getNativeBalances,
-} from '../src/contracts/multicall';
+} from '../../src/contracts/multicall';
 
 const token = '0x0000000000000000000000000000000000000001' as Address;
 const accounts = [token, '0x0000000000000000000000000000000000000002' as Address, token];

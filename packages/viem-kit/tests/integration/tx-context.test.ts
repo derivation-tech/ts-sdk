@@ -6,8 +6,8 @@ import {
     custom,
 } from 'viem';
 import { mainnet, sepolia } from 'viem/chains';
-import type { TxContext } from '../src/types';
-import { sendContractTransaction } from '../src/utils/tx';
+import type { TxContext } from '../../src/types';
+import { sendContractTransaction } from '../../src/utils/tx';
 
 const senderAddress = '0x0000000000000000000000000000000000000001' as Address;
 const receiverAddress = '0x0000000000000000000000000000000000000002' as Address;

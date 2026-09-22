@@ -12,5 +12,5 @@ import { getAccount, ArtifactHelper } from '@derivation-tech/viem-kit/node';
 void getAccount;
 void ArtifactHelper;
 
-// @ts-expect-error The retired ABC-only subpath is no longer published.
-type RetiredChains = typeof import('@derivation-tech/viem-kit/chains');
+// @ts-expect-error Internal implementation paths are not public package exports.
+type InternalDiagnostics = typeof import('@derivation-tech/viem-kit/utils/tx/diagnostics');

@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { keccak256, toBytes } from 'viem';
-import { linkBytecode, loadArtifact } from '../src/node/artifact-helper';
+import { linkBytecode, loadArtifact } from '../../src/node/artifact-helper';
 
 const firstLibrary = `0x${'11'.repeat(20)}`;
 const secondLibrary = `0x${'22'.repeat(20)}`;

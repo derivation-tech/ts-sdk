@@ -11,9 +11,9 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mainnet } from 'viem/chains';
-import { createParserRegistry } from '../src/parsers/registry';
-import type { ContractParser, ParseTransactionInput, TxContext } from '../src/types';
-import { batchSendLocalTransactions, defineWriteRequest, sendContractTransaction } from '../src/utils/tx';
+import { createParserRegistry } from '../../src/parsers/registry';
+import type { ContractParser, ParseTransactionInput, TxContext } from '../../src/types';
+import { batchSendLocalTransactions, defineWriteRequest, sendContractTransaction } from '../../src/utils/tx';
 
 const tokenAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
 const receiverAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Address;

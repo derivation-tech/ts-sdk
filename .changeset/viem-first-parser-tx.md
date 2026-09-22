@@ -26,7 +26,7 @@ Environment accounts, signer-aware address resolution, artifact/Foundry helpers 
 
 WETH helpers use the kit's explicit wrapped-native metadata and the chain's native decimals, and fail before broadcast when wrapped-native metadata is disabled.
 
-Package verification now includes an isolated tarball consumer modeled on Anchored's typed FundController administration flow, CJS/ESM loading without Ledger, and a browser bundle. Usage guides describe the supported APIs; consumers must validate their own administration and deployment flows before changing dependency pins.
+Package verification now includes an isolated tarball consumer using a generic typed contract with narrow integers and tuple events, CJS/ESM loading without Ledger, and a browser bundle. Usage guides describe the supported APIs; consumers must validate their own administration and deployment flows before changing dependency pins.
 
 Never-settling transaction/event/error parsers and revert replay no longer block submission or receipt completion. Move transaction-description logging from `onSent` to `onDescription`. `SentTransaction.diagnostics` offers a separate bounded, cancellable wait for CLI output, with late diagnostic delivery suppressed after cutoff. CLI callers that require diagnostics should handle `sent.receipt` and await `sent.diagnostics` in a `finally` block, including when receipt-success assertions throw.
 

@@ -17,13 +17,13 @@ import {
 import type { Address, Chain, Hex, TransactionReceipt } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mainnet } from 'viem/chains';
-import { deployBytecode } from '../src/node';
+import { deployBytecode } from '../../src/node';
 import {
     batchSendLocalTransactions,
     defineWriteRequest,
     sendContractTransaction,
     TransactionSubmissionError,
-} from '../src/utils/tx';
+} from '../../src/utils/tx';
 
 const target = '0x0000000000000000000000000000000000000002' as Address;
 const abi = parseAbi(['function setValue(uint256 value)']);

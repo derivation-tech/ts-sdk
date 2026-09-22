@@ -47,7 +47,7 @@ try {
         join(consumer, 'node_modules', '@types', 'node'),
         'dir'
     );
-    cpSync(join(packageDir, 'tests', 'consumer-anchored'), consumer, { recursive: true });
+    cpSync(join(packageDir, 'tests', 'consumer-package'), consumer, { recursive: true });
     writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
 
     run(process.execPath, [require.resolve('typescript/bin/tsc'), '-p', 'tsconfig.json']);

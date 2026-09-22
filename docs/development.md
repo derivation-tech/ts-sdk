@@ -24,18 +24,32 @@ hooks; it is not a validation-only command.
 | Command                                                                                            | Effect                                                                                                                        |
 | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm -C packages/viem-kit run verify`                                                             | Lint, format check, source/test/example types, Jest, clean build, NodeNext consumer types, packed consumers, publint and attw |
-| `pnpm -C packages/viem-kit exec jest --config jest.config.cjs --runInBand tests/chain-kit.test.ts` | One existing behavior suite; replace the path for the code being changed                                                      |
-| `pnpm -C packages/viem-kit run verify:types`                                                       | Source, test and example type checks                                                                                          |
+| `pnpm -C packages/viem-kit exec jest --config jest.config.cjs --runInBand tests/unit/chain-kit.test.ts` | One existing behavior suite; replace the path for the code being changed                                                      |
+| `pnpm -C packages/viem-kit run verify:types`                                                       | Source, all unit/integration tests, type fixtures and example type checks                                                                                          |
 | `pnpm run nx`                                                                                      | Build all workspace packages                                                                                                  |
 | `pnpm run lint`                                                                                    | Check code with ESLint                                                                                                        |
 | `pnpm run format:check`                                                                            | Run the available package format checks                                                                                       |
 | `pnpm run format`                                                                                  | Rewrite files with the available package formatters                                                                           |
 | `pnpm run clean`                                                                                   | Remove package build outputs                                                                                                  |
 
-The package `verify` command uses mocked transports and synthetic consumer data.
-It verifies library and package contracts, not live chain deployments or Ledger
-hardware. Network examples are in [viem-kit/examples](../packages/viem-kit/examples/);
-check their RPC, account and transaction behavior before running them.
+The tests are organized by the contract they verify:
+
+- `tests/unit`: registries, token metadata, parser behavior, artifact linking and signer/path parsing.
+  Run with `pnpm -C packages/viem-kit run test:unit`.
+- `tests/integration`: SDK helpers composed with viem clients, local signing, mocked RPC,
+  transaction lifecycle, deployment, multicall and account registration.
+  Run with `pnpm -C packages/viem-kit run test:integration`.
+- `tests/typecheck` and `tests/consumer-node-next`: compile-time ABI constraints and public ESM/CJS declarations.
+- `tests/consumer-package`: a generic contract exercised through the packed package, including
+  ESM, CJS, browser bundling and the absence of optional Ledger dependencies.
+  Run `build:clean` before `verify:consumer`.
+
+`verify` runs both runtime suites, type checks and packed consumers. Integration tests
+use synthetic data and mocked transports: they do not require RPC credentials, a running
+chain, retired network files or Ledger hardware. Mainnet and other supported-chain metadata
+assertions cover the built-in registry. Network examples are in
+[viem-kit/examples](../packages/viem-kit/examples/); check their RPC, account and transaction
+behavior before running them.
 
 ### Package builds and peer compatibility
 

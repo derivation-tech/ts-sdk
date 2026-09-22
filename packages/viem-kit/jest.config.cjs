@@ -1,9 +1,10 @@
 /** @type {import('jest').Config} */
 module.exports = {
-    preset: 'ts-jest',
     testEnvironment: 'node',
     rootDir: '.',
-    testMatch: ['<rootDir>/tests/**/*.test.ts'],
+    testMatch: ['<rootDir>/tests/{unit,integration}/**/*.test.ts'],
+    restoreMocks: true,
+    collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
     moduleFileExtensions: ['ts', 'js'],
     moduleNameMapper: {
         '^@derivation-tech/viem-ledger$': '<rootDir>/../viem-ledger/dist',

@@ -1,9 +1,9 @@
 import { describe, expect, test } from '@jest/globals';
 import { erc20Abi, zeroAddress } from 'viem';
 import type { Address } from 'viem';
-import { createDefaultParser } from '../src/parsers/default';
-import { createERC20Parser } from '../src/parsers/erc20';
-import { createParserRegistry } from '../src/parsers/registry';
+import { createDefaultParser } from '../../src/parsers/default';
+import { createERC20Parser } from '../../src/parsers/erc20';
+import { createParserRegistry } from '../../src/parsers/registry';
 
 const token = {
     symbol: 'USDC',

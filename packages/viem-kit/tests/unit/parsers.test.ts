@@ -1,10 +1,10 @@
 import { describe, expect, test } from '@jest/globals';
 import { erc20Abi } from 'viem';
 import type { Address } from 'viem';
-import { WETH_ABI } from '../src/abis';
-import { createERC20Parser } from '../src/parsers/erc20';
-import { createWETHParser } from '../src/parsers/weth';
-import type { DecodedContractError } from '../src/types';
+import { WETH_ABI } from '../../src/abis';
+import { createERC20Parser } from '../../src/parsers/erc20';
+import { createWETHParser } from '../../src/parsers/weth';
+import type { DecodedContractError } from '../../src/types';
 
 const token = {
     symbol: 'USDC',

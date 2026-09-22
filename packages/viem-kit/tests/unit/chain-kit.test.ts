@@ -1,22 +1,24 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
-import { ChainKit } from '../src/chain-kit';
+import { ChainKit } from '../../src/chain-kit';
 import { anvil, mainnet } from 'viem/chains';
 import type { Address } from 'viem';
-import { createPublicClient, custom, defineChain, getAddress, zeroAddress } from 'viem';
+import { createPublicClient, custom, defineChain, getAddress, erc20Abi, zeroAddress } from 'viem';
 import { sepolia } from 'viem/chains';
-import { getWrappedNativeToken } from '../src/tokens/wrapped';
+import { getWrappedNativeToken } from '../../src/tokens/wrapped';
+
+const testToken = {
+    address: '0x0000000000000000000000000000000000000042',
+    symbol: 'TEST',
+    name: 'Test Token',
+    decimals: 6,
+} as const;
 
 describe('ChainKit', () => {
     let kit: ChainKit;
 
     beforeEach(() => {
-        // Create a fresh ChainKit instance for each test
         kit = new ChainKit(mainnet);
     });
-
-    // ==========================================
-    // TOKEN OPERATIONS
-    // ==========================================
 
     describe('Token Operations', () => {
         test('should register native token automatically', () => {
@@ -38,30 +40,21 @@ describe('ChainKit', () => {
         });
 
         test('should register ERC20 token', () => {
-            const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-            kit.registerErc20Token({
-                symbol: 'USDC',
-                name: 'USD Coin',
-                address: usdcAddress,
-                decimals: 6,
-            });
+            const tokenAddress = testToken.address;
+            expect(kit.hasErc20TokenInfo(tokenAddress)).toBe(false);
+            kit.registerErc20Token(testToken);
 
-            const tokenInfo = kit.getErc20TokenInfo(usdcAddress);
-            expect(tokenInfo?.symbol).toBe('USDC');
+            const tokenInfo = kit.getErc20TokenInfo(tokenAddress);
+            expect(tokenInfo?.symbol).toBe('TEST');
             expect(tokenInfo?.decimals).toBe(6);
         });
 
         test('should retrieve token info by symbol', () => {
-            const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-            kit.registerErc20Token({
-                symbol: 'USDC',
-                name: 'USD Coin',
-                address: usdcAddress,
-                decimals: 6,
-            });
+            const tokenAddress = testToken.address;
+            kit.registerErc20Token(testToken);
 
-            const tokenInfo = kit.getErc20TokenInfo('USDC');
-            expect(tokenInfo?.address).toBe(getAddress(usdcAddress));
+            const tokenInfo = kit.getErc20TokenInfo('TEST');
+            expect(tokenInfo?.address).toBe(getAddress(tokenAddress));
         });
 
         test('should check if token is registered', () => {
@@ -81,28 +74,16 @@ describe('ChainKit', () => {
         });
 
         test('should format ERC20 amount with correct decimals', () => {
-            const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-            kit.registerErc20Token({
-                symbol: 'USDC',
-                name: 'USD Coin',
-                address: usdcAddress,
-                decimals: 6,
-            });
+            kit.registerErc20Token(testToken);
 
-            const formatted = kit.formatErc20Amount(1000000n, 'USDC');
-            expect(formatted).toBe('1 USDC');
+            const formatted = kit.formatErc20Amount(1000000n, 'TEST');
+            expect(formatted).toBe('1 TEST');
         });
 
         test('should parse ERC20 amount string to bigint', () => {
-            const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-            kit.registerErc20Token({
-                symbol: 'USDC',
-                name: 'USD Coin',
-                address: usdcAddress,
-                decimals: 6,
-            });
+            kit.registerErc20Token(testToken);
 
-            const parsed = kit.parseErc20Amount('1.5', 'USDC');
+            const parsed = kit.parseErc20Amount('1.5', 'TEST');
             expect(parsed).toBe(1500000n);
         });
 
@@ -112,10 +93,6 @@ describe('ChainKit', () => {
             }).toThrow('Token UNKNOWN not found in registry');
         });
     });
-
-    // ==========================================
-    // ADDRESS OPERATIONS
-    // ==========================================
 
     describe('Address Operations', () => {
         test('should register address with name', () => {
@@ -140,10 +117,6 @@ describe('ChainKit', () => {
         });
     });
 
-    // ==========================================
-    // PARSER OPERATIONS
-    // ==========================================
-
     describe('Parser Operations', () => {
         test('should register and retrieve parser', () => {
             const testAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Address;
@@ -155,29 +128,26 @@ describe('ChainKit', () => {
             kit.registerParser(testAddress, mockParser);
             const parser = kit.getParser(testAddress);
 
-            expect(parser).toBeDefined();
-            expect(parser?.abi).toEqual([]);
+            expect(kit.resolveParser(testAddress)?.isDefault).toBe(false);
+            expect(parser?.abi).toEqual(mockParser.abi);
         });
 
         test('should return default parser for unregistered address', () => {
             const testAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Address;
             const parser = kit.getParser(testAddress);
 
-            expect(parser).toBeDefined(); // Default parser should exist
+            expect(parser).toBeDefined();
+            expect(kit.resolveParser(testAddress)?.isDefault).toBe(true);
         });
 
         test('should auto-create parser when registering ERC20', () => {
-            const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-            kit.registerErc20Token({
-                symbol: 'USDC',
-                name: 'USD Coin',
-                address: usdcAddress,
-                decimals: 6,
-            });
+            const tokenAddress = testToken.address;
+            kit.registerErc20Token(testToken);
 
-            const parser = kit.getParser(usdcAddress);
+            const parser = kit.getParser(tokenAddress);
             expect(parser).toBeDefined();
-            expect(parser?.abi).toBeDefined();
+            expect(parser?.abi).toEqual(erc20Abi);
+            expect(kit.resolveParser(tokenAddress)?.isDefault).toBe(false);
         });
 
         test('should skip auto-parser creation when autoParser is false', () => {
@@ -193,16 +163,12 @@ describe('ChainKit', () => {
             );
 
             const parser = kit.getParser(testAddress);
-            // Should return default parser, not ERC20-specific parser
             expect(parser).toBeDefined();
+            expect(kit.resolveParser(testAddress)?.isDefault).toBe(true);
         });
     });
 
-    // ==========================================
-    // INTEGRATION TESTS
-    // ==========================================
-
-    describe('Integration Tests', () => {
+    describe('Token metadata', () => {
         test('uses deployment-owned token metadata on Anvil without stale defaults', () => {
             const localKit = new ChainKit(anvil);
             expect(localKit.chain.id).toBe(31337);
@@ -229,55 +195,27 @@ describe('ChainKit', () => {
             expect(new ChainKit(anvil).wrappedNativeTokenInfo).toBeUndefined();
         });
 
-        test.each([5, 80084])('does not preload retired token metadata for chain %i', (id) => {
-            const chain = defineChain({
-                id,
-                name: 'Retired chain fixture',
-                nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-                rpcUrls: { default: { http: ['http://localhost:8545'] } },
-            });
-            const retiredKit = new ChainKit(chain);
-            expect(retiredKit.wrappedNativeTokenInfo).toBeUndefined();
-            expect([...retiredKit.tokens.keys()]).toEqual([zeroAddress]);
-            expect(retiredKit.hasErc20TokenInfo('USDM')).toBe(false);
-        });
-
         test('should handle complete token registration flow', () => {
-            const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
+            const tokenAddress = testToken.address;
 
-            // Register token
-            kit.registerErc20Token({
-                symbol: 'USDC',
-                name: 'USD Coin',
-                address: usdcAddress,
-                decimals: 6,
-            });
+            kit.registerErc20Token(testToken);
 
-            // Check address book
-            expect(kit.getAddressName(usdcAddress)).toBe('USDC');
+            expect(kit.getAddressName(tokenAddress)).toBe('TEST');
 
-            // Check token registry
-            expect(kit.hasErc20TokenInfo('USDC')).toBe(true);
+            expect(kit.hasErc20TokenInfo('TEST')).toBe(true);
 
-            // Check parser
-            const parser = kit.getParser(usdcAddress);
+            const parser = kit.getParser(tokenAddress);
             expect(parser).toBeDefined();
 
-            // Format amount
-            const formatted = kit.formatErc20Amount(1000000n, 'USDC');
-            expect(formatted).toBe('1 USDC');
+            const formatted = kit.formatErc20Amount(1000000n, 'TEST');
+            expect(formatted).toBe('1 TEST');
         });
 
         test('should load common tokens for mainnet', () => {
-            // Mainnet should have some common tokens pre-loaded
-            // Check if USDC is auto-loaded (if it's in the common tokens list)
-            const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-            const tokenInfo = kit.getErc20TokenInfo(usdcAddress);
+            const tokenAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
+            const tokenInfo = kit.getErc20TokenInfo(tokenAddress);
 
-            // This might be auto-loaded for mainnet
-            if (tokenInfo) {
-                expect(tokenInfo.symbol).toBe('USDC');
-            }
+            expect(tokenInfo).toMatchObject({ symbol: 'USDC', decimals: 6, address: getAddress(tokenAddress) });
         });
 
         test('should load common tokens for Monad Testnet', () => {
@@ -299,10 +237,6 @@ describe('ChainKit', () => {
         });
     });
 
-    // ==========================================
-    // ERROR HANDLING
-    // ==========================================
-
     describe('Error Handling', () => {
         test('constructs a custom chain without wrapped native metadata', () => {
             // Create a custom chain that doesn't have wrapped token in registry
@@ -316,6 +250,7 @@ describe('ChainKit', () => {
             const customKit = new ChainKit(customChain);
             expect(customKit.wrappedNativeTokenInfo).toBeUndefined();
             expect(customKit.nativeTokenInfo.symbol).toBe('CUSTOM');
+            expect([...customKit.tokens.keys()]).toEqual([zeroAddress]);
             expect(customKit.isWrappedNativeToken(zeroAddress)).toBe(false);
         });
 

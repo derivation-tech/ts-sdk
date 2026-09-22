@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
-import { AddressBook } from '../src/utils/address-book';
+import { AddressBook } from '../../src/utils/address-book';
 import type { Address } from 'viem';
 
 describe('AddressBook', () => {

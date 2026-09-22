@@ -10,10 +10,10 @@ import {
     TransactionRevertedError,
     TransactionSubmissionError,
     type TxReplacementEvent,
-} from '../src/utils/tx';
-import { ChainKit } from '../src/chain-kit';
-import * as WETH from '../src/contracts/weth';
-import { LoggerFactory } from '../src/utils/logger';
+} from '../../src/utils/tx';
+import { ChainKit } from '../../src/chain-kit';
+import * as WETH from '../../src/contracts/weth';
+import { LoggerFactory } from '../../src/utils/logger';
 
 const sender = '0x0000000000000000000000000000000000000001' as Address;
 const target = '0x0000000000000000000000000000000000000002' as Address;
@@ -185,7 +185,7 @@ describe('transaction outcome contracts', () => {
 
     test('isolates rejected async hooks including the observer-error hook', async () => {
         const { publicClient, walletClient, receipt } = setup();
-        const onObserverError = jest.fn(async (_event: import('../src/utils/tx').TxObserverErrorEvent) => {
+        const onObserverError = jest.fn(async (_event: import('../../src/utils/tx').TxObserverErrorEvent) => {
             throw new Error('report failed');
         });
         const sent = await sendContractTransaction({ publicClient, walletClient }, writeRequest, {
