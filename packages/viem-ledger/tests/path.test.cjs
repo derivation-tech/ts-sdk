@@ -52,3 +52,25 @@ describe('ledger path parsing', () => {
         assert.equal(parsed.index, 0); // account index is 0
     });
 });
+
+for (const input of [
+    'ledger:1.5',
+    'ledger:1e2',
+    'ledger:0x10',
+    'ledger:2147483648',
+    'ledgerfoo',
+    'ledger:m/44x/60x/0/0/0',
+    "ledger:m/44'/60'/-1/0/0",
+    "ledger:m/44'/60'/2147483648/0/0",
+]) {
+    it(`rejects malformed Ledger selection: ${input}`, () => assert.throws(() => parseLedgerPath(input, {})));
+}
+it('rejects invalid environment indices instead of selecting account zero', () => {
+    for (const value of ['typo', '-1', '1.5', '2147483648']) {
+        assert.throws(() => parseLedgerPath('ledger', { LEDGER_INDEX: value }), /Invalid Ledger index/);
+    }
+    assert.equal(parseLedgerPath('ledger:2', { LEDGER_INDEX: 'typo' }).index, 2);
+});
+it('rejects fractional option indices', () => assert.throws(() => deriveLedgerPath({ index: 1.5 })));
+it('accepts the largest BIP32 child index', () =>
+    assert.equal(parseLedgerPath('ledger:2147483647', {}).index, 2147483647));

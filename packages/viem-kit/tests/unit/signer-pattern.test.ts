@@ -4,7 +4,7 @@ import { expandSignerIdPattern } from '../../src/node/account';
 describe('expandSignerIdPattern', () => {
     it('expands ranges, defaults, and preserves 0x addresses', () => {
         const result = expandSignerIdPattern('alice:0-2,bob:1,charlie,0xabc');
-        expect(result).toEqual(['alice:0', 'alice:1', 'alice:2', 'bob:1', 'charlie:0', '0xabc']);
+        expect(result).toEqual(['alice:0', 'alice:1', 'alice:2', 'bob:1', 'charlie', '0xabc']);
     });
 
     it('handles explicit ledger paths without expansion', () => {
@@ -31,4 +31,24 @@ describe('expandSignerIdPattern', () => {
         const result = expandSignerIdPattern('ledger:0-2');
         expect(result).toEqual(['ledger:0', 'ledger:1', 'ledger:2']);
     });
+});
+
+it.each([
+    'alice:typo',
+    'alice:1.9',
+    'alice:1oops',
+    'alice:',
+    'alice:-1',
+    'alice:1:2',
+    ':1',
+    'alice:2147483648',
+    'alice:0-9999999999999999',
+    'alice:0-1000',
+])('rejects malformed or excessive signer pattern %s', (input) => {
+    expect(() => expandSignerIdPattern(input)).toThrow();
+});
+
+it('bounds the total expansion across multiple ranges', () => {
+    expect(expandSignerIdPattern('alice:999-0')).toHaveLength(1000);
+    expect(() => expandSignerIdPattern('alice:0-500,bob:0-500')).toThrow('at most 1000');
 });

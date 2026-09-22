@@ -1,5 +1,5 @@
 import { expect, it } from '@jest/globals';
-import { getAccount } from '../../src/node/account';
+import { expandSignerIdPattern, getAccount } from '../../src/node/account';
 import { resolveAddress } from '../../src/node/address-resolver';
 import { ChainKit } from '../../src/chain-kit';
 import { mainnet } from 'viem/chains';
@@ -10,7 +10,7 @@ it('keeps derived-account registration local to each kit', async () => {
     try {
         const first = new ChainKit(mainnet);
         const second = new ChainKit(mainnet);
-        const a = await getAccount(first, 'viem_kit_fixture');
+        const a = await getAccount(first, expandSignerIdPattern('viem_kit_fixture')[0]);
         const b = await getAccount(second, 'viem_kit_fixture');
         expect(a.address).toBe(b.address);
         expect(first.getAddressName(a.address)).toBe('viem_kit_fixture');
@@ -27,3 +27,10 @@ it('preserves the viem validation cause when a direct address is invalid', async
         cause: expect.objectContaining({ name: 'InvalidAddressError' }),
     });
 });
+
+it.each(['fixture:typo', 'fixture:1.9', 'fixture:1oops', 'fixture:', 'fixture:-1', 'fixture:1:2', ':1', ''])(
+    'rejects malformed signer IDs before reading credentials: %s',
+    async (input) => {
+        await expect(getAccount(new ChainKit(mainnet), input)).rejects.toThrow(/Invalid|empty/);
+    }
+);

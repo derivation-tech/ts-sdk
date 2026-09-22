@@ -93,9 +93,11 @@ export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string
         return promise;
     }
 
+    if (!trimmed) throw new Error('Signer name cannot be empty');
     if (trimmed.includes(':')) {
-        const [name, index] = trimmed.split(':');
-        const indexNum = parseInt(index) || 0;
+        const [name, index, extra] = trimmed.split(':');
+        if (!name || extra !== undefined) throw new Error(`Invalid signer ID: ${trimmed}`);
+        const indexNum = parseAccountIndex(index);
         const upper = name.toUpperCase();
         const cacheKey = `${upper}:${indexNum}`;
 
@@ -159,90 +161,60 @@ export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string
 }
 
 /**
- * Expand a signerIdPattern into a list of signerIds.
- * Examples:
- *  - "alice:0-10,bob:0,charlie" → ["alice:0".."alice:10","bob:0","charlie:0"]
- *  - "ledger:0" → ["ledger:0"]
- *  - "ledger:m/44'/60'/0'/0/0" → ["ledger:m/44'/60'/0'/0/0"]
- *  - "ledger" → ["ledger"]
- *  - Supports whitespace and direct 0x addresses (kept as-is)
+ * Expand comma-separated signer IDs and inclusive index ranges (at most 1,000 IDs).
+ * Bare names stay bare so getAccount can resolve either mnemonic or private-key credentials.
+ * Ledger full paths and direct addresses are validated when the account/address is resolved.
  */
 export function expandSignerIdPattern(signerIdPattern: string): string[] {
-    if (!signerIdPattern) return [];
-
     const result: string[] = [];
-    const parts = signerIdPattern.split(',');
-
-    for (const raw of parts) {
+    for (const raw of signerIdPattern.split(',')) {
         const part = raw.trim();
         if (!part) continue;
-
-        // Keep raw addresses as-is
-        if (part.startsWith('0x')) {
-            result.push(part);
+        const colon = part.indexOf(':');
+        if (part.startsWith('0x') || colon === -1) {
+            appendSigner(result, part);
             continue;
         }
-
-        // Check if this is a ledger signer ID before processing
-        if (isLedgerSignerId(part)) {
-            // Handle ledger signer IDs
-            if (part.includes(':')) {
-                const colonIndex = part.indexOf(':');
-                const name = part.slice(0, colonIndex);
-                const suffix = part.slice(colonIndex + 1);
-                const trimmedName = name.trim();
-
-                if (suffix.includes('-')) {
-                    appendRange(result, trimmedName, suffix);
-                } else {
-                    // ledger:0, ledger:m/44'/60'/0'/0/0, etc. - keep as-is
-                    result.push(part);
-                }
-            } else {
-                // Plain "ledger" - keep as-is to allow env overrides
-                result.push(part);
+        const name = part.slice(0, colon).trim();
+        const suffix = part.slice(colon + 1);
+        if (!name || suffix.includes(':')) throw new Error(`Invalid signer ID: ${part}`);
+        const ledger = isLedgerSignerId(part);
+        const pathEnd = ledger ? suffix.lastIndexOf('/') + 1 : 0;
+        const prefix = suffix.slice(0, pathEnd);
+        const indexOrRange = suffix.slice(pathEnd);
+        if (indexOrRange.includes('-')) {
+            const bounds = indexOrRange.split('-');
+            if (bounds.length !== 2) throw new Error(`Invalid signer range: ${part}`);
+            const start = parseAccountIndex(bounds[0]);
+            const end = parseAccountIndex(bounds[1]);
+            const low = Math.min(start, end);
+            const high = Math.max(start, end);
+            if (high - low + 1 > MAX_EXPANDED_SIGNERS - result.length) {
+                throw new Error(`Signer patterns may expand to at most ${MAX_EXPANDED_SIGNERS} accounts`);
             }
-            continue;
-        }
-
-        // Handle non-ledger signer IDs
-        if (part.includes(':')) {
-            const colonIndex = part.lastIndexOf(':');
-            const name = part.slice(0, colonIndex);
-            const range = part.slice(colonIndex + 1);
-            const trimmedName = name.trim();
-
-            if (range.includes('-')) {
-                appendRange(result, trimmedName, range);
-            } else if (range.includes('/')) {
-                // Explicit path, keep as-is
-                result.push(`${trimmedName}:${range}`);
-            } else {
-                const index = parseInt(range);
-                result.push(`${trimmedName}:${Number.isNaN(index) ? 0 : index}`);
-            }
+            for (let index = low; index <= high; index++) appendSigner(result, `${name}:${prefix}${index}`);
+        } else if (ledger && (prefix || !suffix)) {
+            appendSigner(result, part);
         } else {
-            // Plain name → default index 0
-            result.push(`${part}:0`);
+            appendSigner(result, `${name}:${parseAccountIndex(suffix)}`);
         }
     }
-
     return result;
 }
 
-function appendRange(result: string[], trimmedName: string, range: string): void {
-    // Handle ledger path ranges (e.g., ledger:m/.../5-7 or ledger:0-2)
-    const dashIndex = range.indexOf('-');
-    const hasPath = range.includes('/');
-    const basePathPart = hasPath ? range.slice(0, range.lastIndexOf('/') + 1) : '';
-    const startToken = hasPath ? range.slice(range.lastIndexOf('/') + 1, dashIndex) : range.slice(0, dashIndex);
-    const endToken = range.slice(dashIndex + 1);
-    const startNum = parseInt(startToken);
-    const endNum = parseInt(endToken);
-    let start = Number.isNaN(startNum) ? 0 : startNum;
-    let end = Number.isNaN(endNum) ? start : endNum;
-    if (end < start) [start, end] = [end, start];
-    for (let i = start; i <= end; i++) {
-        result.push(`${trimmedName}:${hasPath ? `${basePathPart}${i}` : i}`);
+const MAX_EXPANDED_SIGNERS = 1_000;
+
+function appendSigner(result: string[], signer: string): void {
+    if (result.length >= MAX_EXPANDED_SIGNERS) {
+        throw new Error(`Signer patterns may expand to at most ${MAX_EXPANDED_SIGNERS} accounts`);
     }
+    result.push(signer);
+}
+
+function parseAccountIndex(input: string): number {
+    const index = Number(input);
+    if (!/^\d+$/.test(input) || !Number.isSafeInteger(index) || index > 0x7fffffff) {
+        throw new Error(`Invalid account index: ${input}`);
+    }
+    return index;
 }

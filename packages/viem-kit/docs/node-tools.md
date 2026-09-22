@@ -25,7 +25,7 @@ export async function deployExample(publicClient: PublicClient, walletClient: Wa
 `getAccount` reads named environment credentials: `DEPLOYER_MNEMONIC` or
 `DEPLOYER_PRIVATE_KEY` for `deployer`, and `DEPLOYER_MNEMONIC` for `deployer:0`.
 Setting both forms for a bare name is an error. Account caches belong to the kit.
-`expandSignerIdPattern` expands ranges before individual account resolution.
+`expandSignerIdPattern` expands inclusive ranges before individual account resolution, with a limit of 1,000 results per call. Indices must be decimal integers between 0 and 2147483647; malformed values throw. Bare names stay bare so either mnemonic or private-key credentials can be resolved.
 
 Ledger signers require the optional `@derivation-tech/viem-ledger` peer. Hardware
 access occurs only when Ledger is requested. Existing consumer signer policy,

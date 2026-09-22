@@ -49,8 +49,8 @@ the standalone `deriveLedgerPath` utility prioritizes `signerId` if both are giv
 Explicit indices and full paths take precedence over the environment.
 
 1. A non-empty `LEDGER_INDEX` selects the default base path and that account index.
-   A non-finite or negative value falls back to index 0; it still takes precedence
-   over `LEDGER_PATH`.
+   Invalid values throw instead of selecting another account. Indices and full-path
+   components must be decimal integers between 0 and 2147483647.
 2. Otherwise, a non-empty `LEDGER_PATH` supplies the full path.
 3. Otherwise, the account index is 0.
 
