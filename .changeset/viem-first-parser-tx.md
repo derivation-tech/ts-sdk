@@ -4,13 +4,19 @@
 
 Refactor parser and transaction APIs around viem-first typed requests.
 
-Removes the formatter compatibility surface, the legacy root error extraction export, and the untyped TxRequest transaction helper API. Contract writes now use viem-compatible typed write requests, parser registries resolve typed parser envelopes, and local batch signing is explicit through batchSendLocalTransactions.
+Remove the formatter compatibility surface, the legacy root error extraction export, and the untyped transaction API:
+
+- Replace `TxRequest` with `TypedWriteRequest<TAbi, TFunctionName>`.
+- Replace `sendTxWithLog(publicClient, walletClient, kit, request)` with `kit.sendTx(walletClient, request, options)` for a receipt, or `sendContractTransaction(context, request, options)` for separate hash, receipt and diagnostics access.
+- Put gas, fee and nonce overrides in the request and receipt settings in `options.wait`. Preserve application fee policy and receipt-success assertions when removing duplicate send wrappers.
+- Use `ContractParser<TAbi>` or `createContractParser` handlers. Narrow decoded errors by `kind` before accessing variant-specific fields.
+- Use `batchSendLocalTransactions` for local batch signing.
 
 `TypedWriteRequest` now follows viem's payable and zero-argument conditions. Heterogeneous local batches use `defineWriteRequest`, return `{ index, hash, receipt }` entries, allocate pending nonces per account, and retain submitted hashes on partial failure. Lifecycle observer failures no longer turn an already-submitted transaction into a send failure.
 
 ESM declaration wrappers now use NodeNext-compatible implementation specifiers and are covered by ESM and CommonJS consumer type fixtures.
 
-ChainKit now takes named options for client injection, address names and wrapped-native metadata. Wrapped-native metadata is optional; explicit overrides take precedence and null disables automatic registration. Same-chain instances keep their own metadata and clients.
+Replace the positional ChainKit metadata argument with `new ChainKit(chain, { publicClient, wrappedNativeToken, addressNames })`. Inject the client at construction instead of assigning `kit.publicClient`, and supply instance metadata instead of mutating `WRAPPED_NATIVE_TOKENS`. Wrapped-native metadata is optional; explicit overrides take precedence and `null` disables automatic registration. Handle missing `wrappedNativeTokenInfo` before accessing its address. Use separate kit instances for distinct RPCs or forks, even when they share a chain ID.
 
 Transaction options now expose receipt wait configuration. Async observers, logger failures and parser resolver failures are isolated. Receipt hooks include submittedHash and the actual receipt hash; cancellation and changed-intent replacement throw TransactionReplacementError. Submission and wait errors retain reconciliation evidence, and assertTransactionSuccess provides explicit reverted-receipt enforcement.
 
@@ -20,9 +26,9 @@ Environment accounts, signer-aware address resolution, artifact/Foundry helpers 
 
 WETH helpers use the kit's explicit wrapped-native metadata and the chain's native decimals, and fail before broadcast when wrapped-native metadata is disabled.
 
-Package verification now includes an isolated tarball consumer modeled on Anchored's typed FundController administration flow, CJS/ESM loading without Ledger, and a browser bundle. A migration guide covers the consumer's fee, metadata, parser, import and transaction-outcome changes.
+Package verification now includes an isolated tarball consumer modeled on Anchored's typed FundController administration flow, CJS/ESM loading without Ledger, and a browser bundle. Usage guides describe the supported APIs; consumers must validate their own administration and deployment flows before changing dependency pins.
 
-Never-settling transaction/event/error parsers and revert replay no longer block submission or receipt completion. Transaction descriptions use onDescription; SentTransaction.diagnostics offers a separate bounded, cancellable wait for CLI output, with late diagnostic delivery suppressed after cutoff.
+Never-settling transaction/event/error parsers and revert replay no longer block submission or receipt completion. Move transaction-description logging from `onSent` to `onDescription`. `SentTransaction.diagnostics` offers a separate bounded, cancellable wait for CLI output, with late diagnostic delivery suppressed after cutoff. CLI callers that require diagnostics should handle `sent.receipt` and await `sent.diagnostics` in a `finally` block, including when receipt-success assertions throw.
 
 Submission errors now retain their observed prepare/sign/send phase. Local preparation and signing failures are not-sent; raw-send and opaque RPC-wallet failures remain unknown, with known nonce and signed hash evidence retained. Contract writes, batches and deployment helpers share this path. Local sends observe viem native actions, so custom sendTransaction/deployContract overrides should move to preparation, signing or raw-send customization.
 

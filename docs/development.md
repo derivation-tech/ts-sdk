@@ -64,9 +64,10 @@ browser bundling and loading without Ledger.
 
 ### Documentation changes
 
-Keep package READMEs as entry points, usage guides as the API behavior reference,
-and migration guides as old-to-new instructions. Preserve dated design and release
-records as history. Link to an authoritative explanation instead of copying it.
+Keep package READMEs as entry points and usage guides as the API behavior reference.
+Put breaking changes and their replacement APIs in the relevant changeset so they
+become versioned release notes. Preserve dated design and release records as history.
+Link to an authoritative explanation instead of copying it.
 
 Check local links and heading anchors, type-check TypeScript examples, and inspect
 the packed file list when changing published guides. A guide linked from a package

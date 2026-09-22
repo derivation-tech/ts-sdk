@@ -10,10 +10,8 @@ permissions and recovery after uncertain transaction outcomes.
 pnpm add @derivation-tech/viem-kit viem
 ```
 
-Use the documentation shipped with the version you install. This source tree's
-migration notes describe the typed API and breaking changes from 0.2.1;
-see [MIGRATION.md](MIGRATION.md) before upgrading an existing consumer. Package
-manifests and pending changesets do not establish registry publication.
+Use the documentation shipped with the version you install; consult its release
+notes for breaking changes when upgrading.
 
 ## Quick start
 
@@ -58,4 +56,3 @@ Ledger signer is requested.
 - [Chains, tokens and parsers](docs/chains-and-parsers.md): instance ownership, wrapped-native metadata, registries and balance queries.
 - [Transactions](docs/transactions.md): typed writes, receipts, replacements, diagnostics, errors, logging and local batches.
 - [Node tools](docs/node-tools.md): environment signers, artifacts and deployment.
-- [Migration from 0.2.1](MIGRATION.md): import changes, replacement APIs and retired defaults.

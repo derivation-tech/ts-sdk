@@ -83,7 +83,6 @@
     "files": [
         "dist",
         "README.md",
-        "MIGRATION.md",
         "docs"
     ],
     "scripts": {

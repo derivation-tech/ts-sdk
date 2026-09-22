@@ -14,9 +14,9 @@ validation, package scaffolding and releases. Package manifests and
 [pnpm-workspace.yaml](pnpm-workspace.yaml) define scripts and dependency ranges;
 [pnpm-lock.yaml](pnpm-lock.yaml) records the resolved dependency versions.
 
-Existing viem-kit consumers should use the [migration guide](packages/viem-kit/MIGRATION.md).
-The [refactor design record](docs/specs/viem-kit-anchored-refactor.md) retains the
-historical design separately from the maintained usage documentation.
+The [2026-09-09 refactor design snapshot](docs/history/2026-09-09-viem-kit-anchored-refactor.md)
+records the original baseline, rationale and acceptance criteria. It is historical
+context, not the maintained API reference or current downstream status.
 
 ## License
 

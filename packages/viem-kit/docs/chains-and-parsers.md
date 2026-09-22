@@ -76,6 +76,8 @@ kit.registerParser(
 `createParserRegistry` are available for composition. A request can also supply a
 typed `parser` directly. Business-specific decoding and formatting belong in the
 consumer. Logs are decoded against the emitting address's parser.
+`DecodedContractError` is a discriminated union; narrow by `kind` before reading
+variant-specific fields such as `name` and `signature`.
 
 ## Balance queries
 
