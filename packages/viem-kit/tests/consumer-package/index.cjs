@@ -15,3 +15,27 @@ assert.equal('diagnoseReceipt' in utils, false);
 assert.equal('waitForParsedReceipt' in utils, false);
 assert.throws(() => require.resolve('@derivation-tech/viem-ledger'), { code: 'MODULE_NOT_FOUND' });
 console.log('Packed CJS consumer: core and Node entries load without Ledger');
+
+assert.equal(core.TransactionRevertedError, utils.TransactionRevertedError);
+assert.equal(core.LoggerFactory, utils.LoggerFactory);
+const logger = { debug() {}, info() {}, warn() {}, error() {} };
+core.LoggerFactory.setLogger('consumer', logger);
+assert.equal(utils.LoggerFactory.getLogger('consumer'), logger);
+core.LoggerFactory.clear();
+const hash = `0x${'11'.repeat(32)}`;
+const receipt = { status: 'reverted', transactionHash: hash, logs: [] };
+node.deployBytecode(
+    { waitForTransactionReceipt: async () => receipt },
+    { account: { address: `0x${'11'.repeat(20)}`, type: 'json-rpc' }, sendTransaction: async () => hash },
+    { abi: [], bytecode: '0x6000', silent: true }
+)
+    .then(
+        () => {
+            throw new Error('Expected deployment to revert');
+        },
+        (error) => assert.ok(error instanceof core.TransactionRevertedError)
+    )
+    .catch((error) => {
+        console.error(error);
+        process.exitCode = 1;
+    });

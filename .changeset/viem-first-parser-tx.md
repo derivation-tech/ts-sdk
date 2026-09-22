@@ -52,3 +52,5 @@ Remove deployment-specific WETH and ERC20 defaults for local chain 31337. Anvil 
 Both viem-kit and viem-ledger now require Node.js 22 or newer. Upgrade consumers running Node.js 18 or 20 before adopting this release. Development and release builds use the pinned Node.js 24 LTS runtime; the consumer matrix covers Node.js 22 and 24 against the minimum and locked viem versions. Node type definitions track the Node.js 22 API baseline.
 
 Invalid direct-address resolution errors now preserve the original viem validation error as `cause`, while retaining the public error message.
+
+Public entry points now share runtime classes and logger state within each module format. Errors thrown by Node deployment helpers can be caught using the root or utils error classes.

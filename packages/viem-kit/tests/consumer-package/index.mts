@@ -17,6 +17,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import {
     assertTransactionSuccess,
     ChainKit,
+    LoggerFactory,
     createContractParser,
     sendContractTransaction,
     TransactionRevertedError,
@@ -25,12 +26,19 @@ import {
 } from '@derivation-tech/viem-kit';
 import type { TypedWriteRequest } from '@derivation-tech/viem-kit';
 import * as utils from '@derivation-tech/viem-kit/utils';
-import { ArtifactHelper, getAccount } from '@derivation-tech/viem-kit/node';
+import { ArtifactHelper, deployBytecode, getAccount } from '@derivation-tech/viem-kit/node';
 
 // @ts-expect-error Receipt diagnosis is internal; consumers await sent.diagnostics.
 assert.equal(utils.diagnoseReceipt, undefined);
 // @ts-expect-error Receipt waiting uses sent.receipt or waitForTransactionOutcome.
 assert.equal(utils.waitForParsedReceipt, undefined);
+
+assert.equal(TransactionRevertedError, utils.TransactionRevertedError);
+assert.equal(LoggerFactory, utils.LoggerFactory);
+const logger = { debug() {}, info() {}, warn() {}, error() {} };
+LoggerFactory.setLogger('consumer', logger);
+assert.equal(utils.LoggerFactory.getLogger('consumer'), logger);
+LoggerFactory.clear();
 
 // Generic contract with narrow integers and tuple events exercises ABI inference.
 // All addresses, chain metadata and RPC responses are synthetic and remain offline.
@@ -167,6 +175,10 @@ await assert.rejects(
     TransactionRevertedError
 );
 assert.equal(transactions.length, 2);
+await assert.rejects(
+    deployBytecode(publicClient, walletClient, { abi: [], bytecode: '0x6000', silent: true, confirmations: 1 }),
+    TransactionRevertedError
+);
 assert.deepEqual(ArtifactHelper.loadABI(JSON.stringify(abi)), abi);
 await assert.rejects(getAccount(kit, 'ledger'), /not installed/);
 
