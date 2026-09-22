@@ -45,6 +45,12 @@ compatibility. TypeScript continues to generate declarations using the existing 
 This removes Nx task caching and affected-project selection. Reconsider an orchestrator
 if measured build costs or a larger dependency graph make those features useful.
 
+TypeScript 6 is pinned through the workspace catalog. The bundled core uses
+`moduleResolution: bundler`; the directly emitted Ledger package uses `NodeNext`.
+Source roots and Node ambient types are explicit, and package configs do not use the
+removed-in-TypeScript-7 `baseUrl` option. Keep source, test, example, declaration and
+packed-consumer checks together when upgrading the compiler.
+
 The ESLint flat config scopes Node globals to scripts and configuration, applies
 recommended TypeScript rules to TypeScript files, and uses `projectService` only for
 SDK source to enable type-aware Promise checks. Compile-time negative fixtures may

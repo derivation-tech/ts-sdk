@@ -110,7 +110,7 @@
         "verify:consumer": "node scripts/verify-consumer.mjs",
         "test:unit": "jest --config jest.config.cjs --runInBand tests/unit",
         "test:integration": "jest --config jest.config.cjs --runInBand tests/integration",
-        "typecheck:build": "tsc --noEmit --module nodenext --target es2022 --skipLibCheck tsdown.config.mts",
+        "typecheck:build": "tsc --ignoreConfig --noEmit --module nodenext --target es2022 --skipLibCheck tsdown.config.mts",
         "verify:checks": "pnpm run verify:types && pnpm run test && pnpm run typecheck:consumer && pnpm run verify:consumer && pnpm run publint && pnpm run attw"
     },
     "devDependencies": {
