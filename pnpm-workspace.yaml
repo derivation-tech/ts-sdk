@@ -11,3 +11,15 @@ catalog:
     "ts-jest": "29.4.12"
     "jest": "30.5.2"
     "@jest/globals": "30.5.2"
+
+# Keep verification commands from silently reinstalling dependencies.
+verifyDepsBeforeRun: error
+
+# These packages ship platform binaries; preserve pnpm 10's blocked dependency hooks.
+# Leave strictDepBuilds enabled so new build scripts require an explicit decision.
+allowBuilds:
+    "@parcel/watcher": false
+    esbuild: false
+    node-hid: false
+    unrs-resolver: false
+    usb: false

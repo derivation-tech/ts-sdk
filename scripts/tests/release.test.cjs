@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
+const { execFile, spawnSync } = require('node:child_process');
 const {
     copyFileSync,
     mkdirSync,
@@ -13,6 +13,8 @@ const {
 const { tmpdir } = require('node:os');
 const { dirname, join, resolve } = require('node:path');
 const { test } = require('node:test');
+const { createServer } = require('node:http');
+const { promisify } = require('node:util');
 
 const workspace = resolve(__dirname, '../..');
 const core = '@derivation-tech/viem-kit';
@@ -34,6 +36,8 @@ function fixture(t) {
     // This exercises pnpm itself without requiring downloaded packages or registry metadata in its cache.
     for (const file of packageFiles) {
         const manifest = readJson(join(cwd, file));
+        // Use the executing CLI; a packageManager pin would resolve pnpm itself from the registry.
+        delete manifest.packageManager;
         for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
             if (manifest[field]) {
                 manifest[field] = Object.fromEntries(
@@ -51,9 +55,11 @@ function fixture(t) {
         TMPDIR: process.env.TMPDIR,
         HOME: cwd,
         CI: 'true',
-        npm_config_userconfig: '/dev/null',
-        npm_config_offline: 'true',
-        npm_config_ignore_scripts: 'true',
+        // This fixture intentionally changes manifests and shares only the installed CLI.
+        pnpm_config_verify_deps_before_run: 'false',
+        PNPM_CONFIG_NPMRC_AUTH_FILE: '/dev/null',
+        pnpm_config_offline: 'true',
+        pnpm_config_ignore_scripts: 'true',
         GIT_CONFIG_GLOBAL: '/dev/null',
         GIT_CONFIG_NOSYSTEM: '1',
     };
@@ -85,7 +91,7 @@ function fixture(t) {
         '-m',
         'Release fixture',
     ]);
-    return { cwd, run, rootVersion: rootManifest.version };
+    return { cwd, run, env, rootVersion: rootManifest.version };
 }
 
 const frozenInstall = ['install', '--lockfile-only', '--frozen-lockfile', '--offline', '--ignore-scripts'];
@@ -141,3 +147,102 @@ for (const explicitMajor of [false, true]) {
         }
     );
 }
+
+test('publish auth config routes the scope and sends its token only to the matching registry path', async (t) => {
+    const { cwd, env } = fixture(t);
+    const requests = [];
+    const server = createServer((request, response) => {
+        const received = { method: request.method, url: request.url, authorization: request.headers.authorization };
+        requests.push(received);
+        if (request.method === 'PUT') {
+            let body = '';
+            request.setEncoding('utf8');
+            request.on('data', (chunk) => {
+                body += chunk;
+            });
+            request.on('end', () => {
+                received.body = JSON.parse(body);
+                response.writeHead(201, { 'Content-Type': 'application/json' });
+                response.end(JSON.stringify({ ok: true }));
+            });
+            return;
+        }
+        const name = request.url.startsWith('/private/') ? '@derivation-tech/auth-fixture' : 'public-fixture';
+        response.setHeader('Content-Type', 'application/json');
+        response.end(
+            JSON.stringify({
+                name,
+                'dist-tags': { latest: '1.0.0' },
+                time: { '1.0.0': '2020-01-01T00:00:00.000Z' },
+                versions: {
+                    '1.0.0': { name, version: '1.0.0', dist: { tarball: 'https://example.invalid/fixture.tgz' } },
+                },
+            })
+        );
+    });
+    await new Promise((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', resolve);
+    });
+    t.after(() => new Promise((resolve) => server.close(resolve)));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const execute = promisify(execFile);
+    await execute(process.execPath, [join(workspace, 'scripts/write-publish-config.cjs')], {
+        cwd,
+        env: { ...env, RUNNER_TEMP: cwd, NPM_REGISTRY_URL: `${origin}/private/` },
+    });
+    const config = join(cwd, 'publish.npmrc');
+    assert.ok(readFileSync(config, 'utf8').includes('${NODE_AUTH_TOKEN}'));
+    // Exercise the pnpm 12 selector and the retained npm-compatible selector independently.
+    for (const selector of ['PNPM_CONFIG_NPMRC_AUTH_FILE', 'NPM_CONFIG_USERCONFIG']) {
+        const authEnv = {
+            ...env,
+            PNPM_CONFIG_NPMRC_AUTH_FILE: undefined,
+            [selector]: config,
+            NODE_AUTH_TOKEN: 'local-fixture-token',
+            pnpm_config_offline: 'false',
+        };
+        const { stdout } = await execute('pnpm', ['view', '@derivation-tech/auth-fixture', 'version', '--json'], {
+            cwd,
+            env: authEnv,
+            timeout: 20_000,
+        });
+        assert.equal(JSON.parse(stdout), '1.0.0');
+        await execute('pnpm', ['view', 'public-fixture', 'version', '--json', '--registry', `${origin}/public/`], {
+            cwd,
+            env: authEnv,
+            timeout: 20_000,
+        });
+    }
+    // Publish only an artificial package to this loopback server; no real registry or secrets are used.
+    const publishDir = mkdtempSync(join(tmpdir(), 'pnpm-publish-fixture-'));
+    t.after(() => rmSync(publishDir, { recursive: true, force: true }));
+    writeJson(join(publishDir, 'package.json'), {
+        name: '@derivation-tech/auth-fixture',
+        version: '1.0.0',
+        files: ['index.js'],
+    });
+    writeFileSync(join(publishDir, 'index.js'), 'module.exports = {};\n');
+    await execute('pnpm', ['publish', '--no-git-checks', '--access', 'restricted', '--tag', 'migration-test'], {
+        cwd: publishDir,
+        env: {
+            ...env,
+            PNPM_CONFIG_NPMRC_AUTH_FILE: config,
+            NPM_CONFIG_USERCONFIG: config,
+            NODE_AUTH_TOKEN: 'local-fixture-token',
+            pnpm_config_offline: 'false',
+        },
+        timeout: 20_000,
+    });
+    const privateRequests = requests.filter(({ url }) => url.startsWith('/private/'));
+    const publicRequests = requests.filter(({ url }) => url.startsWith('/public/'));
+    assert.equal(privateRequests.length, 3);
+    assert.equal(publicRequests.length, 2);
+    assert.ok(privateRequests.every(({ authorization }) => authorization === 'Bearer local-fixture-token'));
+    assert.ok(publicRequests.every(({ authorization }) => authorization === undefined));
+    const publications = privateRequests.filter(({ method }) => method === 'PUT');
+    assert.equal(publications.length, 1);
+    assert.equal(publications[0].body['dist-tags']['migration-test'], '1.0.0');
+    assert.equal(publications[0].body.access, 'restricted');
+    assert.ok(Object.keys(publications[0].body._attachments).some((name) => name.endsWith('.tgz')));
+});

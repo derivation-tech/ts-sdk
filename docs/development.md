@@ -6,7 +6,7 @@ Run the commands below from the workspace root unless a different directory is s
 
 Use `nvm install && nvm use` to select the Node.js 24 LTS version pinned in `.nvmrc`.
 CI and release builds read the same file. Use the pnpm version pinned in the root
-`packageManager` field. Workspace tooling requires Node.js 22.18+, 24.11+, or 26+; use the pinned Node.js 24 version.
+`packageManager` field (pnpm 12.5.1). Workspace tooling requires Node.js 22.18+, 24.11+, or 26+; use the pinned Node.js 24 version.
 Both SDK packages require Node.js 22 or newer. Node.js 22 and 24 are the supported
 LTS versions covered by the consumer tests. Node type definitions track 22.x so
 compilation does not assume APIs specific to Node.js 24.
@@ -21,6 +21,13 @@ When running viem-kit checks directly in a fresh checkout, build Ledger first:
 viem-kit's type checks exercise the optional integration. The consumer tests themselves load the core and Node entries without
 Ledger installed. `pnpm install` installs dependencies and runs workspace lifecycle
 hooks; it is not a validation-only command.
+
+pnpm 12 reads general options from `pnpm-workspace.yaml` and `pnpm_config_*`
+environment variables. Commands fail on stale dependencies (`verifyDepsBeforeRun: error`);
+run `pnpm install --frozen-lockfile` explicitly before verification. Dependency install
+hooks for @parcel/watcher, esbuild, node-hid, unrs-resolver and usb remain disabled: the supported
+platforms use their shipped binaries. New dependency build scripts require review
+under the default `strictDepBuilds` policy. The default release-age protection stays enabled.
 
 ## Tooling responsibilities
 
@@ -165,7 +172,7 @@ and the release workflow both run it before building or publishing.
 
 The tests use disposable Git workspaces with the repository's release configuration,
 commands and internal dependency relationships. Registry dependencies are omitted and
-fixture versions are fixed, making the checks independent of network access, package
+fixture versions are fixed, making the checks independent of external network access, package
 caches and the current pending changesets. They verify:
 
 - Native non-interactive changeset creation, including repeated package flags and multiline summaries.
@@ -174,8 +181,11 @@ caches and the current pending changesets. They verify:
 - An intentionally stale lockfile is repaired, then passes an offline frozen-lockfile check.
 - An empty release fails without changing manifests, changelogs or the lockfile, and skips lockfile refresh.
 
-The checks never invoke publish or modify the checkout's release files. They do not
-validate registry credentials, GitHub release PR creation or hardware behavior.
+A local HTTP registry fixture also verifies scope routing, token interpolation through
+both authentication-file selectors, and that a token is not sent to another registry path.
+It accepts one native `pnpm publish` of an artificial package to check the upload path.
+No real registry, credentials or checkout release files are changed. These checks do not
+validate production registry permissions, GitHub release PR creation or hardware behavior.
 
 ## Adding a package
 
@@ -237,6 +247,8 @@ marks both packages as major. Private workspace packages are not versioned by de
 
 Registry selection comes from npm configuration. The release workflow writes a temporary
 scoped `.npmrc` from `NPM_REGISTRY_URL`, uses `NODE_AUTH_TOKEN` for registry authentication,
-and passes the GitHub token through the Action's `github-token` input. Local versioning and
+and selects that user-level file with `PNPM_CONFIG_NPMRC_AUTH_FILE`. It also sets
+`NPM_CONFIG_USERCONFIG` for npm-compatible tools and passes the GitHub token through
+the Action's `github-token` input. Local versioning and
 packing can be rehearsed in a disposable checkout without registry credentials; actual
 publication and GitHub release/PR creation require the configured CI credentials.
