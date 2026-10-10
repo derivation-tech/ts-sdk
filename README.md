@@ -14,10 +14,6 @@ validation, package scaffolding and releases. Package manifests and
 [pnpm-workspace.yaml](pnpm-workspace.yaml) define scripts and dependency ranges;
 [pnpm-lock.yaml](pnpm-lock.yaml) records the resolved dependency versions.
 
-The [2026-09-09 refactor design snapshot](docs/history/2026-09-09-viem-kit-anchored-refactor.md)
-records the original baseline, rationale and acceptance criteria. It is historical
-context, not the maintained API reference or current downstream status.
-
 ## License
 
 The packages declare the MIT license.
