@@ -168,12 +168,8 @@ export function loadArtifact(jsonInput: JsonInput, linkReferenceMap: Record<stri
     if (!inferredName) {
         const compTarget = artifact.metadata?.settings?.compilationTarget || artifact.compilationTarget;
         if (compTarget && typeof compTarget === 'object') {
-            try {
-                const vals = Array.from(new Set(Object.values(compTarget)));
-                if (vals.length === 1 && typeof vals[0] === 'string') inferredName = vals[0];
-            } catch {
-                // ignore
-            }
+            const vals = Array.from(new Set(Object.values(compTarget)));
+            if (vals.length === 1 && typeof vals[0] === 'string') inferredName = vals[0];
         }
     }
     if (!inferredName) {
@@ -239,22 +235,14 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
         //   // __$5a082c16...$__ -> contracts/.../File.sol:Lib
         // to directly associate placeholder ids with fully-qualified names.
         const inlineMap: Record<string, string> = {};
-        try {
-            const commentRe = /\/\/\s*(__\$([0-9a-fA-F]+)\$__)\s*->\s*([^\s]+)/g;
-            let cm: RegExpExecArray | null;
-            while ((cm = commentRe.exec(raw))) {
-                const placeholder = cm[2].toLowerCase();
-                const fq = cm[3];
-                inlineMap[placeholder] = fq;
-            }
-        } catch {
-            // ignore
+        const commentRe = /\/\/\s*(__\$([0-9a-fA-F]+)\$__)\s*->\s*([^\s]+)/g;
+        let cm: RegExpExecArray | null;
+        while ((cm = commentRe.exec(raw))) {
+            inlineMap[cm[2].toLowerCase()] = cm[3];
         }
 
         for (const fk of fileKeys) {
-            const addr = linkReferenceMap[fk];
-            if (!addr) continue;
-            const normalized = normalizeLibraryAddress(addr);
+            const normalized = normalizeLibraryAddress(linkReferenceMap[fk]);
 
             // Solidity library identifiers use keccak256, not SHA3-256.
             const prefix = keccak256(new TextEncoder().encode(fk)).slice(2, 36).toLowerCase();
@@ -272,7 +260,8 @@ export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<strin
         // Replace occurrences
         out = out.replace(hashPlaceholderRe, (m, hexId: string) => {
             const key = hexId.toLowerCase();
-            const found = hashMap[key] || hashMap[key.slice(0, 34)] || hashMap[key.slice(0, 40)];
+            // Solidity placeholders carry exactly the 34-hex-character library identifier.
+            const found = hashMap[key];
             if (!found) throw new Error(`Unmapped hash placeholder: ${hexId}`);
             return found;
         });

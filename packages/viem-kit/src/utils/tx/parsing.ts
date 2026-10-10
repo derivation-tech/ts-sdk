@@ -1,72 +1,38 @@
-import type { Abi, Address, ContractEventName, Hash, Hex, Log } from 'viem';
+import type { Abi, Address, Hash, Hex, Log } from 'viem';
 import { decodeEventLog, isAddressEqual } from 'viem';
-import type { ContractParser, ParseEventInput, ParseTransactionInput } from '../../parsers/types';
+import type { ContractParser, ParseTransactionInput } from '../../parsers/types';
 import type { DecodedContractError } from '../../types';
 import { safeNotifyLifecycleHook } from './hooks';
-import type { SendTransactionOptions, TxContext, TypedWriteRequest, WriteFunctionName } from './types';
+import type { TxContext, TxLifecycleHooks, TypedWriteRequest, WriteFunctionName } from './types';
 
-type ResolvedParser<TAbi extends Abi> =
-    { source: 'request'; parser: ContractParser<TAbi> } | { source: 'registry'; parser: ContractParser };
-
-function toParserArgs(args: unknown): readonly unknown[] {
-    if (args === undefined) return [];
-    if (!Array.isArray(args)) {
-        throw new Error('Contract write request args must be an array');
-    }
-    return args;
-}
-
-function toRequestParserInput<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
-    request: TypedWriteRequest<TAbi, TFunctionName>
-): ParseTransactionInput<TAbi, TFunctionName> {
-    return {
-        functionName: request.functionName,
-        args: toParserArgs(request.args),
-        value: request.value,
-    } as unknown as ParseTransactionInput<TAbi, TFunctionName>;
-}
-
-function narrowEventInput<TAbi extends Abi>(event: ParseEventInput<Abi>): ParseEventInput<TAbi> {
-    return {
-        eventName: event.eventName as ContractEventName<TAbi>,
-        args: event.args,
-    } as ParseEventInput<TAbi>;
-}
-
-export function resolveParserForAddress<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
+function resolveParser<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
     context: TxContext,
     request: TypedWriteRequest<TAbi, TFunctionName>,
     address: Address
-): ResolvedParser<TAbi> | undefined {
-    if (request.parser && isAddressEqual(address, request.address)) {
-        return { source: 'request', parser: request.parser };
-    }
-    const registered = context.resolveParser?.(address);
-    return registered ? { source: 'registry', parser: registered.parser } : undefined;
+): ContractParser | undefined {
+    if (request.parser && isAddressEqual(address, request.address)) return request.parser as unknown as ContractParser;
+    return context.resolveParser?.(address);
 }
 
 export async function parseTransactionDescription<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
     context: TxContext,
     request: TypedWriteRequest<TAbi, TFunctionName>,
-    options: SendTransactionOptions,
+    hooks: TxLifecycleHooks | undefined,
     hash?: Hash
 ): Promise<string | undefined> {
     try {
-        if (request.parser?.parseTransaction) {
-            return await request.parser.parseTransaction<TFunctionName>(toRequestParserInput(request));
-        }
-
-        const parser = context.resolveParser?.(request.address)?.parser;
+        const parser = resolveParser(context, request, request.address);
         if (!parser?.parseTransaction) return undefined;
         const input: ParseTransactionInput<Abi> = {
             functionName: request.functionName,
-            args: toParserArgs(request.args),
+            // viem types write args as ContractFunctionArgs, which is always a tuple at runtime.
+            args: (request.args ?? []) as readonly unknown[],
             value: request.value,
         };
         return await parser.parseTransaction(input);
     } catch (error) {
-        safeNotifyLifecycleHook(options.hooks, 'parseError', hash, () =>
-            options.hooks?.onParseError?.({ phase: 'transaction', error })
+        safeNotifyLifecycleHook(hooks, 'parseError', hash, () =>
+            hooks?.onParseError?.({ phase: 'transaction', error })
         );
         return undefined;
     }
@@ -76,32 +42,28 @@ export async function parseEventDescription<TAbi extends Abi, TFunctionName exte
     context: TxContext,
     request: TypedWriteRequest<TAbi, TFunctionName>,
     log: Log,
-    options: SendTransactionOptions,
+    hooks: TxLifecycleHooks | undefined,
     hash: Hash
 ): Promise<string | undefined> {
     try {
-        const resolved = resolveParserForAddress(context, request, log.address);
-        if (!resolved || log.topics.length === 0) return undefined;
+        // Only decode logs whose parser can describe events; other contracts' logs are not errors.
+        const parser = resolveParser(context, request, log.address);
+        if (!parser?.parseEvent || log.topics.length === 0) return undefined;
         const decodedLog = decodeEventLog({
-            abi: resolved.parser.abi,
+            abi: parser.abi,
             data: log.data,
             topics: log.topics as [Hex, ...Hex[]],
             strict: true,
         });
+        // Strict decoding throws instead of returning a nameless log; this check narrows viem's type.
         if (!decodedLog.eventName) return undefined;
-        const input: ParseEventInput<Abi> = {
+        return await parser.parseEvent({
             eventName: decodedLog.eventName,
             // viem represents a successfully decoded zero-argument event with undefined args.
             args: decodedLog.args ?? [],
-        };
-        if (resolved.source === 'request') {
-            return await resolved.parser.parseEvent?.(narrowEventInput<TAbi>(input));
-        }
-        return await resolved.parser.parseEvent?.(input);
+        });
     } catch (error) {
-        safeNotifyLifecycleHook(options.hooks, 'parseError', hash, () =>
-            options.hooks?.onParseError?.({ phase: 'event', error })
-        );
+        safeNotifyLifecycleHook(hooks, 'parseError', hash, () => hooks?.onParseError?.({ phase: 'event', error }));
         return undefined;
     }
 }
@@ -110,16 +72,16 @@ export async function parseErrorDescription<TAbi extends Abi, TFunctionName exte
     context: TxContext,
     request: TypedWriteRequest<TAbi, TFunctionName>,
     error: DecodedContractError,
-    options: SendTransactionOptions,
+    hooks: TxLifecycleHooks | undefined,
     hash: Hash
 ): Promise<string | undefined> {
     try {
-        const resolved = resolveParserForAddress(context, request, request.address);
-        if (!resolved?.parser.parseError) return undefined;
-        return await resolved.parser.parseError(error);
+        const parser = resolveParser(context, request, request.address);
+        if (!parser?.parseError) return undefined;
+        return await parser.parseError(error);
     } catch (parseError) {
-        safeNotifyLifecycleHook(options.hooks, 'parseError', hash, () =>
-            options.hooks?.onParseError?.({ phase: 'error', error: parseError })
+        safeNotifyLifecycleHook(hooks, 'parseError', hash, () =>
+            hooks?.onParseError?.({ phase: 'error', error: parseError })
         );
         return undefined;
     }

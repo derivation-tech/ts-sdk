@@ -11,7 +11,8 @@ import {
     parseAbi,
 } from 'viem';
 import { mainnet } from 'viem/chains';
-import { createParserRegistry } from '../../src/parsers/registry';
+import { createDefaultParser } from '../../src/parsers/default';
+import { ParserRegistry } from '../../src/parsers/registry';
 import type { ContractParser } from '../../src/types';
 import { sendContractTransaction, TransactionReceiptError } from '../../src/utils/tx';
 
@@ -348,7 +349,7 @@ describe('event decoding boundaries', () => {
         const { publicClient, walletClient } = setup(receipt);
         const parseEvent = jest.fn<NonNullable<ContractParser<typeof abi>['parseEvent']>>(async () => 'ping');
         const parser: ContractParser<typeof abi> = { abi, parseEvent };
-        const registry = createParserRegistry();
+        const registry = new ParserRegistry();
         registry.registerParser(target, parser);
         const onEvent = jest.fn<NonNullable<TxLifecycleHooks['onEvent']>>(() => undefined);
         const onParseError = jest.fn<NonNullable<TxLifecycleHooks['onParseError']>>(() => undefined);
@@ -365,6 +366,36 @@ describe('event decoding boundaries', () => {
         await sent.diagnostics;
         expect(parseEvent).toHaveBeenCalledWith({ eventName: 'Ping', args: [] });
         expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ description: 'ping' }));
+        expect(onParseError).not.toHaveBeenCalled();
+    });
+
+    test('ignores logs from addresses that only have the default parser', async () => {
+        const other = '0x0000000000000000000000000000000000000003' as Address;
+        const receipt = makeReceipt('success', [
+            {
+                address: other,
+                topics: [encodeEventTopics({ abi, eventName: 'Ping' })[0]],
+                data: '0x',
+                blockHash: hash,
+                blockNumber: 10n,
+                transactionHash: hash,
+                transactionIndex: 0,
+                logIndex: 0,
+                removed: false,
+            },
+        ]);
+        const { publicClient, walletClient } = setup(receipt);
+        const registry = new ParserRegistry(createDefaultParser(() => 'UNKNOWN'));
+        const onEvent = jest.fn<NonNullable<TxLifecycleHooks['onEvent']>>(() => undefined);
+        const onParseError = jest.fn<NonNullable<TxLifecycleHooks['onParseError']>>(() => undefined);
+        const sent = await sendContractTransaction(
+            { publicClient, walletClient, resolveParser: (address) => registry.resolveParser(address) },
+            { address: target, abi, functionName: 'setValue', args: [7n], account: sender },
+            { silent: true, hooks: { onEvent, onParseError } }
+        );
+        await sent.receipt;
+        await sent.diagnostics;
+        expect(onEvent).not.toHaveBeenCalled();
         expect(onParseError).not.toHaveBeenCalled();
     });
 

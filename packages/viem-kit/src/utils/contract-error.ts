@@ -18,11 +18,12 @@ function asHex(value: unknown): Hex | undefined {
     return typeof value === 'string' && value.startsWith('0x') ? (value as Hex) : undefined;
 }
 
+// viem nests the RPC error that carries revert data several causes deep.
 function revertDataOf(error: unknown): unknown {
-    if (!isRecord(error)) return undefined;
-    const cause = isRecord(error.cause) ? error.cause : undefined;
-    const nestedCause = cause && isRecord(cause.cause) ? cause.cause : undefined;
-    return error.data ?? cause?.data ?? nestedCause?.data;
+    for (let current = error; isRecord(current); current = current.cause) {
+        if (current.data !== undefined) return current.data;
+    }
+    return undefined;
 }
 
 function fromDecodedObject(value: Record<string, unknown>, message: string, data?: Hex): DecodedContractError | null {
@@ -95,4 +96,18 @@ export function decodeContractError(error: unknown, abi?: Abi): DecodedContractE
     }
 
     return { kind: 'unknown', message };
+}
+
+export function formatContractError(error: DecodedContractError): string {
+    switch (error.kind) {
+        case 'custom':
+            return error.name;
+        case 'revertString':
+            return error.reason;
+        case 'panic':
+            return error.code === undefined ? error.message : `Panic(${error.code})`;
+        case 'raw':
+        case 'unknown':
+            return error.message;
+    }
 }

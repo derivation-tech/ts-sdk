@@ -34,9 +34,9 @@ permissions and fork restrictions should remain in the consumer.
 ## Deployment outcomes
 
 `deployArtifact` and `deployBytecode` validate chains, retain submission/wait
-errors, reject reverted receipts and require a deployment address. Legacy
-`confirmations` defaults to 2; `wait.confirmations` takes precedence.
-`ArtifactHelper` and `FoundryHelper` perform local file operations from this entry.
+errors, reject reverted receipts and require a deployment address.
+`wait.confirmations` defaults to 2.
+`ArtifactHelper` performs local file operations from this entry.
 
 ## Artifact library links
 
@@ -53,4 +53,4 @@ Submission and receipt errors retain the evidence described in the
 [transaction guide](transactions.md#submission-and-reconciliation). Gas buffering,
 fee policy and permission checks belong to the caller.
 
-`FoundryHelper` delegates to the same loader as `ArtifactHelper`. Library addresses must contain exactly 20 hexadecimal bytes; short values are not padded and oversized values are not truncated.
+Library addresses must contain exactly 20 hexadecimal bytes; short values are not padded and oversized values are not truncated.

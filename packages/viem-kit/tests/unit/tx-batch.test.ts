@@ -2,7 +2,6 @@ import { describe, expect, jest, test } from '@jest/globals';
 import type { Address, Hash, LocalAccount, PublicClient, TransactionReceipt, WalletClient } from 'viem';
 import {
     concatHex,
-    createNonceManager,
     keccak256,
     createPublicClient as createViemPublicClient,
     createWalletClient as createViemWalletClient,
@@ -102,11 +101,10 @@ describe('batchSendLocalTransactions', () => {
         const firstWallet = createTestWalletClient(account);
         const secondWallet = createTestWalletClient(account);
 
-        const results = await batchSendLocalTransactions(
-            publicClient,
-            [firstWallet, secondWallet],
-            [
-                defineWriteRequest({
+        const results = await batchSendLocalTransactions(publicClient, [
+            {
+                walletClient: firstWallet,
+                request: defineWriteRequest({
                     address: tokenAddress,
                     abi: erc20Abi,
                     functionName: 'transfer',
@@ -119,15 +117,18 @@ describe('batchSendLocalTransactions', () => {
                     nonce: undefined,
                     chainId: undefined,
                 }),
-                defineWriteRequest({
+            },
+            {
+                walletClient: secondWallet,
+                request: defineWriteRequest({
                     address: tokenAddress,
                     abi: erc20Abi,
                     functionName: 'transfer',
                     args: [receiverAddress, 2n],
                     account: account.address,
                 }),
-            ]
-        );
+            },
+        ]);
 
         expect(publicClient.getTransactionCount).toHaveBeenCalledTimes(1);
         expect(publicClient.getTransactionCount).toHaveBeenCalledWith({
@@ -164,19 +165,18 @@ describe('batchSendLocalTransactions', () => {
         const walletClient = createTestWalletClient(account);
 
         await expect(
-            batchSendLocalTransactions(
-                publicClient,
-                [walletClient],
-                [
-                    defineWriteRequest({
+            batchSendLocalTransactions(publicClient, [
+                {
+                    walletClient: walletClient,
+                    request: defineWriteRequest({
                         address: tokenAddress,
                         abi: erc20Abi,
                         functionName: 'transfer',
                         args: [receiverAddress, 1n],
                         account: receiverAddress,
                     }),
-                ]
-            )
+                },
+            ])
         ).rejects.toThrow(
             `Batch request 0 account ${receiverAddress} does not match wallet account ${account.address}`
         );
@@ -196,26 +196,28 @@ describe('batchSendLocalTransactions', () => {
         let thrown: unknown;
 
         try {
-            await batchSendLocalTransactions(
-                publicClient,
-                [firstWallet, secondWallet],
-                [
-                    defineWriteRequest({
+            await batchSendLocalTransactions(publicClient, [
+                {
+                    walletClient: firstWallet,
+                    request: defineWriteRequest({
                         address: tokenAddress,
                         abi: erc20Abi,
                         functionName: 'transfer',
                         args: [receiverAddress, 1n],
                         account: account.address,
                     }),
-                    defineWriteRequest({
+                },
+                {
+                    walletClient: secondWallet,
+                    request: defineWriteRequest({
                         address: tokenAddress,
                         abi: erc20Abi,
                         functionName: 'transfer',
                         args: [receiverAddress, 2n],
                         account: account.address,
                     }),
-                ]
-            );
+                },
+            ]);
         } catch (error) {
             thrown = error;
         }
@@ -248,7 +250,9 @@ describe('batch preflight and reconciliation', () => {
         const wallet = createTestWalletClient(createAccount());
         for (const override of [{ nonce: 7 }, { chainId: mainnet.id }]) {
             const invalid = { ...transferRequest(), ...override };
-            await expect(batchSendLocalTransactions(publicClient, [wallet], [invalid])).rejects.toMatchObject({
+            await expect(
+                batchSendLocalTransactions(publicClient, [{ walletClient: wallet, request: invalid }])
+            ).rejects.toMatchObject({
                 phase: 'prepare',
                 index: 0,
                 progress: [],
@@ -263,11 +267,10 @@ describe('batch preflight and reconciliation', () => {
         const publicClient = createTestPublicClient();
         const account = createAccount();
         const wallet = createTestWalletClient(account);
-        const result = batchSendLocalTransactions(
-            publicClient,
-            [wallet, wallet],
-            [transferRequest(), transferRequest(receiverAddress)]
-        );
+        const result = batchSendLocalTransactions(publicClient, [
+            { walletClient: wallet, request: transferRequest() },
+            { walletClient: wallet, request: transferRequest(receiverAddress) },
+        ]);
         await expect(result).rejects.toMatchObject({ phase: 'prepare', index: 1, progress: [] });
         expect(wallet.prepareTransactionRequest).not.toHaveBeenCalled();
         expect(publicClient.getTransactionCount).not.toHaveBeenCalled();
@@ -279,27 +282,12 @@ describe('batch preflight and reconciliation', () => {
         const wallet = createTestWalletClient(createAccount());
         const invalid = { ...transferRequest(), functionName: 'missing' };
         await expect(
-            batchSendLocalTransactions(publicClient, [wallet, wallet], [transferRequest(), invalid])
+            batchSendLocalTransactions(publicClient, [
+                { walletClient: wallet, request: transferRequest() },
+                { walletClient: wallet, request: invalid },
+            ])
         ).rejects.toMatchObject({ phase: 'prepare', index: 1, progress: [] });
         expect(publicClient.sendRawTransaction).not.toHaveBeenCalled();
-        expect(publicClient.getTransactionCount).not.toHaveBeenCalled();
-    });
-
-    test('shares native viem nonce allocation across concurrent batches', async () => {
-        const publicClient = createTestPublicClient();
-        const account = createAccount();
-        jest.spyOn(account, 'signTransaction').mockResolvedValueOnce('0x01').mockResolvedValueOnce('0x02');
-        const first = createTestWalletClient(account);
-        const second = createTestWalletClient(account);
-        const get = jest.fn(async () => 7);
-        const nonceManager = createNonceManager({ source: { get, set: () => undefined } });
-        await Promise.all([
-            batchSendLocalTransactions(publicClient, [first], [transferRequest()], { nonceManager }),
-            batchSendLocalTransactions(publicClient, [second], [transferRequest()], { nonceManager }),
-        ]);
-        expect(first.prepareTransactionRequest).toHaveBeenCalledWith(expect.objectContaining({ nonce: 7 }));
-        expect(second.prepareTransactionRequest).toHaveBeenCalledWith(expect.objectContaining({ nonce: 8 }));
-        expect(get).toHaveBeenCalledTimes(1);
         expect(publicClient.getTransactionCount).not.toHaveBeenCalled();
     });
 
@@ -311,7 +299,10 @@ describe('batch preflight and reconciliation', () => {
             .mockRejectedValueOnce(new Error('device unavailable'));
         const wallet = createTestWalletClient(account);
         await expect(
-            batchSendLocalTransactions(publicClient, [wallet, wallet], [transferRequest(), transferRequest()])
+            batchSendLocalTransactions(publicClient, [
+                { walletClient: wallet, request: transferRequest() },
+                { walletClient: wallet, request: transferRequest() },
+            ])
         ).rejects.toMatchObject({
             phase: 'sign',
             index: 1,
@@ -329,7 +320,9 @@ describe('batch preflight and reconciliation', () => {
         const account = createAccount();
         jest.spyOn(account, 'signTransaction').mockResolvedValue('0x01');
         const wallet = createTestWalletClient(account);
-        await expect(batchSendLocalTransactions(publicClient, [wallet], [transferRequest()])).rejects.toMatchObject({
+        await expect(
+            batchSendLocalTransactions(publicClient, [{ walletClient: wallet, request: transferRequest() }])
+        ).rejects.toMatchObject({
             phase: 'send',
             progress: [{ index: 0, hash: firstHash, submission: 'unknown' }],
         });
@@ -344,7 +337,9 @@ describe('batch preflight and reconciliation', () => {
         jest.spyOn(account, 'signTransaction').mockResolvedValue('0x01');
         const wallet = createTestWalletClient(account);
         await expect(
-            batchSendLocalTransactions(publicClient, [wallet], [transferRequest()], { wait: { timeout: 120_000 } })
+            batchSendLocalTransactions(publicClient, [{ walletClient: wallet, request: transferRequest() }], {
+                wait: { timeout: 120_000 },
+            })
         ).rejects.toMatchObject({
             phase: 'receipt',
             progress: [{ index: 0, hash: firstHash, submission: 'submitted' }],

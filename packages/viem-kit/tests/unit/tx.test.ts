@@ -12,7 +12,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mainnet } from 'viem/chains';
-import { createParserRegistry } from '../../src/parsers/registry';
+import { ParserRegistry } from '../../src/parsers/registry';
 import type { ContractParser, ParseTransactionInput, TxContext } from '../../src/types';
 import { batchSendLocalTransactions, defineWriteRequest, sendContractTransaction } from '../../src/utils/tx';
 
@@ -104,7 +104,7 @@ function createContext(parser?: ContractParser<typeof erc20Abi>): {
 } {
     const publicClient = createTestPublicClient();
     const walletClient = createTestWalletClient();
-    const registry = createParserRegistry();
+    const registry = new ParserRegistry();
     if (parser) registry.registerParser(tokenAddress, parser);
     const context: TxContext = {
         publicClient,
@@ -216,7 +216,10 @@ describe('sendContractTransaction', () => {
                     },
                     { silent: true }
                 )
-            ).rejects.toMatchObject({ outcome: 'unknown', cause: expect.objectContaining({ message: 'send failed' }) });
+            ).rejects.toMatchObject({
+                outcome: 'unknown',
+                cause: expect.objectContaining({ cause: expect.objectContaining({ message: 'send failed' }) }),
+            });
 
             expect(info).not.toHaveBeenCalled();
         } finally {
@@ -267,19 +270,18 @@ describe('batchSendLocalTransactions', () => {
         const walletClient = createTestWalletClient('0x0000000000000000000000000000000000000001' as Address);
 
         await expect(
-            batchSendLocalTransactions(
-                publicClient,
-                [walletClient],
-                [
-                    defineWriteRequest({
+            batchSendLocalTransactions(publicClient, [
+                {
+                    walletClient: walletClient,
+                    request: defineWriteRequest({
                         address: tokenAddress,
                         abi: erc20Abi,
                         functionName: 'transfer',
                         args: [receiverAddress, 1n],
                         account: receiverAddress,
                     }),
-                ]
-            )
+                },
+            ])
         ).rejects.toThrow('must use a local account');
     });
 
@@ -294,19 +296,18 @@ describe('batchSendLocalTransactions', () => {
         sendRaw.mockResolvedValue(signedHash);
         publicClient.waitForTransactionReceipt.mockResolvedValue(makeReceipt('success', signedHash));
 
-        const results = await batchSendLocalTransactions(
-            publicClient,
-            [walletClient],
-            [
-                defineWriteRequest({
+        const results = await batchSendLocalTransactions(publicClient, [
+            {
+                walletClient: walletClient,
+                request: defineWriteRequest({
                     address: tokenAddress,
                     abi: erc20Abi,
                     functionName: 'transfer',
                     args: [receiverAddress, 1n],
                     account: account.address,
                 }),
-            ]
-        );
+            },
+        ]);
 
         expect(results).toHaveLength(1);
         expect(results[0]).toMatchObject({ index: 0, hash: signedHash, receipt: { status: 'success' } });

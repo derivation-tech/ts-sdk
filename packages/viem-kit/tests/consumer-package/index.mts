@@ -151,7 +151,7 @@ const options = {
     },
 };
 const sent = await sendContractTransaction(
-    { publicClient, walletClient, chain, resolveParser: (address) => kit.resolveParser(address) },
+    { publicClient, walletClient, chain, resolveParser: (address) => kit.getParser(address) },
     request,
     options
 );
@@ -176,7 +176,12 @@ await assert.rejects(
 );
 assert.equal(transactions.length, 2);
 await assert.rejects(
-    deployBytecode(publicClient, walletClient, { abi: [], bytecode: '0x6000', silent: true, confirmations: 1 }),
+    deployBytecode(publicClient, walletClient, {
+        abi: [],
+        bytecode: '0x6000',
+        silent: true,
+        wait: { confirmations: 1 },
+    }),
     TransactionRevertedError
 );
 assert.deepEqual(ArtifactHelper.loadABI(JSON.stringify(abi)), abi);

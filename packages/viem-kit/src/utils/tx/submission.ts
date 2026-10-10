@@ -1,5 +1,5 @@
-import { concatHex, fromRlp, keccak256, toRlp } from 'viem';
-import type { Account, Address, Chain, Hash, Hex, LocalAccount, WalletClient } from 'viem';
+import { BaseError, keccak256, UserRejectedRequestError } from 'viem';
+import type { Account, Address, Chain, Hash, Hex, WalletClient } from 'viem';
 import { sendTransaction } from 'viem/actions';
 import { TransactionSubmissionError, type TransactionIdentity } from './outcome';
 import type { TransactionSubmissionPhase } from './types';
@@ -10,20 +10,18 @@ type SubmissionRequest = Parameters<WalletClient['sendTransaction']>[0] & {
     data: Hex;
 };
 
-function signedTransactionHash(raw: Hex, chain: Chain | undefined): Hash | undefined {
-    // A custom chain serializer may define a hash other than keccak256(serialized).
-    if (chain?.serializers?.transaction) return undefined;
-    if (raw.startsWith('0x03')) {
-        const envelope = fromRlp(`0x${raw.slice(4)}`, 'hex');
-        // EIP-4844 network wrappers include blob sidecars outside the signed transaction body.
-        if (Array.isArray(envelope) && Array.isArray(envelope[0])) {
-            return keccak256(concatHex(['0x03', toRlp(envelope[0])]));
-        }
-    }
-    return keccak256(raw);
+function localTransactionHash(serialized: Hex, chain: Chain | undefined): Hash | undefined {
+    // Custom serializers, envelopes and EIP-4844 network wrappers broadcast bytes whose keccak256 is not the hash.
+    if (chain?.serializers?.transaction || chain?.serializers?.transactionEnvelope) return undefined;
+    if (serialized.startsWith('0x03')) return undefined;
+    return keccak256(serialized);
 }
 
-/** Observe native viem boundaries without mutating the caller's client or account. */
+function isWalletRejection(error: unknown): boolean {
+    return error instanceof BaseError && error.walk((cause) => cause instanceof UserRejectedRequestError) !== null;
+}
+
+/** Submit through viem's sendTransaction and record which step failed. */
 export async function submitTransaction(
     walletClient: WalletClient,
     transaction: SubmissionRequest,
@@ -47,43 +45,40 @@ export async function submitTransaction(
         }
 
         phase = 'prepare';
-        const trackedAccount: LocalAccount = {
-            ...account,
-            signTransaction: async (request, options) => {
+        // viem's sendTransaction resolves these actions on the client first, so overriding them observes each
+        // step while viem keeps nonce management, data suffixes, serializers and error formatting.
+        const tracked = walletClient.extend(() => ({
+            prepareTransactionRequest: (async (request) => {
+                identity = { ...identity, data: request.data ?? identity.data };
+                const prepared = await walletClient.prepareTransactionRequest(request);
+                // viem's chain-generic result hides these standard EVM identity fields from TypeScript.
+                const fields = prepared as Partial<TransactionIdentity>;
+                identity = {
+                    ...identity,
+                    to: fields.to ?? identity.to,
+                    data: fields.data ?? identity.data,
+                    nonce: fields.nonce ?? identity.nonce,
+                    chainId: fields.chainId ?? identity.chainId,
+                    value: fields.value ?? identity.value,
+                };
+                // Signing (and any chain envelope) is the only work between preparation and broadcast.
                 phase = 'sign';
-                return account.signTransaction(request, options);
-            },
-        };
-        const prepare: WalletClient['prepareTransactionRequest'] = async (request) => {
-            identity = { ...identity, data: request.data ?? identity.data };
-            const prepared = await walletClient.prepareTransactionRequest(request);
-            // viem's chain-generic result hides these standard EVM identity fields from TypeScript.
-            const fields = prepared as Partial<TransactionIdentity>;
-            identity = {
-                ...identity,
-                to: fields.to ?? identity.to,
-                data: fields.data ?? identity.data,
-                nonce: fields.nonce ?? identity.nonce,
-                chainId: fields.chainId ?? identity.chainId,
-                value: fields.value ?? identity.value,
-            };
-            return prepared;
-        };
-        const trackedClient = {
-            ...walletClient,
-            prepareTransactionRequest: prepare,
-            sendRawTransaction: async (request: Parameters<WalletClient['sendRawTransaction']>[0]) => {
-                hash = signedTransactionHash(request.serializedTransaction, chain);
+                return prepared;
+            }) as WalletClient['prepareTransactionRequest'],
+            sendRawTransaction: (async (request) => {
                 phase = 'send';
+                hash = localTransactionHash(request.serializedTransaction, chain);
                 const returnedHash = await sendRaw(request);
                 if (hash && returnedHash.toLowerCase() !== hash) {
                     throw new Error('RPC returned a hash that does not match the signed transaction');
                 }
                 return hash ?? returnedHash;
-            },
-        };
-        return await sendTransaction(trackedClient, { ...transaction, account: trackedAccount });
+            }) as WalletClient['sendRawTransaction'],
+        }));
+        return await sendTransaction(tracked, transaction);
     } catch (cause) {
+        // A wallet that refuses the request has not signed it.
+        if (isWalletRejection(cause)) phase = 'sign';
         throw new TransactionSubmissionError(identity, cause, { phase, hash });
     }
 }

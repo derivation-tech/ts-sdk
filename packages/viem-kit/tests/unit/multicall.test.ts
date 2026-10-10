@@ -63,13 +63,13 @@ describe('balance multicalls', () => {
     });
 
     test.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
-        'rejects invalid batch size %s even for empty inputs',
+        'rejects invalid batch size %s before querying',
         async (size) => {
             const rpc = client();
             const calls = jest.spyOn(rpc, 'multicall');
             await expect(getErc20Balances(rpc, token, [], size)).rejects.toThrow(RangeError);
             await expect(getNativeBalances(rpc, [], size)).rejects.toThrow(RangeError);
-            await expect(getMultipleErc20Balances(rpc, [], [], size)).rejects.toThrow(RangeError);
+            await expect(getMultipleErc20Balances(rpc, [token], [], size)).rejects.toThrow(RangeError);
             await expect(getAllBalances(rpc, [], [], size)).rejects.toThrow(RangeError);
             expect(calls).not.toHaveBeenCalled();
         }

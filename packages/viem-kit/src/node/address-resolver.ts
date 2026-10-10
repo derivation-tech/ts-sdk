@@ -1,7 +1,7 @@
 import type { Address } from 'viem';
 import { getAddress } from 'viem';
 import { ChainKit } from '../chain-kit';
-import { getAccount } from './account';
+import { getAccount, isLedgerSignerId } from './account';
 
 /**
  * Result of address resolution
@@ -78,7 +78,7 @@ export async function resolveAddress(
         const address = getAddress(account.address as Address);
         return { address, source: 'signer', identifier: trimmed };
     } catch (cause) {
-        if (/^ledger(?::|$)/i.test(trimmed)) {
+        if (isLedgerSignerId(trimmed)) {
             throw new Error(`Failed to resolve address for "${trimmed}": Ledger account could not be derived.`, {
                 cause,
             });

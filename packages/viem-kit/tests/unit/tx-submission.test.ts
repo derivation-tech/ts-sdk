@@ -191,7 +191,18 @@ describe('native viem submission evidence', () => {
         expect(context.broadcasts).toHaveLength(1);
     });
 
-    test('hashes the EIP-4844 signed body without its network sidecars', async () => {
+    test('retains a chain transaction envelope without assuming the broadcast bytes are the hash', async () => {
+        const transactionEnvelope = jest.fn(async ({ serializedTransaction }: { serializedTransaction: Hex }) =>
+            concatHex(['0x7e', serializedTransaction])
+        );
+        const context = setup('send', { ...mainnet, serializers: { transactionEnvelope } } as Chain);
+        const result = sendContractTransaction(context, request, { silent: true });
+        await expect(result).rejects.toMatchObject({ phase: 'send', outcome: 'unknown', hash: undefined });
+        expect(transactionEnvelope).toHaveBeenCalled();
+        expect(context.broadcasts[0].startsWith('0x7e')).toBe(true);
+    });
+
+    test('does not hash EIP-4844 network payloads locally', async () => {
         const context = setup('send');
         const body = serializeTransaction(
             {
@@ -213,9 +224,44 @@ describe('native viem submission evidence', () => {
         ]);
         context.sign.mockResolvedValueOnce(networkPayload);
         const result = sendContractTransaction(context, request, { silent: true });
-        await expect(result).rejects.toMatchObject({ phase: 'send', outcome: 'unknown', hash: keccak256(body) });
+        await expect(result).rejects.toMatchObject({ phase: 'send', outcome: 'unknown', hash: undefined });
         expect(context.broadcasts).toEqual([networkPayload]);
-        expect(keccak256(body)).not.toBe(keccak256(networkPayload));
+    });
+
+    test('classifies a JSON-RPC wallet rejection as not sent', async () => {
+        const account = '0x0000000000000000000000000000000000000001' as Address;
+        const transport = custom(
+            {
+                async request({ method }) {
+                    if (method === 'eth_chainId') return '0x1';
+                    if (method === 'eth_sendTransaction') throw { code: 4001, message: 'User rejected the request.' };
+                    throw new Error(`Unexpected RPC method: ${method}`);
+                },
+            },
+            { retryCount: 0 }
+        );
+        const walletClient = createWalletClient({ chain: mainnet, account, transport });
+        const publicClient = createPublicClient({ chain: mainnet, transport });
+        const result = sendContractTransaction({ publicClient, walletClient }, request, { silent: true });
+        await expect(result).rejects.toMatchObject({ phase: 'sign', outcome: 'not-sent', hash: undefined });
+    });
+
+    test('treats other JSON-RPC wallet failures as unknown', async () => {
+        const account = '0x0000000000000000000000000000000000000001' as Address;
+        const transport = custom(
+            {
+                async request({ method }) {
+                    if (method === 'eth_chainId') return '0x1';
+                    if (method === 'eth_sendTransaction') throw new Error('connection closed');
+                    throw new Error(`Unexpected RPC method: ${method}`);
+                },
+            },
+            { retryCount: 0 }
+        );
+        const walletClient = createWalletClient({ chain: mainnet, account, transport });
+        const publicClient = createPublicClient({ chain: mainnet, transport });
+        const result = sendContractTransaction({ publicClient, walletClient }, request, { silent: true });
+        await expect(result).rejects.toMatchObject({ phase: 'send', outcome: 'unknown' });
     });
 });
 
@@ -249,11 +295,9 @@ describe('submission evidence across entry points', () => {
 
     test.each(['prepare', 'send'] as const)('batch retains the shared %s error and progress', async (phase) => {
         const context = setup(phase);
-        const result = batchSendLocalTransactions(
-            context.publicClient,
-            [context.walletClient],
-            [defineWriteRequest({ ...request, nonce: undefined })]
-        );
+        const result = batchSendLocalTransactions(context.publicClient, [
+            { walletClient: context.walletClient, request: defineWriteRequest({ ...request, nonce: undefined }) },
+        ]);
         await expect(result).rejects.toMatchObject({
             phase,
             index: 0,

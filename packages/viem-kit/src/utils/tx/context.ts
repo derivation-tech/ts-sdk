@@ -27,7 +27,6 @@ export function resolveTxExecutionContext(
     }
 
     const chain = requestChain ?? context.chain ?? context.publicClient.chain ?? context.walletClient.chain;
-    assertMatchingChain(chain, requestChain, 'request');
     assertMatchingChain(chain, context.chain, 'context');
     assertMatchingChain(chain, context.publicClient.chain, 'publicClient');
     assertMatchingChain(chain, context.walletClient.chain, 'walletClient');

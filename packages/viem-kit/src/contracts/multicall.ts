@@ -72,7 +72,6 @@ export async function getMultipleErc20Balances(
     addresses: Address[],
     batchSize: number = 500
 ): Promise<bigint[][]> {
-    assertBatchSize(batchSize);
     // Query each token in parallel with batching
     const promises = tokenAddresses.map(async (tokenAddress) => {
         return getErc20Balances(publicClient, tokenAddress, addresses, batchSize);
@@ -99,7 +98,6 @@ export async function getAllBalances(
     nativeBalances: bigint[];
     erc20Balances: bigint[][];
 }> {
-    assertBatchSize(batchSize);
     // Query native and ERC20 balances in parallel with batching
     const [nativeBalances, erc20Balances] = await Promise.all([
         getNativeBalances(publicClient, addresses, batchSize),

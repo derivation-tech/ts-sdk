@@ -13,10 +13,8 @@ export type DeploymentTransactionOverrides = Pick<
     'gas' | 'gasPrice' | 'maxFeePerGas' | 'maxPriorityFeePerGas' | 'nonce' | 'value'
 >;
 
-type DeploymentExecutionOptions = SendTransactionOptions & {
+type DeploymentExecutionOptions = Pick<SendTransactionOptions, 'silent' | 'hooks' | 'wait'> & {
     transaction?: DeploymentTransactionOverrides;
-    /** Defaults to 2. wait.confirmations takes precedence when supplied. */
-    confirmations?: number;
 };
 
 export type DeployOptions = DeploymentExecutionOptions & {
@@ -65,7 +63,7 @@ async function deploy(
 
     const receipt = await waitForTransactionOutcome(publicClient, hash, {
         ...options,
-        wait: { confirmations: options.confirmations ?? 2, ...options.wait },
+        wait: { confirmations: 2, ...options.wait },
     });
     if (receipt.status === 'reverted') {
         safeNotifyLifecycleHook(options.hooks, 'reverted', receipt.transactionHash, () =>
@@ -86,15 +84,15 @@ export async function deployArtifact(
     options: DeployOptions
 ): Promise<Address> {
     const { artifact: input, constructorArgs = [], linkReferenceMap = {} } = options;
-    const artifact = typeof input === 'string' ? loadArtifact(input, linkReferenceMap) : input;
+    // loadArtifact already resolves link references for artifacts read from JSON.
+    const artifact =
+        typeof input === 'string'
+            ? loadArtifact(input, linkReferenceMap)
+            : { ...input, bytecode: linkBytecode(input.bytecode, linkReferenceMap) };
     return deploy(
         publicClient,
         walletClient,
-        {
-            abi: artifact.abi,
-            bytecode: linkBytecode(artifact.bytecode, linkReferenceMap) as Hex,
-            args: constructorArgs,
-        },
+        { abi: artifact.abi, bytecode: artifact.bytecode as Hex, args: constructorArgs },
         options,
         artifact.contractName ?? 'Artifact'
     );

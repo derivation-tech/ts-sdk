@@ -4,7 +4,7 @@ import { AddressBook } from './utils/address-book';
 import { createERC20Parser } from './parsers/erc20';
 import { createWETHParser } from './parsers/weth';
 import { createDefaultParser } from './parsers/default';
-import { createParserRegistry, type ParserRegistry, type RegisteredParser } from './parsers/registry';
+import { ParserRegistry } from './parsers/registry';
 import { getWrappedNativeToken } from './tokens/wrapped';
 import { getCommonErc20Tokens } from './tokens/erc20';
 import type {
@@ -60,18 +60,16 @@ export class ChainKit {
             this.addressBook.loadAddresses(options.addressNames);
         }
 
-        this.parserRegistry = createParserRegistry(createDefaultParser((addr) => this.getAddressName(addr)));
+        this.parserRegistry = new ParserRegistry(createDefaultParser((addr) => this.getAddressName(addr)));
 
-        // Initialize native token info
         this.nativeTokenInfo = {
             address: zeroAddress,
             symbol: chain.nativeCurrency.symbol,
             name: chain.nativeCurrency.name,
             decimals: chain.nativeCurrency.decimals,
         };
-
-        // Auto-register native token
-        this.registerNativeToken();
+        this.tokens.set(zeroAddress, this.nativeTokenInfo);
+        this.addressBook.registerAddressName(zeroAddress, this.nativeTokenInfo.symbol);
 
         const wrappedInfo =
             options.wrappedNativeToken === undefined ? getWrappedNativeToken(chain.id) : options.wrappedNativeToken;
@@ -87,21 +85,6 @@ export class ChainKit {
     // ==========================================
     // TOKEN OPERATIONS
     // ==========================================
-
-    /**
-     * Register native token (ETH, MATIC, etc.)
-     * Internal use only - called in constructor
-     */
-    private registerNativeToken(): void {
-        const nativeToken: Erc20TokenInfo = {
-            symbol: this.chain.nativeCurrency.symbol,
-            name: this.chain.nativeCurrency.name,
-            address: zeroAddress,
-            decimals: this.chain.nativeCurrency.decimals,
-        };
-        this.tokens.set(getAddress(nativeToken.address), nativeToken);
-        this.addressBook.registerAddressName(nativeToken.address, nativeToken.symbol);
-    }
 
     /**
      * Check if address is the native token (0x0000...0000)
@@ -129,7 +112,6 @@ export class ChainKit {
      * });
      */
     registerWrappedNativeToken(wrappedNativeToken: Erc20TokenInfo): void {
-        wrappedNativeToken = { ...wrappedNativeToken };
         const checksummedAddr = getAddress(wrappedNativeToken.address);
 
         // Register address name
@@ -162,7 +144,6 @@ export class ChainKit {
      * Register ERC20 token + auto-create parser
      */
     registerErc20Token(tokenInfo: Erc20TokenInfo, autoParser = true): void {
-        tokenInfo = { ...tokenInfo };
         const checksummedAddr = getAddress(tokenInfo.address);
 
         // Register address name (for symbol lookup)
@@ -253,17 +234,10 @@ export class ChainKit {
     }
 
     /**
-     * Resolve parser with address metadata (falls back to default parser)
-     */
-    resolveParser(address: Address): RegisteredParser | undefined {
-        return this.parserRegistry.resolveParser(address);
-    }
-
-    /**
      * Get parser for contract address (falls back to default parser)
      */
     getParser(address: Address): ContractParser | undefined {
-        return this.resolveParser(getAddress(address))?.parser;
+        return this.parserRegistry.resolveParser(address);
     }
 
     /**
@@ -279,7 +253,7 @@ export class ChainKit {
                 publicClient: this.publicClient,
                 walletClient,
                 chain: this.chain,
-                resolveParser: (address) => this.resolveParser(address),
+                resolveParser: (address) => this.getParser(address),
             },
             request,
             options

@@ -284,7 +284,7 @@ describe('transaction outcome contracts', () => {
         await expect(result).rejects.toBeInstanceOf(TransactionSubmissionError);
         await expect(result).rejects.toMatchObject({
             outcome: 'unknown',
-            cause,
+            cause: expect.objectContaining({ name: 'ContractFunctionExecutionError', cause }),
             request: { from: sender, to: target, chainId: 1 },
         });
         expect(sendTransaction).toHaveBeenCalledTimes(1);

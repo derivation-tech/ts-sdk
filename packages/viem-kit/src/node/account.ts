@@ -1,55 +1,59 @@
 import type { Account } from 'viem';
-import { getAddress } from 'viem';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
-import type { LedgerToAccountOptions } from '@derivation-tech/viem-ledger';
 import type { ChainKit } from '../chain-kit';
-
-type LedgerModule = {
-    deriveLedgerPath: (options: LedgerToAccountOptions) => { path: string };
-    ledgerToAccount: (options: LedgerToAccountOptions) => Promise<Account>;
-};
 
 const LEDGER_MODULE_ID = '@derivation-tech/viem-ledger';
 
-let ledgerModulePromise: Promise<LedgerModule> | null = null;
+let ledgerModulePromise: Promise<typeof import('@derivation-tech/viem-ledger')> | null = null;
 
-const loadLedgerModule = async (): Promise<LedgerModule> => {
-    if (!ledgerModulePromise) {
-        ledgerModulePromise = import('@derivation-tech/viem-ledger')
-            .then((mod) => {
-                const { deriveLedgerPath, ledgerToAccount } = mod;
-                if (typeof deriveLedgerPath !== 'function' || typeof ledgerToAccount !== 'function') {
-                    throw new Error(`Invalid ${LEDGER_MODULE_ID} module: missing exports.`);
-                }
-                return {
-                    deriveLedgerPath,
-                    ledgerToAccount,
-                };
-            })
-            .catch((error) => {
-                ledgerModulePromise = null;
-                const err = error instanceof Error ? error : new Error(String(error));
-                if (/Cannot find module|Cannot find package|MODULE_NOT_FOUND/.test(err.message)) {
-                    throw new Error(
-                        `Ledger signer requested but ${LEDGER_MODULE_ID} is not installed. Install it alongside @derivation-tech/viem-kit to enable Ledger support.`
-                    );
-                }
-                throw err;
-            });
-    }
+function loadLedgerModule(): Promise<typeof import('@derivation-tech/viem-ledger')> {
+    ledgerModulePromise ??= import('@derivation-tech/viem-ledger').catch((error: unknown) => {
+        ledgerModulePromise = null;
+        const code = (error as { code?: unknown } | null)?.code;
+        if (code === 'ERR_MODULE_NOT_FOUND' || code === 'MODULE_NOT_FOUND') {
+            throw new Error(
+                `Ledger signer requested but ${LEDGER_MODULE_ID} is not installed. Install it alongside @derivation-tech/viem-kit to enable Ledger support.`,
+                { cause: error }
+            );
+        }
+        throw error;
+    });
     return ledgerModulePromise;
-};
+}
 
-const isLedgerSignerId = (value: string): boolean => {
-    const trimmed = value.trim();
-    if (!trimmed) return false;
-    const colonIndex = trimmed.indexOf(':');
-    const prefix = colonIndex === -1 ? trimmed : trimmed.slice(0, colonIndex);
-    return prefix.toLowerCase() === 'ledger';
-};
+export function isLedgerSignerId(value: string): boolean {
+    return /^ledger(?::|$)/i.test(value.trim());
+}
 
 // Account derivation and address registration share the owning kit's lifetime.
 const accountCaches = new WeakMap<ChainKit, Map<string, Promise<Account>>>();
+
+function cachedAccount(
+    kit: ChainKit,
+    cacheKey: string,
+    derive: () => Account | Promise<Account>,
+    register: (account: Account) => void
+): Promise<Account> {
+    let cache = accountCaches.get(kit);
+    if (!cache) {
+        cache = new Map();
+        accountCaches.set(kit, cache);
+    }
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const promise = Promise.resolve()
+        .then(derive)
+        .then((account) => {
+            register(account);
+            return account;
+        });
+    cache.set(cacheKey, promise);
+    // A failed derivation must not poison later attempts.
+    promise.catch(() => cache.delete(cacheKey));
+    return promise;
+}
+
 /**
  * Derive account from a signer identifier or named private key.
  * Rules:
@@ -58,39 +62,23 @@ const accountCaches = new WeakMap<ChainKit, Map<string, Promise<Account>>>();
  * - Raw addresses like "0x..." are NOT accepted here
  */
 export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string): Promise<Account> {
-    let accountCache = accountCaches.get(kit);
-    if (!accountCache) {
-        accountCache = new Map();
-        accountCaches.set(kit, accountCache);
-    }
     const trimmed = signerIdOrPrivateKeyName.trim();
 
     if (isLedgerSignerId(trimmed)) {
         const { deriveLedgerPath, ledgerToAccount } = await loadLedgerModule();
-        const parsed = deriveLedgerPath({ signerId: trimmed });
-        const cacheKey = `ledger:${parsed.path}`;
-        const cached = accountCache.get(cacheKey);
-        if (cached) return cached;
-        const promise = (async () => {
-            const acc = await ledgerToAccount({ signerId: trimmed });
-            const derivedAddress = getAddress(acc.address);
-            // Skip address name registration for ledger accounts if address is already bound
-            // This allows ledger accounts to work even if the address is already registered with another name
-            if (!kit.addressBook.hasAddress(derivedAddress)) {
-                try {
-                    kit.registerAddressName(derivedAddress, trimmed);
-                } catch {
-                    // Ignore registration errors for ledger accounts
+        const { path } = deriveLedgerPath({ signerId: trimmed });
+        return cachedAccount(
+            kit,
+            `ledger:${path}`,
+            () => ledgerToAccount({ signerId: trimmed }),
+            (account) => {
+                // A Ledger address or signer ID may already be bound elsewhere; keep the existing binding.
+                const { addressBook } = kit;
+                if (!addressBook.hasAddress(account.address) && !addressBook.hasName(trimmed)) {
+                    kit.registerAddressName(account.address, trimmed);
                 }
             }
-            return acc as Account;
-        })();
-        accountCache.set(cacheKey, promise);
-        // Clear cache on failure to allow retry
-        promise.catch(() => {
-            accountCache.delete(cacheKey);
-        });
-        return promise;
+        );
     }
 
     if (!trimmed) throw new Error('Signer name cannot be empty');
@@ -99,35 +87,23 @@ export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string
         if (!name || extra !== undefined) throw new Error(`Invalid signer ID: ${trimmed}`);
         const indexNum = parseAccountIndex(index);
         const upper = name.toUpperCase();
-        const cacheKey = `${upper}:${indexNum}`;
-
-        const cached = accountCache.get(cacheKey);
-        if (cached) {
-            return cached;
-        }
         const envMnemonic = `${upper}_MNEMONIC`;
-        const mnemonic = process.env[envMnemonic];
-        if (!mnemonic) {
-            throw new Error(`Mnemonic not found for ${name}. Please set ${envMnemonic} environment variable.`);
-        }
-        const promise = Promise.resolve(mnemonicToAccount(mnemonic, { addressIndex: indexNum })).then((account) => {
-            const derivedAddress = getAddress(account.address);
-            kit.registerAddressName(derivedAddress, `${name}:${indexNum}`);
-            return account;
-        });
-        accountCache.set(cacheKey, promise);
-        return promise;
+        return cachedAccount(
+            kit,
+            `${upper}:${indexNum}`,
+            () => {
+                const mnemonic = process.env[envMnemonic];
+                if (!mnemonic) {
+                    throw new Error(`Mnemonic not found for ${name}. Please set ${envMnemonic} environment variable.`);
+                }
+                return mnemonicToAccount(mnemonic, { addressIndex: indexNum });
+            },
+            (account) => kit.registerAddressName(account.address, `${name}:${indexNum}`)
+        );
     }
 
     const name = trimmed;
     const upper = name.toUpperCase();
-
-    const cacheKey = `${upper}`;
-    const cached = accountCache.get(cacheKey);
-    if (cached) {
-        return cached;
-    }
-
     const envMnemonic = `${upper}_MNEMONIC`;
     const envPrivateKey = `${upper}_PRIVATE_KEY`;
     const mnemonic = process.env[envMnemonic];
@@ -136,25 +112,21 @@ export async function getAccount(kit: ChainKit, signerIdOrPrivateKeyName: string
     if (mnemonic && privateKey) {
         throw new Error(`Both ${envMnemonic} and ${envPrivateKey} are set. Please provide only one.`);
     }
-
     if (mnemonic) {
-        const promise = Promise.resolve(mnemonicToAccount(mnemonic, { addressIndex: 0 })).then((account) => {
-            const derivedAddress = getAddress(account.address);
-            kit.registerAddressName(derivedAddress, `${name}:0`);
-            return account;
-        });
-        accountCache.set(cacheKey, promise);
-        return promise;
+        return cachedAccount(
+            kit,
+            upper,
+            () => mnemonicToAccount(mnemonic, { addressIndex: 0 }),
+            (account) => kit.registerAddressName(account.address, `${name}:0`)
+        );
     }
-
     if (privateKey) {
-        const promise = Promise.resolve(privateKeyToAccount(privateKey)).then((account) => {
-            const derivedAddress = getAddress(account.address);
-            kit.registerAddressName(derivedAddress, name);
-            return account;
-        });
-        accountCache.set(cacheKey, promise);
-        return promise;
+        return cachedAccount(
+            kit,
+            upper,
+            () => privateKeyToAccount(privateKey),
+            (account) => kit.registerAddressName(account.address, name)
+        );
     }
 
     throw new Error(`No credentials found. Set ${envMnemonic} or ${envPrivateKey}.`);

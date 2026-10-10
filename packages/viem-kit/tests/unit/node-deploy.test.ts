@@ -61,7 +61,6 @@ describe('Node deployment helpers', () => {
             bytecode,
             constructorArgs: [42n],
             transaction,
-            confirmations: 2,
             wait: { timeout: 120_000, confirmations: 3 },
             silent: true,
         });

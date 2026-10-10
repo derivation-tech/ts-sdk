@@ -7,7 +7,7 @@ import type {
     BatchTransactionPhase,
     BatchTransactionProgress,
     BatchTransactionResult,
-    DefinedWriteRequest,
+    BatchWriteCall,
 } from './types';
 import { BatchTransactionError } from './types';
 import { safeNotifyLifecycleHook } from './hooks';
@@ -59,7 +59,7 @@ async function allocateNonce(
 
 function submissionRequest(
     account: LocalAccount,
-    request: DefinedWriteRequest,
+    request: BatchWriteCall['request'],
     chain: Chain | undefined,
     nonce: number,
     data: Hex
@@ -89,23 +89,19 @@ function progressSnapshot(progress: readonly BatchTransactionProgress[]): BatchT
     return progress.map((entry) => ({ ...entry }));
 }
 
+/**
+ * Sign and broadcast contract writes in order, then wait for every receipt.
+ * Nonces are allocated from the pending count once per account and incremented locally; this does not
+ * coordinate with concurrent batches or other writers using the same account.
+ */
 export async function batchSendLocalTransactions(
     publicClient: PublicClient,
-    walletClients: readonly WalletClient[],
-    requests: readonly DefinedWriteRequest[],
+    batch: readonly BatchWriteCall[],
     options: BatchTransactionOptions = {}
 ): Promise<BatchTransactionResult[]> {
-    if (walletClients.length !== requests.length) {
-        throw new BatchTransactionError('walletClients length must equal requests length', 'prepare', 0, [], {
-            cause: new Error('Mismatched batch lengths'),
-        });
-    }
-
     // Complete static validation before any nonce allocation, signing or broadcast.
-    const calls = requests.map((input, index) => {
+    const calls = batch.map(({ walletClient: client, request }, index) => {
         try {
-            const request = { ...input };
-            const client = walletClients[index];
             const account = requireLocalAccount(client, index);
             assertRequestAccount(index, account, request.account);
             const { chain } = resolveTxExecutionContext(
@@ -113,7 +109,6 @@ export async function batchSendLocalTransactions(
                 request.account,
                 request.chain
             );
-            if (options.nonceManager && !chain) throw new Error('A shared NonceManager requires an explicit chain');
             if (
                 ('nonce' in request && request.nonce !== undefined) ||
                 ('chainId' in request && request.chainId !== undefined)
@@ -132,13 +127,7 @@ export async function batchSendLocalTransactions(
         const entry: BatchTransactionProgress = { index, submission: 'not-sent' };
         progress.push(entry);
         try {
-            entry.nonce = options.nonceManager
-                ? await options.nonceManager.consume({
-                      address: account.address.toLowerCase() as Address,
-                      chainId: chain!.id,
-                      client: publicClient,
-                  })
-                : await allocateNonce(publicClient, chain, account, nextNonceByAccount);
+            entry.nonce = await allocateNonce(publicClient, chain, account, nextNonceByAccount);
             entry.hash = await submitTransaction(
                 client,
                 submissionRequest(account, request, chain, entry.nonce, data),
@@ -177,9 +166,12 @@ export async function batchSendLocalTransactions(
         }
     }
 
+    const results: BatchTransactionResult[] = [];
     for (const entry of progress) {
+        // Every entry reaching this loop was submitted, so its hash is set.
+        const hash = entry.hash!;
         try {
-            entry.receipt = await waitForTransactionOutcome(publicClient, entry.hash!, options);
+            entry.receipt = await waitForTransactionOutcome(publicClient, hash, options);
         } catch (error) {
             if (error instanceof TransactionReplacementError) entry.receipt = error.receipt;
             throw new BatchTransactionError(
@@ -190,12 +182,7 @@ export async function batchSendLocalTransactions(
                 { cause: error }
             );
         }
+        results.push({ index: entry.index, hash, receipt: entry.receipt });
     }
-
-    return progress.map(({ index, hash, receipt }) => {
-        if (!hash || !receipt) {
-            throw new Error(`Batch transaction ${index} completed without a hash or receipt`);
-        }
-        return { index, hash, receipt };
-    });
+    return results;
 }

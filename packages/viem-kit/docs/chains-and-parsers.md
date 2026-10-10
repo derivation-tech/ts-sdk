@@ -32,7 +32,7 @@ use instance metadata and the chain's native decimals.
 
 Instances own their tokens, parsers and address names. Useful methods include
 `getAddressName`, `getErc20TokenInfo`, `formatErc20Amount`, `parseErc20Amount`,
-`registerParser` and `resolveParser`.
+`registerParser` and `getParser`.
 
 `ChainKitRegistry.for(chainOrIdOrName)` remains a process-wide convenience for
 **default** kits. It caches by chain ID. Use independent `new ChainKit(...)`
@@ -73,7 +73,7 @@ kit.registerParser(
 ```
 
 `createERC20Parser`, `createWETHParser`, `createDefaultParser` and
-`createParserRegistry` are available for composition. A request can also supply a
+`ParserRegistry` are available for composition. A request can also supply a
 typed `parser` directly. Business-specific decoding and formatting belong in the
 consumer. Logs are decoded against the emitting address's parser.
 `DecodedContractError` is a discriminated union; narrow by `kind` before reading

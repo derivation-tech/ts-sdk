@@ -1,30 +1,30 @@
-import type { Abi, Account, Address, Chain, Hash, Hex } from 'viem';
-import { decodeContractError } from '../contract-error';
+import {
+    getContractError,
+    type Abi,
+    type Account,
+    type Address,
+    type BaseError,
+    type Chain,
+    type Hash,
+    type Hex,
+} from 'viem';
 import { LoggerFactory } from '../logger';
-import type { DecodedContractError } from '../../types';
-import { encodeWriteRequestData } from './calldata';
+import { encodeRuntimeWriteRequestData } from './calldata';
 import { resolveTxExecutionContext } from './context';
 import { runDiagnostics, validateDiagnosticOptions } from './diagnostics';
 import { safeNotifyLifecycleHook } from './hooks';
-import { waitForTransactionOutcome } from './outcome';
+import { TransactionSubmissionError, waitForTransactionOutcome } from './outcome';
 import { parseTransactionDescription } from './parsing';
 import { diagnoseReceipt } from './receipt';
 import { submitTransaction } from './submission';
-import type { SendTransactionOptions, SentTransaction, TxContext, TypedWriteRequest, WriteFunctionName } from './types';
-
-function errorMessage(error: DecodedContractError): string {
-    switch (error.kind) {
-        case 'custom':
-            return error.name;
-        case 'revertString':
-            return error.reason;
-        case 'panic':
-            return error.code === undefined ? error.message : `Panic(${error.code})`;
-        case 'raw':
-        case 'unknown':
-            return error.message;
-    }
-}
+import type {
+    RuntimeWriteRequest,
+    SendTransactionOptions,
+    SentTransaction,
+    TxContext,
+    TypedWriteRequest,
+    WriteFunctionName,
+} from './types';
 
 async function sendTypedContractTransaction<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
     context: TxContext,
@@ -56,7 +56,6 @@ export async function sendContractTransaction<TAbi extends Abi, TFunctionName ex
     request: TypedWriteRequest<TAbi, TFunctionName>,
     options: SendTransactionOptions = {}
 ): Promise<SentTransaction> {
-    request = { ...request };
     validateDiagnosticOptions(options);
     const { account, chain } = resolveTxExecutionContext(context, request.account, request.chain);
     const log = (hash: Hash | undefined, message: string) => {
@@ -65,27 +64,33 @@ export async function sendContractTransaction<TAbi extends Abi, TFunctionName ex
             LoggerFactory.getLogger(`${chain?.name ?? 'unknown'}::Tx`).info(message)
         );
     };
-    const calldata = encodeWriteRequestData(request);
+    const calldata = encodeRuntimeWriteRequestData(request as unknown as RuntimeWriteRequest);
 
     let hash: Hash;
     try {
         hash = await sendTypedContractTransaction(context, request, calldata, account, chain);
     } catch (error) {
-        const decoded = decodeContractError(error, request.abi);
-        log(undefined, `Tx submission failed: ${errorMessage(decoded)}`);
-        throw error;
+        if (!(error instanceof TransactionSubmissionError)) throw error;
+        // Describe the failure against the contract ABI, as viem's writeContract does.
+        const contractError = getContractError(error.cause as BaseError, {
+            abi: request.abi,
+            address: request.address,
+            functionName: request.functionName,
+            args: request.args,
+            sender: error.request.from,
+        });
+        log(undefined, `Tx submission failed: ${contractError.shortMessage}`);
+        throw new TransactionSubmissionError(error.request, contractError, { phase: error.phase, hash: error.hash });
     }
 
     log(hash, `Sent tx: ${hash}`);
     safeNotifyLifecycleHook(options.hooks, 'sent', hash, () => options.hooks?.onSent?.({ hash }));
     const receipt = waitForTransactionOutcome(context.publicClient, hash, options);
-    const transactionDiagnostics = runDiagnostics(options, hash, async (scope) => {
-        const description = await parseTransactionDescription(context, request, scope.options, hash);
-        if (!scope.active() || !description) return;
+    const transactionDiagnostics = runDiagnostics(options, hash, async ({ hooks, active }) => {
+        const description = await parseTransactionDescription(context, request, hooks, hash);
+        if (!active() || !description) return;
         log(hash, `Tx ${hash}: ${description}`);
-        safeNotifyLifecycleHook(scope.options.hooks, 'description', hash, () =>
-            options.hooks?.onDescription?.({ hash, description })
-        );
+        safeNotifyLifecycleHook(hooks, 'description', hash, () => hooks.onDescription?.({ hash, description }));
     });
     const receiptDiagnostics = receipt.then(
         (confirmed) => diagnoseReceipt(context, hash, confirmed, request, calldata, account, options),

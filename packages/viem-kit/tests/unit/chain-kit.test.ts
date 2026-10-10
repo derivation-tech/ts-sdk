@@ -128,16 +128,14 @@ describe('ChainKit', () => {
             kit.registerParser(testAddress, mockParser);
             const parser = kit.getParser(testAddress);
 
-            expect(kit.resolveParser(testAddress)?.isDefault).toBe(false);
-            expect(parser?.abi).toEqual(mockParser.abi);
+            expect(parser).toBe(mockParser);
         });
 
         test('should return default parser for unregistered address', () => {
             const testAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Address;
             const parser = kit.getParser(testAddress);
 
-            expect(parser).toBeDefined();
-            expect(kit.resolveParser(testAddress)?.isDefault).toBe(true);
+            expect(parser?.abi).toEqual([]);
         });
 
         test('should auto-create parser when registering ERC20', () => {
@@ -147,7 +145,6 @@ describe('ChainKit', () => {
             const parser = kit.getParser(tokenAddress);
             expect(parser).toBeDefined();
             expect(parser?.abi).toEqual(erc20Abi);
-            expect(kit.resolveParser(tokenAddress)?.isDefault).toBe(false);
         });
 
         test('should skip auto-parser creation when autoParser is false', () => {
@@ -162,9 +159,7 @@ describe('ChainKit', () => {
                 false
             );
 
-            const parser = kit.getParser(testAddress);
-            expect(parser).toBeDefined();
-            expect(kit.resolveParser(testAddress)?.isDefault).toBe(true);
+            expect(kit.getParser(testAddress)?.abi).toEqual([]);
         });
     });
 

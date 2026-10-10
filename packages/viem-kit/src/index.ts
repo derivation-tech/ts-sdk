@@ -6,7 +6,7 @@ export { WRAPPED_NATIVE_TOKENS, getWrappedNativeToken } from './tokens/wrapped';
 export { COMMON_ERC20_TOKENS, getCommonErc20Tokens } from './tokens/erc20';
 export { createDefaultParser } from './parsers/default';
 export { createContractParser } from './parsers/types';
-export { ParserRegistry, createParserRegistry } from './parsers/registry';
+export { ParserRegistry } from './parsers/registry';
 export { LoggerFactory, ConsoleLogger, LogLevel, type BaseLogger } from './utils/logger';
 export { createERC20Parser } from './parsers/erc20';
 export { createWETHParser } from './parsers/weth';
@@ -25,15 +25,15 @@ export {
     type BatchTransactionOptions,
     type BatchTransactionProgress,
     type BatchTransactionResult,
+    type BatchWriteCall,
     type DefinedWriteRequest,
-    type RuntimeWriteRequest,
     type TypedWriteRequest,
     type WriteFunctionName,
     type WriteArgs,
     type TransactionIdentity,
     type TransactionSubmissionPhase,
 } from './utils/tx';
-export { decodeContractError } from './utils/contract-error';
+export { decodeContractError, formatContractError } from './utils/contract-error';
 export * as ERC20 from './contracts/erc20';
 export * as WETH from './contracts/weth';
 export * as Multicall from './contracts/multicall';
@@ -64,7 +64,6 @@ export type {
     ErrorParserMap,
     EventParser,
     EventParserMap,
-    RegisteredParser,
     TransactionParser,
     TransactionParserMap,
 } from './types';

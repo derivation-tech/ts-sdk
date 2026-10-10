@@ -3,7 +3,7 @@ import { erc20Abi, zeroAddress } from 'viem';
 import type { Address } from 'viem';
 import { createDefaultParser } from '../../src/parsers/default';
 import { createERC20Parser } from '../../src/parsers/erc20';
-import { createParserRegistry } from '../../src/parsers/registry';
+import { ParserRegistry } from '../../src/parsers/registry';
 
 const token = {
     symbol: 'USDC',
@@ -13,18 +13,17 @@ const token = {
 };
 
 describe('ParserRegistry', () => {
-    test('resolves registered parsers without exposing unknown', async () => {
-        const registry = createParserRegistry(createDefaultParser(() => 'UNKNOWN'));
+    test('resolves registered parsers by checksummed address', async () => {
+        const registry = new ParserRegistry(createDefaultParser(() => 'UNKNOWN'));
         registry.registerParser(
             token.address,
             createERC20Parser(token, () => 'UNKNOWN')
         );
 
-        const registered = registry.resolveParser(token.address);
-        expect(registered?.address).toBe(token.address);
-        expect(registered?.parser.abi).toBe(erc20Abi);
+        const parser = registry.resolveParser(token.address.toLowerCase() as Address);
+        expect(parser?.abi).toBe(erc20Abi);
 
-        const parsed = await registered?.parser.parseTransaction?.({
+        const parsed = await parser?.parseTransaction?.({
             functionName: 'transfer',
             args: [zeroAddress, 1_000_000n],
         });
@@ -32,15 +31,14 @@ describe('ParserRegistry', () => {
         expect(parsed).toContain('1 USDC');
     });
 
-    test('falls back to default parser with normalized address', async () => {
-        const registry = createParserRegistry(createDefaultParser(() => 'UNKNOWN'));
-        const registered = registry.resolveParser('0x0000000000000000000000000000000000000001');
+    test('falls back to the default parser for unregistered addresses', async () => {
+        const registry = new ParserRegistry(createDefaultParser(() => 'UNKNOWN'));
+        const parser = registry.resolveParser('0x0000000000000000000000000000000000000001');
 
-        expect(registered?.address).toBe('0x0000000000000000000000000000000000000001');
-        expect(registered?.isDefault).toBe(true);
+        expect(parser?.parseEvent).toBeUndefined();
         await expect(
             Promise.resolve(
-                registered?.parser.parseTransaction?.({
+                parser?.parseTransaction?.({
                     functionName: 'transfer',
                     args: [],
                 })

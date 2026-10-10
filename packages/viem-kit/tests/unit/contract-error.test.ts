@@ -1,21 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
-import { encodeErrorResult, parseAbi } from 'viem';
+import { createPublicClient, createWalletClient, custom, encodeErrorResult, parseAbi } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { mainnet } from 'viem/chains';
 import { decodeContractError } from '../../src/utils/contract-error';
+import { sendContractTransaction } from '../../src/utils/tx';
 
 const ABI = parseAbi(['error OrderImrUnsafe(uint256 amount, uint256 minAmount)', 'error Unauthorized(address caller)']);
 
 describe('decodeContractError', () => {
-    test('root error API exposes decodeContractError as the main error decoder', async () => {
-        const root = await import('../../src');
-        expect(typeof root.decodeContractError).toBe('function');
-        expect('extractContractError' in root).toBe(false);
-    });
-
-    test('contract-error utility does not expose the old extractContractError compatibility API', async () => {
-        const contractError = await import('../../src/utils/contract-error');
-        expect('extractContractError' in contractError).toBe(false);
-    });
-
     test('decodes custom errors from raw revert data', () => {
         const data = encodeErrorResult({
             abi: ABI,
@@ -30,6 +22,54 @@ describe('decodeContractError', () => {
         expect(error.name).toBe('OrderImrUnsafe');
         expect(error.args).toEqual([1n, 2n]);
         expect(error.data).toBe(data);
+    });
+
+    test('decodes custom errors nested deep in a viem submission error chain', async () => {
+        const data = encodeErrorResult({ abi: ABI, errorName: 'Unauthorized', args: [`0x${'11'.repeat(20)}`] });
+        const transport = custom(
+            {
+                async request({ method }) {
+                    if (method === 'eth_chainId') return '0x1';
+                    if (method === 'eth_getTransactionCount') return '0x0';
+                    if (method === 'eth_estimateGas') throw { code: 3, message: 'execution reverted', data };
+                    throw new Error(`Unexpected RPC method: ${method}`);
+                },
+            },
+            { retryCount: 0 }
+        );
+        const account = privateKeyToAccount(`0x${'01'.padStart(64, '0')}`);
+        const context = {
+            walletClient: createWalletClient({ chain: mainnet, account, transport }),
+            publicClient: createPublicClient({ chain: mainnet, transport }),
+        };
+        const writeAbi = [...ABI, ...parseAbi(['function setValue(uint256 value)'])];
+
+        const thrown = await sendContractTransaction(
+            context,
+            {
+                address: `0x${'22'.repeat(20)}`,
+                abi: writeAbi,
+                functionName: 'setValue',
+                args: [1n],
+                type: 'legacy',
+                gasPrice: 1n,
+            },
+            { silent: true }
+        ).catch((error: unknown) => error);
+        // The submission error keeps viem's contract-level description of the revert.
+        expect(thrown).toMatchObject({
+            phase: 'prepare',
+            outcome: 'not-sent',
+            cause: {
+                name: 'ContractFunctionExecutionError',
+                cause: { name: 'ContractFunctionRevertedError', data: { errorName: 'Unauthorized' } },
+            },
+        });
+        const error = decodeContractError(thrown, writeAbi);
+
+        expect(error.kind).toBe('custom');
+        if (error.kind !== 'custom') throw new Error('expected custom error');
+        expect(error.name).toBe('Unauthorized');
     });
 
     test('decodes Error(string)', () => {

@@ -57,15 +57,15 @@ export type {
     TransactionParser,
     TransactionParserMap,
 } from './parsers/types';
-export type { ParserResolver, ParserRegistry, RegisteredParser } from './parsers/registry';
+export type { ParserResolver } from './parsers/registry';
 export type {
     BatchTransactionError,
     BatchTransactionPhase,
     BatchTransactionOptions,
     BatchTransactionProgress,
     BatchTransactionResult,
+    BatchWriteCall,
     DefinedWriteRequest,
-    RuntimeWriteRequest,
     SendTransactionOptions,
     SentTransaction,
     TxDiagnosticsResult,

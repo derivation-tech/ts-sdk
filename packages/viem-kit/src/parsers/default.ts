@@ -1,24 +1,10 @@
 import type { Address, Abi } from 'viem';
-import type { DecodedContractError } from '../types';
+import { formatContractError } from '../utils/contract-error';
 import { createContractParser } from './types';
 
 function formatNamedAddress(address: Address, resolveAddressName: (addr: Address) => string): string {
     const name = resolveAddressName(address);
     return name !== 'UNKNOWN' ? `[${name}]${address}` : address;
-}
-
-function formatParserError(error: DecodedContractError): string {
-    switch (error.kind) {
-        case 'custom':
-            return error.name;
-        case 'revertString':
-            return error.reason;
-        case 'panic':
-            return error.code === undefined ? error.message : `Panic(${error.code})`;
-        case 'raw':
-        case 'unknown':
-            return error.message;
-    }
 }
 
 export function createDefaultParser(resolveAddressName: (addr: Address) => string) {
@@ -32,9 +18,6 @@ export function createDefaultParser(resolveAddressName: (addr: Address) => strin
             );
             return `${request.functionName}(${args.join(', ')})`;
         },
-        parseEventFallback(event) {
-            return `${event.eventName}(${JSON.stringify(event.args)})`;
-        },
-        parseErrorFallback: formatParserError,
+        parseErrorFallback: formatContractError,
     });
 }

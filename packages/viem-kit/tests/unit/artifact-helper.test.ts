@@ -2,8 +2,6 @@ import { describe, expect, test } from '@jest/globals';
 import { keccak256, toBytes } from 'viem';
 import { linkBytecode, loadArtifact } from '../../src/node/artifact-helper';
 
-import { loadFoundryArtifact } from '../../src/node/foundry-helper';
-
 const firstLibrary = `0x${'11'.repeat(20)}`;
 const secondLibrary = `0x${'22'.repeat(20)}`;
 
@@ -16,10 +14,7 @@ const artifact = {
     },
 };
 
-describe.each([
-    { name: 'artifact', load: loadArtifact },
-    { name: 'Foundry', load: loadFoundryArtifact },
-])('$name library resolution', ({ load: loadArtifact }) => {
+describe('artifact library resolution', () => {
     test('uses the exact source-qualified library regardless of mapping order', () => {
         for (const mappings of [
             { 'A.sol:Lib': firstLibrary, 'B.sol:Lib': secondLibrary },
@@ -77,7 +72,6 @@ test.each(['0x1', `0x${'11'.repeat(19)}`, `0x${'11'.repeat(21)}`, `0x${'gg'.repe
     'rejects invalid library addresses in every linking entry: %s',
     (address) => {
         expect(() => loadArtifact(artifact, { Lib: address })).toThrow('exactly 20');
-        expect(() => loadFoundryArtifact(artifact, { Lib: address })).toThrow('exactly 20');
         expect(() => linkBytecode('__Lib__', { Lib: address })).toThrow('exactly 20');
         const key = 'B.sol:Lib';
         const placeholder = `__$${keccak256(toBytes(key)).slice(2, 36)}$__`;
