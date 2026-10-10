@@ -20,6 +20,7 @@ export function validateDiagnosticOptions(options: SendTransactionOptions): void
 function gateHooks(hooks: TxLifecycleHooks | undefined, active: () => boolean): TxLifecycleHooks {
     const gated: Record<string, (event: never) => unknown> = {};
     for (const [name, hook] of Object.entries(hooks ?? {})) {
+        if (hook === undefined) continue;
         gated[name] = (event) => (active() ? hook(event) : undefined);
     }
     return gated as TxLifecycleHooks;

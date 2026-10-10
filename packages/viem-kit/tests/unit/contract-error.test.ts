@@ -24,6 +24,14 @@ describe('decodeContractError', () => {
         expect(error.data).toBe(data);
     });
 
+    test('decodes revert data that the RPC wraps in a data object', () => {
+        const data = encodeErrorResult({ abi: ABI, errorName: 'OrderImrUnsafe', args: [1n, 2n] });
+
+        const error = decodeContractError({ cause: { cause: { data: { data } } } }, ABI);
+
+        expect(error).toMatchObject({ kind: 'custom', name: 'OrderImrUnsafe', args: [1n, 2n], data });
+    });
+
     test('decodes custom errors nested deep in a viem submission error chain', async () => {
         const data = encodeErrorResult({ abi: ABI, errorName: 'Unauthorized', args: [`0x${'11'.repeat(20)}`] });
         const transport = custom(

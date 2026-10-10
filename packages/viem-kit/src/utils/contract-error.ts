@@ -80,12 +80,14 @@ function decodeWithAbi(data: Hex, abi?: Abi): DecodedContractError | null {
 export function decodeContractError(error: unknown, abi?: Abi): DecodedContractError {
     const message = messageOf(error);
     const rawData = revertDataOf(error) ?? error;
-    const data = asHex(rawData);
 
     if (isRecord(rawData)) {
         const decoded = fromDecodedObject(rawData, message);
         if (decoded) return decoded;
     }
+
+    // Some RPC providers wrap the revert payload as `{ data: '0x…' }`, which viem also accepts.
+    const data = asHex(rawData) ?? (isRecord(rawData) ? asHex(rawData.data) : undefined);
 
     if (data) {
         const decoded = decodeWithAbi(data, abi);

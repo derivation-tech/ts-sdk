@@ -105,7 +105,7 @@ export async function batchSendLocalTransactions(
             const account = requireLocalAccount(client, index);
             assertRequestAccount(index, account, request.account);
             const { chain } = resolveTxExecutionContext(
-                { publicClient, walletClient: client, chain: publicClient.chain },
+                { publicClient, walletClient: client },
                 request.account,
                 request.chain
             );
@@ -114,7 +114,7 @@ export async function batchSendLocalTransactions(
                 ('chainId' in request && request.chainId !== undefined)
             )
                 throw new Error('Batch nonce and chainId overrides are not supported');
-            return { request, client, account, chain, data: encodeRuntimeWriteRequestData(request) };
+            return { request, client, account, chain, data: encodeRuntimeWriteRequestData(request, client) };
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Invalid batch request';
             throw new BatchTransactionError(message, 'prepare', index, [], { cause: error });

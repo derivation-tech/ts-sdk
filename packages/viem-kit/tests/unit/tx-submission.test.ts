@@ -37,7 +37,11 @@ const request = {
     nonce: 7,
 } as const;
 
-function setup(mode: 'success' | 'prepare' | 'send' | 'wrong-hash' = 'success', chain: Chain = mainnet) {
+function setup(
+    mode: 'success' | 'prepare' | 'send' | 'send-rejected' | 'wrong-hash' = 'success',
+    chain: Chain = mainnet,
+    dataSuffix?: Hex
+) {
     const account = privateKeyToAccount(`0x${'01'.padStart(64, '0')}`);
     const sign = jest.spyOn(account, 'signTransaction');
     const broadcasts: Hex[] = [];
@@ -57,6 +61,7 @@ function setup(mode: 'success' | 'prepare' | 'send' | 'wrong-hash' = 'success', 
                     const raw = (params as [Hex])[0];
                     broadcasts.push(raw);
                     if (mode === 'send') throw new Error('response lost after acceptance');
+                    if (mode === 'send-rejected') throw { code: 4001, message: 'User rejected the request.' };
                     return mode === 'wrong-hash' ? `0x${'ff'.repeat(32)}` : keccak256(raw);
                 }
                 throw new Error(`Unexpected RPC method: ${method}`);
@@ -64,7 +69,7 @@ function setup(mode: 'success' | 'prepare' | 'send' | 'wrong-hash' = 'success', 
         },
         { retryCount: 0 }
     );
-    const walletClient = createWalletClient({ chain, account, transport });
+    const walletClient = createWalletClient({ chain, account, transport, dataSuffix });
     const publicClient = createPublicClient({ chain, transport });
     const wait = jest.spyOn(publicClient, 'waitForTransactionReceipt').mockImplementation(
         async ({ hash }) =>
@@ -85,7 +90,7 @@ function setup(mode: 'success' | 'prepare' | 'send' | 'wrong-hash' = 'success', 
                 type: 'legacy',
             }) satisfies TransactionReceipt
     );
-    return { publicClient, walletClient, account, sign, broadcasts, methods, wait };
+    return { publicClient, walletClient, account, sign, broadcasts, methods, wait, transport };
 }
 
 describe('native viem submission evidence', () => {
@@ -162,6 +167,58 @@ describe('native viem submission evidence', () => {
         expect(context.walletClient.sendTransaction).toBe(sendMethod);
         expect(context.walletClient.prepareTransactionRequest).toBe(prepareMethod);
         expect(context.account.signTransaction).toBe(context.sign);
+    });
+
+    test.each([
+        { name: 'the client default', client: '0xaa', request: undefined, expected: 'aa' },
+        { name: 'a request override', client: '0xaa', request: '0xbb', expected: 'bb' },
+        { name: 'an explicit empty request suffix', client: '0xaa', request: '0x', expected: '' },
+    ] as const)(
+        'appends exactly one data suffix for $name, as viem does',
+        async ({ client, request: suffix, expected }) => {
+            const write = { ...request, dataSuffix: suffix };
+            const single = setup('success', mainnet, client);
+            const sent = await sendContractTransaction(single, write, { silent: true });
+            await sent.receipt;
+            await sent.diagnostics;
+
+            const batch = setup('success', mainnet, client);
+            await batchSendLocalTransactions(batch.publicClient, [
+                { walletClient: batch.walletClient, request: defineWriteRequest({ ...write, nonce: undefined }) },
+            ]);
+
+            const data = `${encodeFunctionData(request)}${expected}`;
+            expect(parseTransaction(single.broadcasts[0]).data).toBe(data);
+            expect(parseTransaction(batch.broadcasts[0]).data).toBe(data);
+        }
+    );
+
+    test('keeps the send phase when a local transaction is rejected after broadcast', async () => {
+        const context = setup('send-rejected');
+        const thrown = await sendContractTransaction(context, request, { silent: true }).catch(
+            (error: unknown) => error
+        );
+        expect(context.broadcasts).toHaveLength(1);
+        expect(thrown).toMatchObject({ phase: 'send', outcome: 'unknown', hash: keccak256(context.broadcasts[0]) });
+    });
+
+    test("signs with the wallet chain's serializer when the public client uses the plain chain", async () => {
+        const serializer = jest.fn(serializeTransaction);
+        const context = setup('send', { ...mainnet, serializers: { transaction: serializer } });
+        const publicClient = createPublicClient({ chain: mainnet, transport: context.transport });
+
+        await expect(
+            sendContractTransaction({ publicClient, walletClient: context.walletClient }, request, { silent: true })
+        ).rejects.toMatchObject({ phase: 'send' });
+        expect(serializer).toHaveBeenCalled();
+        serializer.mockClear();
+
+        await expect(
+            batchSendLocalTransactions(publicClient, [
+                { walletClient: context.walletClient, request: defineWriteRequest({ ...request, nonce: undefined }) },
+            ])
+        ).rejects.toMatchObject({ phase: 'send' });
+        expect(serializer).toHaveBeenCalled();
     });
 
     test('preserves the local account nonce manager during preparation', async () => {

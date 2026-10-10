@@ -26,7 +26,8 @@ export function resolveTxExecutionContext(
         throw new Error('Missing account: pass request.account or configure walletClient.account');
     }
 
-    const chain = requestChain ?? context.chain ?? context.publicClient.chain ?? context.walletClient.chain;
+    // The wallet chain carries the signer's serializers and formatters, so it outranks the read client's chain.
+    const chain = requestChain ?? context.chain ?? context.walletClient.chain ?? context.publicClient.chain;
     assertMatchingChain(chain, context.chain, 'context');
     assertMatchingChain(chain, context.publicClient.chain, 'publicClient');
     assertMatchingChain(chain, context.walletClient.chain, 'walletClient');

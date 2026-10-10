@@ -64,7 +64,7 @@ export async function sendContractTransaction<TAbi extends Abi, TFunctionName ex
             LoggerFactory.getLogger(`${chain?.name ?? 'unknown'}::Tx`).info(message)
         );
     };
-    const calldata = encodeRuntimeWriteRequestData(request as unknown as RuntimeWriteRequest);
+    const calldata = encodeRuntimeWriteRequestData(request as unknown as RuntimeWriteRequest, context.walletClient);
 
     let hash: Hash;
     try {

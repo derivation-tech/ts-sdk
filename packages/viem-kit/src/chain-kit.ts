@@ -112,6 +112,8 @@ export class ChainKit {
      * });
      */
     registerWrappedNativeToken(wrappedNativeToken: Erc20TokenInfo): void {
+        // Copy so kits never share mutable metadata with each other or with the default token tables.
+        wrappedNativeToken = { ...wrappedNativeToken };
         const checksummedAddr = getAddress(wrappedNativeToken.address);
 
         // Register address name
@@ -144,6 +146,8 @@ export class ChainKit {
      * Register ERC20 token + auto-create parser
      */
     registerErc20Token(tokenInfo: Erc20TokenInfo, autoParser = true): void {
+        // Copy so kits never share mutable metadata with each other or with the default token tables.
+        tokenInfo = { ...tokenInfo };
         const checksummedAddr = getAddress(tokenInfo.address);
 
         // Register address name (for symbol lookup)

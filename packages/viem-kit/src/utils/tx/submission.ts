@@ -27,6 +27,8 @@ export async function submitTransaction(
     transaction: SubmissionRequest,
     sendRaw: WalletClient['sendRawTransaction'] = (request) => walletClient.sendRawTransaction(request)
 ): Promise<Hash> {
+    // `data` already carries the effective suffix; an empty suffix stops viem appending client.dataSuffix again.
+    transaction = { ...transaction, dataSuffix: '0x' };
     const { account, chain } = transaction;
     let identity: TransactionIdentity = {
         from: typeof account === 'string' ? account : account.address,
@@ -36,11 +38,12 @@ export async function submitTransaction(
         nonce: transaction.nonce,
         value: transaction.value,
     };
+    // Wallet-controlled preparation/signing/broadcast is opaque to the SDK.
+    const walletControlled = typeof account === 'string' || account.type !== 'local';
     let phase: TransactionSubmissionPhase = 'send';
     let hash: Hash | undefined;
     try {
-        // Wallet-controlled preparation/signing/broadcast is opaque to the SDK.
-        if (typeof account === 'string' || account.type !== 'local') {
+        if (walletControlled) {
             return await walletClient.sendTransaction(transaction);
         }
 
@@ -77,8 +80,9 @@ export async function submitTransaction(
         }));
         return await sendTransaction(tracked, transaction);
     } catch (cause) {
-        // A wallet that refuses the request has not signed it.
-        if (isWalletRejection(cause)) phase = 'sign';
+        // A wallet that refuses the request has not signed it. A local account's rejection after
+        // eth_sendRawTransaction keeps the send phase: the signed transaction may already be broadcast.
+        if (walletControlled && isWalletRejection(cause)) phase = 'sign';
         throw new TransactionSubmissionError(identity, cause, { phase, hash });
     }
 }

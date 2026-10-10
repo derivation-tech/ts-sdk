@@ -23,10 +23,10 @@ const suffix = '0xdeadbeef' as Hex;
 const abi = parseAbi(['function setValue(uint256 value)']);
 const payableAbi = parseAbi(['function deposit() payable']);
 
-function setup(status: 'success' | 'reverted' = 'success', chain: Chain = mainnet) {
+function setup(status: 'success' | 'reverted' = 'success', chain: Chain = mainnet, dataSuffix?: Hex) {
     const transport = custom({ request: async () => undefined });
     const publicClient = createPublicClient({ chain, transport });
-    const walletClient = createWalletClient({ account: sender, chain, transport });
+    const walletClient = createWalletClient({ account: sender, chain, transport, dataSuffix });
     const receipt: TransactionReceipt = {
         transactionHash: hash,
         blockNumber: 10n,
@@ -99,6 +99,43 @@ describe('transaction lifecycle observers', () => {
         const calldata = concatHex([functionData, suffix]);
         expect(sendTransaction).toHaveBeenCalledWith(expect.objectContaining({ to: target, data: calldata }));
         expect(call).toHaveBeenCalledWith(expect.objectContaining({ data: calldata, blockNumber: 10n }));
+    });
+
+    test("replays a reverted request with the wallet client's default suffix", async () => {
+        const { publicClient, walletClient, sendTransaction } = setup('reverted', mainnet, suffix);
+        const call = jest.spyOn(publicClient, 'call').mockRejectedValue(new Error('reverted'));
+
+        const sent = await sendContractTransaction(
+            { publicClient, walletClient, chain: mainnet },
+            { address: target, abi, functionName: 'setValue', args: [1n], account: sender },
+            { silent: true }
+        );
+        await sent.receipt;
+        await sent.diagnostics;
+
+        const calldata = concatHex([encodeFunctionData({ abi, functionName: 'setValue', args: [1n] }), suffix]);
+        expect(sendTransaction).toHaveBeenCalledWith(expect.objectContaining({ data: calldata, dataSuffix: '0x' }));
+        expect(call).toHaveBeenCalledWith(expect.objectContaining({ data: calldata }));
+    });
+
+    test('ignores hooks that are present but undefined', async () => {
+        const { publicClient, walletClient } = setup();
+        const onObserverError = jest.fn<NonNullable<TxLifecycleHooks['onObserverError']>>(() => undefined);
+
+        const sent = await sendContractTransaction(
+            {
+                publicClient,
+                walletClient,
+                chain: mainnet,
+                resolveParser: () => ({ abi, parseTransaction: async () => 'setValue(1)' }),
+            },
+            { address: target, abi, functionName: 'setValue', args: [1n], account: sender },
+            { silent: true, hooks: { onDescription: undefined, onObserverError } }
+        );
+        await sent.receipt;
+
+        await expect(sent.diagnostics).resolves.toEqual({ transaction: 'completed', receipt: 'completed' });
+        expect(onObserverError).not.toHaveBeenCalled();
     });
 
     test('encodes a zero-argument payable request without an args property', async () => {

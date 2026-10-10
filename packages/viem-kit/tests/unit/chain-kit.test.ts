@@ -297,6 +297,27 @@ describe('ChainKit', () => {
         expect(getWrappedNativeToken(mainnet.id)).toBe(builtIn);
     });
 
+    test('owns copies of registered token metadata', () => {
+        const first = new ChainKit(mainnet);
+        const second = new ChainKit(mainnet);
+        const wrapped = first.wrappedNativeTokenInfo!;
+        wrapped.decimals = 6;
+        expect(second.parseErc20Amount('1', wrapped.address)).toBe(10n ** 18n);
+        expect(getWrappedNativeToken(mainnet.id)?.decimals).toBe(18);
+
+        const token = {
+            address: '0x0000000000000000000000000000000000000012' as Address,
+            symbol: 'TKN',
+            name: 'Token',
+            decimals: 6,
+        };
+        first.registerErc20Token(token);
+        second.registerErc20Token(token);
+        token.decimals = 18;
+        first.getErc20TokenInfo('TKN')!.decimals = 8;
+        expect(second.parseErc20Amount('1', 'TKN')).toBe(1_000_000n);
+    });
+
     test('rejects a client configured for a different chain', () => {
         const client = createPublicClient({ chain: sepolia, transport: custom({ request: async () => undefined }) });
         expect(() => new ChainKit(mainnet, { publicClient: client })).toThrow('Chain mismatch');
