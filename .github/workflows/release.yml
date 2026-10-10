@@ -26,14 +26,13 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+          # Writes $RUNNER_TEMP/.npmrc mapping the scope to the registry with ${NODE_AUTH_TOKEN}.
+          registry-url: ${{ secrets.NPM_REGISTRY_URL }}
+          scope: '@derivation-tech'
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
       - name: Verify workspace
         run: pnpm run verify
-      - name: Configure publish registry
-        env:
-          NPM_REGISTRY_URL: ${{ secrets.NPM_REGISTRY_URL }}
-        run: node scripts/write-publish-config.cjs
       - name: Create Release Pull Request or Publish to npm
         id: changesets
         uses: changesets/action@v2
@@ -42,6 +41,5 @@ jobs:
           publish-script: pnpm run release
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
-          PNPM_CONFIG_NPMRC_AUTH_FILE: ${{ runner.temp }}/publish.npmrc
-          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/publish.npmrc
+          PNPM_CONFIG_NPMRC_AUTH_FILE: ${{ runner.temp }}/.npmrc
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

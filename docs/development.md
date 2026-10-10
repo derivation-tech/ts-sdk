@@ -39,7 +39,7 @@ Keep one tool responsible for each job:
 | TypeScript (`tsc`)         | Check source, examples, test fixtures and consumer declaration compatibility        |
 | ESLint + typescript-eslint | Catch code-quality problems, including unhandled and misused Promises in SDK source |
 | Prettier                   | Format files; `eslint-config-prettier` disables conflicting lint rules              |
-| Jest 30                    | Run unit and integration behavior tests                                             |
+| Jest 30                    | Run unit and anvil behavior tests                                                   |
 | tsdown                     | Produce the ESM and CJS bundles                                                     |
 | Changesets                 | Describe release changes and apply package versions                                 |
 
@@ -82,7 +82,7 @@ builds. Package-level `verify` remains standalone; `verify:checks` requires a cu
 | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm -C packages/viem-kit run verify`                                                                  | Lint, format check, source/test/example types, Jest, clean build, NodeNext consumer types, packed consumers, publint and attw |
 | `pnpm -C packages/viem-kit exec jest --config jest.config.cjs --runInBand tests/unit/chain-kit.test.ts` | One existing behavior suite; replace the path for the code being changed                                                      |
-| `pnpm -C packages/viem-kit run verify:types`                                                            | Source, all unit/integration tests, type fixtures and example type checks                                                     |
+| `pnpm -C packages/viem-kit run verify:types`                                                            | Source, all test files, type fixtures and example type checks                                                                 |
 | `pnpm run build`                                                                                        | Build all workspace packages                                                                                                  |
 | `pnpm run lint`                                                                                         | Check code with ESLint                                                                                                        |
 | `pnpm run format:check`                                                                                 | Run the available package format checks                                                                                       |
@@ -93,11 +93,12 @@ Jest APIs and types are imported explicitly from `@jest/globals`; avoid a second
 
 The tests are organized by the contract they verify:
 
-- `tests/unit`: registries, token metadata, parser behavior, artifact linking and signer/path parsing.
-  Run with `pnpm -C packages/viem-kit run test:unit`.
-- `tests/integration`: SDK helpers composed with viem clients, local signing, mocked RPC,
-  transaction lifecycle, deployment, multicall and account registration.
-  Run with `pnpm -C packages/viem-kit run test:integration`.
+- `tests/unit`: registries, parsers, artifact linking, signer parsing, and SDK helpers composed with
+  viem clients over custom (mocked) RPC transports: transaction lifecycle, deployment, multicall and
+  account registration. Run with `pnpm -C packages/viem-kit run test`.
+- `tests/anvil`: deployment, writes, custom-error decoding, mined-revert diagnostics and batch nonces
+  against a local anvil node (`Guarded.sol` holds the test contract source). Requires Foundry's
+  `anvil` on `PATH`. Run with `pnpm -C packages/viem-kit run test:anvil`.
 - `packages/viem-ledger/tests`: Node.js native tests against the built Ledger adapter, including
   path selection, message/EIP-712/transaction signatures, confirmation policies, cancellation,
   serialized session access and connection cleanup. Tests inject a DMK session and mock SDK
@@ -118,7 +119,7 @@ behavior before running them.
 ### Package builds and peer compatibility
 
 `build` removes `dist` before producing shared ESM/CJS chunks and declarations,
-so deleted sources cannot leave stale artifacts. `build:clean` is an explicit clean-build alias.
+so deleted sources cannot leave stale artifacts.
 The `prepack` lifecycle also builds and type-checks before packaging. Consumer checks pack with
 `--offline --ignore-scripts` after this explicit build. publint and attw also skip lifecycle hooks,
 so package validation does not repeat builds. A normal `npm pack` still runs `prepack`.
@@ -245,10 +246,10 @@ Changesets 3 gives peer-dependent packages a patch bump by default. Add an expli
 changeset when the consumer API is incompatible; the current core/Ledger migration already
 marks both packages as major. Private workspace packages are not versioned by default.
 
-Registry selection comes from npm configuration. The release workflow writes a temporary
-scoped `.npmrc` from `NPM_REGISTRY_URL`, uses `NODE_AUTH_TOKEN` for registry authentication,
-and selects that user-level file with `PNPM_CONFIG_NPMRC_AUTH_FILE`. It also sets
-`NPM_CONFIG_USERCONFIG` for npm-compatible tools and passes the GitHub token through
+Registry selection comes from npm configuration. In the release workflow, `actions/setup-node`
+writes a temporary `.npmrc` that maps `@derivation-tech` to `NPM_REGISTRY_URL` and reads
+`NODE_AUTH_TOKEN`; it exports `NPM_CONFIG_USERCONFIG`, and the publish step selects the same file
+for pnpm with `PNPM_CONFIG_NPMRC_AUTH_FILE`. The GitHub token is passed through
 the Action's `github-token` input. Local versioning and
 packing can be rehearsed in a disposable checkout without registry credentials; actual
 publication and GitHub release/PR creation require the configured CI credentials.

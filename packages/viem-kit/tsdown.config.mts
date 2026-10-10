@@ -7,7 +7,9 @@ export default defineConfig({
     target: 'es2022',
     platform: 'neutral',
     deps: { neverBundle: [/^node:/, /^viem(?:\/|$)/, '@derivation-tech/viem-ledger'] },
-    dts: false,
+    // Bundled CJS declarations leak rolldown's namespace helper; per-module output avoids it.
+    unbundle: true,
+    dts: { sourcemap: false },
     clean: true,
     sourcemap: true,
     outputOptions: { sourcemapExcludeSources: true },

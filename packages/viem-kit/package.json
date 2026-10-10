@@ -6,7 +6,7 @@
     "sideEffects": false,
     "main": "dist/index.cjs",
     "module": "dist/index.mjs",
-    "types": "dist/index.d.ts",
+    "types": "dist/index.d.cts",
     "exports": {
         ".": {
             "import": {
@@ -14,7 +14,7 @@
                 "default": "./dist/index.mjs"
             },
             "require": {
-                "types": "./dist/index.d.ts",
+                "types": "./dist/index.d.cts",
                 "default": "./dist/index.cjs"
             },
             "default": "./dist/index.mjs"
@@ -25,7 +25,7 @@
                 "default": "./dist/abis/index.mjs"
             },
             "require": {
-                "types": "./dist/abis/index.d.ts",
+                "types": "./dist/abis/index.d.cts",
                 "default": "./dist/abis/index.cjs"
             },
             "default": "./dist/abis/index.mjs"
@@ -36,7 +36,7 @@
                 "default": "./dist/contracts/index.mjs"
             },
             "require": {
-                "types": "./dist/contracts/index.d.ts",
+                "types": "./dist/contracts/index.d.cts",
                 "default": "./dist/contracts/index.cjs"
             },
             "default": "./dist/contracts/index.mjs"
@@ -47,7 +47,7 @@
                 "default": "./dist/utils/index.mjs"
             },
             "require": {
-                "types": "./dist/utils/index.d.ts",
+                "types": "./dist/utils/index.d.cts",
                 "default": "./dist/utils/index.cjs"
             },
             "default": "./dist/utils/index.mjs"
@@ -58,7 +58,7 @@
                 "default": "./dist/node/index.mjs"
             },
             "require": {
-                "types": "./dist/node/index.d.ts",
+                "types": "./dist/node/index.d.cts",
                 "default": "./dist/node/index.cjs"
             },
             "default": "./dist/node/index.mjs"
@@ -67,16 +67,16 @@
     "typesVersions": {
         "*": {
             "abis": [
-                "dist/abis/index.d.ts"
+                "dist/abis/index.d.cts"
             ],
             "contracts": [
-                "dist/contracts/index.d.ts"
+                "dist/contracts/index.d.cts"
             ],
             "utils": [
-                "dist/utils/index.d.ts"
+                "dist/utils/index.d.cts"
             ],
             "node": [
-                "dist/node/index.d.ts"
+                "dist/node/index.d.cts"
             ]
         }
     },
@@ -87,16 +87,13 @@
     ],
     "scripts": {
         "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-        "build": "tsdown --config tsdown.config.mts && tsc -p tsconfig.types.json && node scripts/create-esm-declarations.mjs",
-        "build:clean": "pnpm run build",
-        "build:bundle": "tsdown --config tsdown.config.mts",
-        "build:types": "tsc -p tsconfig.types.json && node scripts/create-esm-declarations.mjs",
+        "build": "tsdown --config tsdown.config.mts",
         "build:check": "tsc --noEmit -p tsconfig.json",
         "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
         "typecheck:examples": "tsc --noEmit -p tsconfig.examples.json",
         "typecheck:consumer": "tsc --noEmit -p tests/consumer-node-next/tsconfig.json",
         "verify:types": "pnpm run build:check && pnpm run typecheck:test && pnpm run typecheck:examples && pnpm run typecheck:build",
-        "test": "jest --config jest.config.cjs --runInBand",
+        "test": "jest --config jest.config.cjs --runInBand tests/unit",
         "format": "prettier --write \"{src,tests,examples,scripts,docs}/**/*.{ts,cts,mts,js,cjs,mjs,json,md}\" \"*.{ts,cts,mts,js,cjs,mjs,json,md}\"",
         "format:check": "prettier --check \"{src,tests,examples,scripts,docs}/**/*.{ts,cts,mts,js,cjs,mjs,json,md}\" \"*.{ts,cts,mts,js,cjs,mjs,json,md}\"",
         "lint": "eslint . --max-warnings=0",
@@ -105,11 +102,10 @@
         "attw": "npm --ignore-scripts exec -- attw --pack .",
         "verify": "pnpm run lint && pnpm run format:check && pnpm run build && pnpm run verify:checks",
         "pack": "npm pack",
-        "prepack": "pnpm run build:clean && pnpm run build:check",
+        "prepack": "pnpm run build && pnpm run build:check",
         "postpublish": "node ../../scripts/slack-notify.js",
         "verify:consumer": "node scripts/verify-consumer.mjs",
-        "test:unit": "jest --config jest.config.cjs --runInBand tests/unit",
-        "test:integration": "jest --config jest.config.cjs --runInBand tests/integration",
+        "test:anvil": "jest --config jest.config.cjs --runInBand tests/anvil",
         "typecheck:build": "tsc --ignoreConfig --noEmit --module nodenext --target es2022 --skipLibCheck tsdown.config.mts",
         "verify:checks": "pnpm run verify:types && pnpm run test && pnpm run typecheck:consumer && pnpm run verify:consumer && pnpm run publint && pnpm run attw"
     },

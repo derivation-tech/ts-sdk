@@ -2,7 +2,7 @@
 module.exports = {
     testEnvironment: 'node',
     rootDir: '.',
-    testMatch: ['<rootDir>/tests/{unit,integration}/**/*.test.ts'],
+    testMatch: ['<rootDir>/tests/{unit,anvil}/**/*.test.ts'],
     restoreMocks: true,
     collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
     moduleFileExtensions: ['ts', 'js'],

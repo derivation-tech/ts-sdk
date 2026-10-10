@@ -20,41 +20,46 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
-      - name: Locate Node 22 consumer runtime
-        id: node22
-        run: echo "path=$(command -v node)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@v6
-        with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run verify
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.5
+      - run: pnpm -C packages/viem-kit run test:anvil
+
+  # Packed-consumer checks across the supported Node range and the locked/minimum viem peer.
+  compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+        viem: [locked, minimum]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - name: Install minimum supported viem
+        if: matrix.viem == 'minimum'
         shell: bash
         run: |
           for package in viem-kit viem-ledger; do
-            minimum="$(node - "$package" <<'NODE'
-          const range = require(`./packages/${process.argv[2]}/package.json`).peerDependencies.viem;
-          if (!/^\^\d+\.\d+\.\d+$/.test(range)) throw new Error('Expected an exact caret viem peer range');
-          console.log(range.slice(1));
-          NODE
-            )"
-            npm install --prefix "$RUNNER_TEMP/$package-minimum" --ignore-scripts --no-audit --no-fund "viem@$minimum"
+            range="$(jq -r '.peerDependencies.viem' "packages/$package/package.json")"
+            [[ "$range" =~ ^\^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected an exact caret viem peer range: $range"; exit 1; }
+            npm install --prefix "$RUNNER_TEMP/$package" --ignore-scripts --no-audit --no-fund "viem@${range#^}"
           done
-      - name: Verify minimum viem consumer
-        run: pnpm -C packages/viem-kit run verify:consumer "$RUNNER_TEMP/viem-kit-minimum/node_modules/viem"
-      - name: Verify minimum viem Ledger compatibility
-        run: pnpm -C packages/viem-ledger run verify:compatibility "$RUNNER_TEMP/viem-ledger-minimum/node_modules/viem"
-      - name: Verify Node 22 consumers
+      - name: Verify packed consumers
         env:
-          NODE22: ${{ steps.node22.outputs.path }}
+          KIT_VIEM: ${{ matrix.viem == 'minimum' && format('{0}/viem-kit/node_modules/viem', runner.temp) || '' }}
+          LEDGER_VIEM: ${{ matrix.viem == 'minimum' && format('{0}/viem-ledger/node_modules/viem', runner.temp) || '' }}
         run: |
-          "$NODE22" packages/viem-kit/scripts/verify-consumer.mjs
-          "$NODE22" packages/viem-kit/scripts/verify-consumer.mjs "$RUNNER_TEMP/viem-kit-minimum/node_modules/viem"
-      - name: Verify Node 22 Ledger compatibility
-        env:
-          NODE22: ${{ steps.node22.outputs.path }}
-        run: |
-          "$NODE22" packages/viem-ledger/scripts/verify-compatibility.cjs
-          "$NODE22" packages/viem-ledger/scripts/verify-compatibility.cjs "$RUNNER_TEMP/viem-ledger-minimum/node_modules/viem"
+          node packages/viem-kit/scripts/verify-consumer.mjs $KIT_VIEM
+          node packages/viem-ledger/scripts/verify-compatibility.cjs $LEDGER_VIEM

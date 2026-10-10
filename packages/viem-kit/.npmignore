@@ -1,8 +1,0 @@
-# Published content is selected by package.json files.
-# Exclude local artifacts even inside an allowed directory.
-.env
-.env.*
-*.log
-*.tsbuildinfo
-*.tgz
-.DS_Store
