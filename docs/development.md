@@ -188,18 +188,6 @@ It accepts one native `pnpm publish` of an artificial package to check the uploa
 No real registry, credentials or checkout release files are changed. These checks do not
 validate production registry permissions, GitHub release PR creation or hardware behavior.
 
-## Adding a package
-
-```sh
-bash scripts/init.sh package-name
-```
-
-The scaffolder refuses an existing target and creates `src/`, `test/`, a package
-manifest, README and TypeScript configuration links. Fill in the README's purpose
-and public usage, add source and tests, then install workspace dependencies and run
-that package's build and tests. Edit [templates](../templates/) when changing future
-scaffolds; existing packages are not regenerated.
-
 ## Releases
 
 [Changesets configuration](../.changeset/config.json) controls versioning. The workspace

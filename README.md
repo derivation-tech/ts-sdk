@@ -10,7 +10,7 @@ A pnpm workspace for viem application and signer utilities.
 ## Working in this repository
 
 The [development guide](docs/development.md) covers prerequisites, installation,
-validation, package scaffolding and releases. Package manifests and
+validation and releases. Package manifests and
 [pnpm-workspace.yaml](pnpm-workspace.yaml) define scripts and dependency ranges;
 [pnpm-lock.yaml](pnpm-lock.yaml) records the resolved dependency versions.
 

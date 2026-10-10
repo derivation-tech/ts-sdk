@@ -5,7 +5,7 @@ const prettier = require('eslint-config-prettier/flat');
 const globals = require('globals');
 
 module.exports = defineConfig(
-    globalIgnores(['**/dist/**', '**/coverage/**', '.worktrees/**', 'templates/**', '**/*.d.{ts,cts,mts}']),
+    globalIgnores(['**/dist/**', '**/coverage/**', '.worktrees/**', '**/*.d.{ts,cts,mts}']),
     {
         files: ['**/*.{js,cjs,mjs}'],
         extends: [eslint.configs.recommended],
