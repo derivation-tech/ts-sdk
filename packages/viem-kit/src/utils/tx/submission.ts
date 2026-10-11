@@ -13,10 +13,10 @@ type SubmissionRequest = Parameters<WalletClient['sendTransaction']>[0] & {
 function localTransactionHash(serialized: Hex, chain: Chain | undefined): Hash | undefined {
     // An envelope wraps the signed transaction in broadcast bytes whose keccak256 is not the hash.
     if (chain?.serializers?.transactionEnvelope) return undefined;
-    // EIP-2718 defines the hash of legacy (RLP list, first byte >= 0xc0) and 0x01/0x02/0x04 transactions as
-    // keccak256 of the signed bytes, whichever serializer produced them; OP-stack, Celo and zkSync serializers
-    // emit these for ordinary transactions. Other types (an EIP-4844 network wrapper, chain-specific types) may
-    // hash differently.
+    // The hash of a legacy (RLP list, first byte >= 0xc0) or 0x01/0x02/0x04 transaction is keccak256 of its
+    // canonical signed bytes. viem's built-in OP-stack, Celo and zkSync serializers emit that canonical encoding
+    // for these types; a custom serializer that encodes them differently would make this hash disagree with the
+    // RPC result. Other types (an EIP-4844 network wrapper, chain-specific types) may hash differently.
     const type = Number.parseInt(serialized.slice(2, 4), 16);
     return type >= 0xc0 || type === 0x01 || type === 0x02 || type === 0x04 ? keccak256(serialized) : undefined;
 }
