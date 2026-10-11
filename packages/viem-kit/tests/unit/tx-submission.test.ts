@@ -12,11 +12,12 @@ import {
     parseAbi,
     parseTransaction,
     serializeTransaction,
+    toHex,
     toRlp,
 } from 'viem';
 import type { Address, Chain, Hex, TransactionReceipt } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { mainnet } from 'viem/chains';
+import { base, mainnet } from 'viem/chains';
 import { deployBytecode } from '../../src/node';
 import {
     batchSendLocalTransactions,
@@ -51,7 +52,7 @@ function setup(
             async request({ method, params }) {
                 methods.push(method);
                 if (method === 'eth_fillTransaction') throw { code: -32601, message: 'Method not found' };
-                if (method === 'eth_chainId') return '0x1';
+                if (method === 'eth_chainId') return toHex(chain.id);
                 if (method === 'eth_getTransactionCount') return '0x7';
                 if (method === 'eth_estimateGas') {
                     if (mode === 'prepare') throw { code: 3, message: 'execution reverted', data: '0x' };
@@ -233,9 +234,31 @@ describe('native viem submission evidence', () => {
         expect(context.methods).not.toContain('eth_getTransactionCount');
     });
 
-    test('retains a custom serializer without assuming its transaction hash algorithm', async () => {
-        const serializer = jest.fn(serializeTransaction);
-        const context = setup('send', { ...mainnet, serializers: { transaction: serializer } });
+    test.each([
+        { name: 'legacy', write: request },
+        {
+            name: 'EIP-1559',
+            write: { ...request, type: 'eip1559', gasPrice: undefined, maxFeePerGas: 2n, maxPriorityFeePerGas: 1n },
+        },
+    ] as const)('hashes a $name transaction signed with the Base (OP-stack) serializer', async ({ write }) => {
+        const failed = setup('send', base);
+        const thrown = await sendContractTransaction(failed, write, { silent: true }).catch((error: unknown) => error);
+        expect(failed.broadcasts).toHaveLength(1);
+        expect(thrown).toMatchObject({ phase: 'send', outcome: 'unknown', hash: keccak256(failed.broadcasts[0]) });
+        expect(parseTransaction(failed.broadcasts[0]).chainId).toBe(base.id);
+
+        // The RPC returns the same hash, so the local hash must not be reported as a mismatch.
+        const sent = await sendContractTransaction(setup('success', base), write, { silent: true });
+        await sent.receipt;
+        await sent.diagnostics;
+        expect(sent.hash).toBe(keccak256(failed.broadcasts[0]));
+    });
+
+    test('does not assume the hash of a chain-specific transaction type', async () => {
+        const serializer = jest.fn((transaction: Parameters<typeof serializeTransaction>[0], signature?: never) =>
+            concatHex(['0x7b', serializeTransaction(transaction, signature)])
+        );
+        const context = setup('send', { ...mainnet, serializers: { transaction: serializer } } as Chain);
         const result = sendContractTransaction(context, request, { silent: true });
         await expect(result).rejects.toMatchObject({
             phase: 'send',
@@ -244,8 +267,7 @@ describe('native viem submission evidence', () => {
             request: { nonce: 7 },
         });
         expect(serializer).toHaveBeenCalled();
-        expect(context.sign).toHaveBeenCalledTimes(1);
-        expect(context.broadcasts).toHaveLength(1);
+        expect(context.broadcasts[0].startsWith('0x7b')).toBe(true);
     });
 
     test('retains a chain transaction envelope without assuming the broadcast bytes are the hash', async () => {
