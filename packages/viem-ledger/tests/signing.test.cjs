@@ -4,6 +4,8 @@ const { SignerEthBuilder } = require('@ledgerhq/device-signer-kit-ethereum');
 const { DeviceActionStatus: Status } = require('@ledgerhq/device-management-kit');
 const { defer, of, map, Subject, Observable, EMPTY, NEVER } = require('rxjs');
 const {
+    createWalletClient,
+    custom,
     parseSignature,
     parseTransaction,
     toHex,
@@ -12,6 +14,7 @@ const {
     recoverTransactionAddress,
 } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
+const { base } = require('viem/chains');
 const { ledgerToAccount, AddressValidation } = require('../dist');
 
 // Public test key. Mock the SDK/device boundary and independently recover signatures with viem.
@@ -179,6 +182,46 @@ for (const fee of [
         assert.equal(transaction.mock.callCount(), 1);
     });
 }
+
+test('signs through a wallet client whose chain serializer matches the standard encoding', async (t) => {
+    const { session, transaction } = device(t);
+    const account = await ledgerToAccount({ session });
+    // viem hands the chain serializer (Base: OP stack) to account.signTransaction.
+    const client = createWalletClient({
+        account,
+        chain: base,
+        transport: custom({ request: async ({ method }) => (method === 'eth_chainId' ? '0x2105' : null) }),
+    });
+    const serializedTransaction = await client.signTransaction({
+        type: 'eip1559',
+        nonce: 0,
+        gas: 21000n,
+        maxFeePerGas: 10n,
+        maxPriorityFeePerGas: 1n,
+        to: signer.address,
+    });
+    assert.equal(await recoverTransactionAddress({ serializedTransaction }), signer.address);
+    assert.equal(transaction.mock.callCount(), 1);
+});
+
+test('a chain serializer with a different encoding fails before any device action', async (t) => {
+    const { session, transaction, address } = device(t);
+    const account = await ledgerToAccount({ session });
+    const deposit = {
+        type: 'deposit',
+        sourceHash: `0x${'11'.repeat(32)}`,
+        from: signer.address,
+        to: signer.address,
+        mint: 1n,
+        gas: 21000n,
+    };
+    await assert.rejects(
+        account.signTransaction(deposit, { serializer: base.serializers.transaction }),
+        /chain serializer encodes it differently/
+    );
+    assert.equal(transaction.mock.callCount(), 0);
+    assert.equal(address.mock.callCount(), 1);
+});
 
 for (const [name, stream, pattern] of [
     ['stopped', () => of({ status: Status.Stopped }), /stopped/],

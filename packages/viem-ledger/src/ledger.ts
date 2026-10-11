@@ -1,4 +1,12 @@
-import type { Hex, LocalAccount, TransactionSerializable, TypedData, TypedDataDefinition, TypedDataDomain } from 'viem';
+import type {
+    Hex,
+    LocalAccount,
+    SerializeTransactionFn,
+    TransactionSerializable,
+    TypedData,
+    TypedDataDefinition,
+    TypedDataDomain,
+} from 'viem';
 import {
     getTypesForEIP712Domain,
     hexToBytes,
@@ -85,13 +93,22 @@ export async function ledgerToAccount(options: LedgerToAccountOptions): Promise<
     };
     const account = toAccount({
         address,
-        async signTransaction(tx: TransactionSerializable) {
+        async signTransaction(
+            tx: TransactionSerializable,
+            options?: { serializer?: SerializeTransactionFn<TransactionSerializable> }
+        ) {
+            const unsigned = serializeTransaction(tx);
+            // The device signs only the standard Ethereum encoding. viem passes the chain's serializer here; when
+            // it encodes this transaction differently (e.g. an OP-stack deposit), the signature would not match
+            // what the chain accepts, so refuse before any device action.
+            if (options?.serializer && (await options.serializer(tx)) !== unsigned) {
+                throw new Error(
+                    'Ledger cannot sign this transaction: the chain serializer encodes it differently from the standard Ethereum encoding the device signs.'
+                );
+            }
             return inSession(session, async () => {
                 await ensureValidated();
-                const signature = await runAction(
-                    signer.signTransaction(path, hexToBytes(serializeTransaction(tx))),
-                    timeoutMs
-                );
+                const signature = await runAction(signer.signTransaction(path, hexToBytes(unsigned)), timeoutMs);
                 return serializeTransaction(tx, { ...signature, v: BigInt(signature.v) });
             });
         },
