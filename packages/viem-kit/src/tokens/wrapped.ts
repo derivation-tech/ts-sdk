@@ -4,7 +4,6 @@ import type { Erc20TokenInfo } from '../types';
  * Known wrapped native token info per chain
  *
  * Extracted from web3-context/packages/context/src/chain/*.json
- * Covers 30+ chains including mainnet, testnets, and L2s
  */
 // prettier-ignore
 export const WRAPPED_NATIVE_TOKENS: Record<number, Erc20TokenInfo> = {
@@ -39,19 +38,13 @@ export const WRAPPED_NATIVE_TOKENS: Record<number, Erc20TokenInfo> = {
     1030: { address: '0x14b2d3bc65e74dae1030eafd8ac30c533c976a9b', symbol: 'WCFX', name: 'Wrapped CFX', decimals: 18 }, // Conflux
     8217: { address: '0x19aac5f612f524b754ca7e7c41cbfa2e981a4432', symbol: 'WKLAY', name: 'Wrapped KLAY', decimals: 18 }, // Klaytn
     22776: { address: '0x13cb04d4a5dfb6398fc5ab005a6c84337256ee23', symbol: 'WMAPO', name: 'Wrapped MAPO', decimals: 18 }, // MAPO
-    80084: { address: '0x7507c1dc16935B82698e4C63f2746A2fCf994dF8', symbol: 'WBERA', name: 'Wrapped BERA', decimals: 18 }, // Berachain Bartio
 
     // Testnets
-    5: { address: '0x7539a3af6c019b6816eb367cc38eec7d943aa545', symbol: 'WETH', name: 'Wrapped Ether', decimals: 18 }, // Goerli
     11155111: { address: '0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9', symbol: 'WETH', name: 'Wrapped Ether', decimals: 18 }, // Sepolia
     84532: { address: '0x4200000000000000000000000000000000000006', symbol: 'WETH', name: 'Wrapped Ether', decimals: 18 }, // Base Sepolia
     168587773: { address: '0x4200000000000000000000000000000000000023', symbol: 'WETH', name: 'Wrapped Ether', decimals: 18 }, // Blast Sepolia
     10143: { address: '0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541', symbol: 'WMON', name: 'Wrapped MON', decimals: 18 }, // Monad Testnet
-    20250903: { address: '0xd7d13F2D4EBC0E43fa65bB16e831eB2068a2f4ae', symbol: 'WMOCKF', name: 'Wrapped MOCKF', decimals: 18 }, // ABC
     143: { address: '0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A', symbol: 'WMON', name: 'Wrapped MON', decimals: 18 }, // Monad Mainnet
-
-    // Local
-    31337: { address: '0xd723C18b9EbeC382A4cDb22939517ca21729Fb8e', symbol: 'WETH', name: 'Wrapped Ether', decimals: 18 }, // Local
 };
 
 /**

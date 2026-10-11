@@ -4,15 +4,9 @@ import type { Erc20TokenInfo } from '../types';
  * Common ERC20 tokens per chain
  *
  * Extracted from web3-context/packages/context/src/chain/*.json
- * Covers 25+ chains with 150+ tokens total
  */
 // prettier-ignore
 export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
-    // ABC (Chain ID: 20250903)
-    20250903: [
-        { symbol: "USDM", name: "USD Mock Token", address: "0x8da593B1084727DD82212A0b812415851F29cdec", decimals: 6 },
-    ],
-
     // Monad mainnet
     143: [
         { symbol: "AUSD", name: "AUSD", address: "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a", decimals: 6 },
@@ -81,11 +75,6 @@ export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
     // BaseSepolia (Chain ID: 84532)
     84532: [
         { symbol: "USDM", name: "USDM", address: "0xBc97004659b51C325a293386F319e66ACA4561C4", decimals: 18 },
-    ],
-
-    // Berachain Bartio (Chain ID: 80084)
-    80084: [
-        { symbol: "USDM", name: "USD Mock", address: "0x82C353484c0a557aff07A74f0cda13eb7e52DB08", decimals: 6 },
     ],
 
     // Blast (Chain ID: 81457)
@@ -168,13 +157,6 @@ export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
         { symbol: "WETH", name: "Wrapped ETH on xDai", address: "0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1", decimals: 18 },
     ],
 
-    // Goerli (Chain ID: 5)
-    5: [
-        { symbol: "MATIC", name: "Matic Token", address: "0xbf3b5CF32066650Ea0b28277e621Ee3d0b41905A", decimals: 18 },
-        { symbol: "DAI", name: "Dai Stablecoin", address: "0x11fE4B6AE13d2a6055C8D9cF65c55bac32B5d844", decimals: 18 },
-        { symbol: "USDM", name: "USD Mock Token", address: "0x82C353484c0a557aff07A74f0cda13eb7e52DB08", decimals: 6 },
-    ],
-
     // Klaytn (Chain ID: 8217)
     8217: [
         { symbol: "oETH", name: "Orbit Bridge Klaytn Ethereum", address: "0x34d21b1e550d73cee41151c77f3c73359527a396", decimals: 18 },
@@ -197,16 +179,6 @@ export const COMMON_ERC20_TOKENS: Record<number, Erc20TokenInfo[]> = {
         { symbol: "MIM", name: "Magic Internet Money", address: "0xDD3B8084AF79B9BaE3D1b668c0De08CCC2C9429A", decimals: 18 },
         { symbol: "METH", name: "Mock ETH Token", address: "0x038AFb2A9102F31e0CE89db51f92B8c8B184AB85", decimals: 18 },
         { symbol: "USDM", name: "USD Mock Token", address: "0x7a61Fd2092a3933831E826c08f0D12913FEfB96C", decimals: 6 },
-    ],
-
-    // Local (Chain ID: 31337)
-    31337: [
-        { symbol: "USDC", name: "USDC Coin", address: "0x911EB93171EDCBBC0ED8CCc838735b67ec1b2580", decimals: 6 },
-        { symbol: "USDT", name: "Tether USD", address: "0x208B314810a368F978B612b87E6271Ea5ff1cD95", decimals: 18 },
-        { symbol: "DAI", name: "Dai Stable Coin", address: "0x9fdE50e50ffFb0EE02d5398Aa0B0E9d25d64CcAA", decimals: 18 },
-        { symbol: "WBTC", name: "Wrapped BTC", address: "0x15b948eE63563f6AF626a061517e1e531A9D78d0", decimals: 8 },
-        { symbol: "MATIC", name: "Matic Token", address: "0x8D44a26983030e390a3cCf135B270B313AEbb181", decimals: 18 },
-        { symbol: "BNB", name: "BNB Token", address: "0x0a4674bfdD977d7440A371c5E3333d0E99FF69f2", decimals: 18 },
     ],
 
     // Manta (Chain ID: 169)

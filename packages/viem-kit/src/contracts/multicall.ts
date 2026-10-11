@@ -1,104 +1,60 @@
-import { createPublicClient, Address } from 'viem';
+import type { Address, PublicClient } from 'viem';
 import { erc20Abi } from 'viem';
 import { MULTICALL3_ABI } from '../abis';
 
-/**
- * Multicall utility functions for efficient batch queries
- */
-
-/**
- * Query native token balances for multiple addresses using multicall3 with batching
- * @param publicClient - The viem public client
- * @param addresses - Array of addresses to query
- * @param batchSize - Number of addresses to query per batch (default: 500)
- * @returns Array of native token balances (in wei)
- */
-export async function getNativeBalances(
-    publicClient: ReturnType<typeof createPublicClient>,
-    addresses: Address[],
-    batchSize: number = 500
-): Promise<bigint[]> {
-    const results: bigint[] = new Array(addresses.length).fill(0n);
-
-    // Process addresses in batches to avoid gas limits
-    for (let i = 0; i < addresses.length; i += batchSize) {
-        const batch = addresses.slice(i, i + batchSize);
-        const batchIndex = i;
-
-        try {
-            const multicallResults = await publicClient.multicall({
-                contracts: batch.map((addr) => ({
-                    address: publicClient.chain?.contracts?.multicall3?.address as Address,
-                    abi: MULTICALL3_ABI,
-                    functionName: 'getEthBalance',
-                    args: [addr],
-                })),
-            });
-
-            // Store results in the correct positions
-            multicallResults.forEach((result, index) => {
-                results[batchIndex + index] = result.status === 'success' ? (result.result as bigint) : 0n;
-            });
-        } catch (err: any) {
-            console.log(
-                `Warning: Error querying native balances batch ${Math.floor(i / batchSize) + 1}: ${err.message}`
-            );
-            // Set all balances to 0 for this failed batch
-            batch.forEach((_, index) => {
-                results[batchIndex + index] = 0n;
-            });
-        }
+function assertBatchSize(batchSize: number): void {
+    if (!Number.isSafeInteger(batchSize) || batchSize <= 0) {
+        throw new RangeError('batchSize must be a positive safe integer');
     }
+}
 
+/** Query native balances in order. A failed call rejects instead of reporting a zero balance. */
+export async function getNativeBalances(
+    publicClient: PublicClient,
+    addresses: Address[],
+    batchSize = 500
+): Promise<bigint[]> {
+    assertBatchSize(batchSize);
+    if (addresses.length === 0) return [];
+    const multicallAddress = publicClient.chain?.contracts?.multicall3?.address;
+    if (!multicallAddress) throw new Error('Native balance queries require a configured multicall3 address');
+    const results: bigint[] = [];
+    for (let i = 0; i < addresses.length; i += batchSize) {
+        const balances = await publicClient.multicall({
+            contracts: addresses.slice(i, i + batchSize).map((address) => ({
+                address: multicallAddress,
+                abi: MULTICALL3_ABI,
+                functionName: 'getEthBalance' as const,
+                args: [address],
+            })),
+            allowFailure: false,
+        });
+        results.push(...(balances as bigint[]));
+    }
     return results;
 }
 
-/**
- * Query ERC20 token balances for multiple addresses using multicall with batching
- * @param publicClient - The viem public client
- * @param tokenAddress - The ERC20 token contract address
- * @param addresses - Array of addresses to query
- * @param batchSize - Number of addresses to query per batch (default: 500)
- * @returns Array of ERC20 token balances
- */
+/** Query ERC20 balances in order. A failed call rejects instead of reporting a zero balance. */
 export async function getErc20Balances(
-    publicClient: ReturnType<typeof createPublicClient>,
+    publicClient: PublicClient,
     tokenAddress: Address,
     addresses: Address[],
-    batchSize: number = 500
+    batchSize = 500
 ): Promise<bigint[]> {
-    const results: bigint[] = new Array(addresses.length).fill(0n);
-
-    // Process addresses in batches to avoid gas limits
+    assertBatchSize(batchSize);
+    const results: bigint[] = [];
     for (let i = 0; i < addresses.length; i += batchSize) {
-        const batch = addresses.slice(i, i + batchSize);
-        const batchIndex = i;
-
-        try {
-            const multicallResults = await publicClient.multicall({
-                contracts: batch.map((addr) => ({
-                    address: tokenAddress,
-                    abi: erc20Abi,
-                    functionName: 'balanceOf',
-                    args: [addr],
-                })),
-            });
-
-            // Store results in the correct positions
-            multicallResults.forEach((result, index) => {
-                results[batchIndex + index] = result.status === 'success' ? (result.result as bigint) : 0n;
-            });
-        } catch (err: any) {
-            console.log(
-                `Warning: Error querying ERC20 balances batch ${Math.floor(i / batchSize) + 1}: ${err.message}`
-            );
-            // Set all balances to 0 for this failed batch
-            batch.forEach((_, index) => {
-                results[batchIndex + index] = 0n;
-            });
-        }
+        const balances = await publicClient.multicall({
+            contracts: addresses.slice(i, i + batchSize).map((address) => ({
+                address: tokenAddress,
+                abi: erc20Abi,
+                functionName: 'balanceOf' as const,
+                args: [address],
+            })),
+            allowFailure: false,
+        });
+        results.push(...balances);
     }
-
     return results;
 }
 
@@ -111,7 +67,7 @@ export async function getErc20Balances(
  * @returns 2D array of balances [tokenIndex][addressIndex]
  */
 export async function getMultipleErc20Balances(
-    publicClient: ReturnType<typeof createPublicClient>,
+    publicClient: PublicClient,
     tokenAddresses: Address[],
     addresses: Address[],
     batchSize: number = 500
@@ -134,7 +90,7 @@ export async function getMultipleErc20Balances(
  * @returns Object containing native and ERC20 balances
  */
 export async function getAllBalances(
-    publicClient: ReturnType<typeof createPublicClient>,
+    publicClient: PublicClient,
     tokenAddresses: Address[],
     addresses: Address[],
     batchSize: number = 500
@@ -156,10 +112,10 @@ export async function getAllBalances(
 
 /**
  * Batch fetch ERC20 token metadata (symbol, name, decimals) for multiple addresses using multicall.
- * Returns an array aligned with input addresses; null entry if any call fails for that token.
+ * Returns an array aligned with input addresses; null entry when a call fails for that token.
  */
 export async function getErc20TokenInfos(
-    publicClient: ReturnType<typeof createPublicClient>,
+    publicClient: PublicClient,
     tokenAddresses: Address[]
 ): Promise<({ address: Address; symbol: string; name: string; decimals: number } | null)[]> {
     if (tokenAddresses.length === 0) return [];

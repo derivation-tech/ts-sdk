@@ -1,14 +1,27 @@
-import type { Address, Chain, PublicClient, TransactionReceipt, WalletClient } from 'viem';
+import type { Abi, Address, Chain, PublicClient, TransactionReceipt, WalletClient } from 'viem';
 import { createPublicClient, formatUnits, getAddress, http, parseUnits, zeroAddress } from 'viem';
 import { AddressBook } from './utils/address-book';
 import { createERC20Parser } from './parsers/erc20';
 import { createWETHParser } from './parsers/weth';
 import { createDefaultParser } from './parsers/default';
+import { ParserRegistry } from './parsers/registry';
 import { getWrappedNativeToken } from './tokens/wrapped';
 import { getCommonErc20Tokens } from './tokens/erc20';
-import type { Erc20TokenInfo, ContractParser } from './types';
-import type { TxRequest } from './utils/tx';
-import { sendTxWithLog as sendTxWithLogFn } from './utils/tx';
+import type {
+    Erc20TokenInfo,
+    ContractParser,
+    TypedWriteRequest,
+    WriteFunctionName,
+    SendTransactionOptions,
+} from './types';
+import { sendContractTransaction } from './utils/tx';
+
+export type ChainKitOptions = {
+    publicClient?: PublicClient;
+    /** Omit to use built-ins; null disables wrapped-native registration. */
+    wrappedNativeToken?: Erc20TokenInfo | null;
+    addressNames?: Array<{ address: Address; name: string }>;
+};
 
 /**
  * ChainKit - Utilities for a single chain
@@ -21,62 +34,46 @@ export class ChainKit {
 
     public readonly tokens = new Map<string, Erc20TokenInfo>();
 
-    public readonly parsers = new Map<Address, ContractParser>();
-    private defaultParser?: ContractParser;
+    public readonly parserRegistry: ParserRegistry;
 
     public readonly nativeTokenInfo: Erc20TokenInfo;
-    public readonly wrappedNativeTokenInfo: Erc20TokenInfo;
+    private wrappedNativeToken: Erc20TokenInfo | undefined;
 
-    public publicClient: PublicClient;
+    get wrappedNativeTokenInfo(): Erc20TokenInfo | undefined {
+        return this.wrappedNativeToken;
+    }
 
-    constructor(
-        chain: Chain,
-        wrappedNativeTokenInfo?: Erc20TokenInfo | null,
-        addressNames?: Array<{ address: Address; name: string }>
-    ) {
+    public readonly publicClient: PublicClient;
+
+    constructor(chain: Chain, options: ChainKitOptions = {}) {
+        if (options.publicClient?.chain && options.publicClient.chain.id !== chain.id) {
+            throw new Error(
+                `Chain mismatch: publicClient uses ${options.publicClient.chain.id} but kit uses ${chain.id}`
+            );
+        }
         this.chain = chain;
         this.addressBook = new AddressBook();
-        this.publicClient = createPublicClient({ chain, transport: http() });
+        this.publicClient = options.publicClient ?? createPublicClient({ chain, transport: http() });
 
         // Load address names if provided
-        if (addressNames) {
-            this.addressBook.loadAddresses(addressNames);
+        if (options.addressNames) {
+            this.addressBook.loadAddresses(options.addressNames);
         }
 
-        // Set default parser with basic formatting
-        this.defaultParser = createDefaultParser((addr) => this.getAddressName(addr));
+        this.parserRegistry = new ParserRegistry(createDefaultParser((addr) => this.getAddressName(addr)));
 
-        // Initialize native token info
         this.nativeTokenInfo = {
             address: zeroAddress,
             symbol: chain.nativeCurrency.symbol,
             name: chain.nativeCurrency.name,
             decimals: chain.nativeCurrency.decimals,
         };
+        this.tokens.set(zeroAddress, this.nativeTokenInfo);
+        this.addressBook.registerAddressName(zeroAddress, this.nativeTokenInfo.symbol);
 
-        // Auto-register native token
-        this.registerNativeToken();
-
-        // Auto-register wrapped native token
-        // 1. Try from built-in registry
-        let wrappedInfo = getWrappedNativeToken(chain.id);
-
-        // 2. If not in registry, use provided value
-        if (!wrappedInfo && wrappedNativeTokenInfo !== null) {
-            wrappedInfo = wrappedNativeTokenInfo;
-        }
-
-        // 3. Throw error if wrapped token not found
-        if (!wrappedInfo) {
-            throw new Error(
-                `No wrapped native token info found for chain ${chain.id} (${chain.name}). ` +
-                    `Either add it to WRAPPED_NATIVE_TOKENS or pass wrappedNativeTokenInfo to constructor.`
-            );
-        }
-
-        // 4. Set wrapped token info and register it
-        this.wrappedNativeTokenInfo = wrappedInfo;
-        this.registerWrappedNativeToken(wrappedInfo);
+        const wrappedInfo =
+            options.wrappedNativeToken === undefined ? getWrappedNativeToken(chain.id) : options.wrappedNativeToken;
+        if (wrappedInfo) this.registerWrappedNativeToken(wrappedInfo);
 
         // Auto-load common ERC20 tokens for this chain
         const commonTokens = getCommonErc20Tokens(chain.id);
@@ -88,21 +85,6 @@ export class ChainKit {
     // ==========================================
     // TOKEN OPERATIONS
     // ==========================================
-
-    /**
-     * Register native token (ETH, MATIC, etc.)
-     * Internal use only - called in constructor
-     */
-    private registerNativeToken(): void {
-        const nativeToken: Erc20TokenInfo = {
-            symbol: this.chain.nativeCurrency.symbol,
-            name: this.chain.nativeCurrency.name,
-            address: zeroAddress,
-            decimals: this.chain.nativeCurrency.decimals,
-        };
-        this.tokens.set(getAddress(nativeToken.address), nativeToken);
-        this.addressBook.registerAddressName(nativeToken.address, nativeToken.symbol);
-    }
 
     /**
      * Check if address is the native token (0x0000...0000)
@@ -130,6 +112,8 @@ export class ChainKit {
      * });
      */
     registerWrappedNativeToken(wrappedNativeToken: Erc20TokenInfo): void {
+        // Copy so kits never share mutable metadata with each other or with the default token tables.
+        wrappedNativeToken = { ...wrappedNativeToken };
         const checksummedAddr = getAddress(wrappedNativeToken.address);
 
         // Register address name
@@ -141,13 +125,14 @@ export class ChainKit {
         // Create WETH parser (supports deposit/withdraw)
         const wethParser = createWETHParser(wrappedNativeToken, (addr) => this.getAddressName(addr));
         this.registerParser(checksummedAddr, wethParser);
+        this.wrappedNativeToken = wrappedNativeToken;
     }
 
     /**
      * Check if address is the wrapped native token
      */
     isWrappedNativeToken(address: Address): boolean {
-        const wrappedInfo = getWrappedNativeToken(this.chain.id);
+        const wrappedInfo = this.wrappedNativeTokenInfo;
         if (!wrappedInfo) return false;
 
         try {
@@ -161,6 +146,8 @@ export class ChainKit {
      * Register ERC20 token + auto-create parser
      */
     registerErc20Token(tokenInfo: Erc20TokenInfo, autoParser = true): void {
+        // Copy so kits never share mutable metadata with each other or with the default token tables.
+        tokenInfo = { ...tokenInfo };
         const checksummedAddr = getAddress(tokenInfo.address);
 
         // Register address name (for symbol lookup)
@@ -246,21 +233,35 @@ export class ChainKit {
     /**
      * Register contract parser
      */
-    registerParser(address: Address, parser: ContractParser): void {
-        this.parsers.set(getAddress(address), parser);
+    registerParser<TAbi extends Abi>(address: Address, parser: ContractParser<TAbi>): void {
+        this.parserRegistry.registerParser(address, parser);
     }
 
     /**
      * Get parser for contract address (falls back to default parser)
      */
     getParser(address: Address): ContractParser | undefined {
-        return this.parsers.get(getAddress(address)) ?? this.defaultParser;
+        return this.parserRegistry.resolveParser(address);
     }
 
     /**
      * Send a contract transaction with logging using this ChainKit's PublicClient.
      */
-    sendTx(walletClient: WalletClient, req: TxRequest): Promise<TransactionReceipt> {
-        return sendTxWithLogFn(this.publicClient, walletClient, this, req);
+    async sendTx<TAbi extends Abi, TFunctionName extends WriteFunctionName<TAbi>>(
+        walletClient: WalletClient,
+        request: TypedWriteRequest<TAbi, TFunctionName>,
+        options: SendTransactionOptions = {}
+    ): Promise<TransactionReceipt> {
+        const sent = await sendContractTransaction(
+            {
+                publicClient: this.publicClient,
+                walletClient,
+                chain: this.chain,
+                resolveParser: (address) => this.getParser(address),
+            },
+            request,
+            options
+        );
+        return sent.receipt;
     }
 }

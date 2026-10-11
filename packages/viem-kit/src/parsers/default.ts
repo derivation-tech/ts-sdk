@@ -1,42 +1,23 @@
-import type { Address, Abi, ContractFunctionName, ContractFunctionArgs } from 'viem';
-import type { ContractParser } from '../types';
+import type { Address, Abi } from 'viem';
+import { formatContractError } from '../utils/contract-error';
+import { createContractParser } from './types';
 
-/**
- * Create default parser with basic formatting
- * Used as fallback when no specific parser is registered
- * @param resolveAddressName - Function to resolve address to name (e.g., kit.getAddressName)
- */
-export function createDefaultParser(resolveAddressName: (addr: Address) => string): ContractParser<Abi> {
-    return {
+function formatNamedAddress(address: Address, resolveAddressName: (addr: Address) => string): string {
+    const name = resolveAddressName(address);
+    return name !== 'UNKNOWN' ? `[${name}]${address}` : address;
+}
+
+export function createDefaultParser(resolveAddressName: (addr: Address) => string) {
+    return createContractParser({
         abi: [] as Abi,
-
-        async parseTransaction(tx) {
-            const formatValue = (val: any) => {
-                if (typeof val === 'string' && val.startsWith('0x') && val.length === 42) {
-                    const name = resolveAddressName(val as Address);
-                    return name !== 'UNKNOWN' ? `[${name}]${val}` : val;
-                }
-                if (typeof val === 'bigint') {
-                    return val.toString();
-                }
-                return String(val);
-            };
-
-            const argsStr = (tx.args as ContractFunctionArgs<Abi, 'nonpayable' | 'payable', ContractFunctionName<Abi>>)
-                .map(formatValue)
-                .join(', ');
-            return `${tx.functionName}(${argsStr})`;
+        parseTransactionFallback(request) {
+            const args = request.args.map((arg) =>
+                typeof arg === 'string' && arg.startsWith('0x') && arg.length === 42
+                    ? formatNamedAddress(arg as Address, resolveAddressName)
+                    : String(arg)
+            );
+            return `${request.functionName}(${args.join(', ')})`;
         },
-
-        async parseEvent(event) {
-            return `${event.eventName}(...)`;
-        },
-
-        async parseError(error) {
-            if (typeof error === "string") {
-                return error;
-            }
-            return error.name || 'Contract error';
-        },
-    };
+        parseErrorFallback: formatContractError,
+    });
 }

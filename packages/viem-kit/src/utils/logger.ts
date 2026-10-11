@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 // ==========================================
 // LOGGER TYPES
 // ==========================================
@@ -12,10 +10,10 @@ export enum LogLevel {
 }
 
 export interface BaseLogger {
-    debug(...args: any[]): void;
-    info(...args: any[]): void;
-    warn(...args: any[]): void;
-    error(...args: any[]): void;
+    debug(...args: unknown[]): void;
+    info(...args: unknown[]): void;
+    warn(...args: unknown[]): void;
+    error(...args: unknown[]): void;
     setLevel?(level: LogLevel): void;
     setTimestamp?(enable: boolean): void;
 }
@@ -42,27 +40,31 @@ export class ConsoleLogger implements BaseLogger {
         return this.level <= level;
     }
 
-    debug(...args: any[]): void {
+    private getPrefix(): string {
+        return `${this.getTimestamp()}[${this.name}]`;
+    }
+
+    debug(...args: unknown[]): void {
         if (this.shouldLog(LogLevel.Debug)) {
-            console.debug(this.getTimestamp() + chalk.gray(`[${this.name}]`), ...args);
+            console.debug(this.getPrefix(), ...args);
         }
     }
 
-    info(...args: any[]): void {
+    info(...args: unknown[]): void {
         if (this.shouldLog(LogLevel.Info)) {
-            console.info(this.getTimestamp() + chalk.blue(`[${this.name}]`), ...args);
+            console.info(this.getPrefix(), ...args);
         }
     }
 
-    warn(...args: any[]): void {
+    warn(...args: unknown[]): void {
         if (this.shouldLog(LogLevel.Warn)) {
-            console.warn(this.getTimestamp() + chalk.yellow(`[${this.name}]`), ...args);
+            console.warn(this.getPrefix(), ...args);
         }
     }
 
-    error(...args: any[]): void {
+    error(...args: unknown[]): void {
         if (this.shouldLog(LogLevel.Error)) {
-            console.error(this.getTimestamp() + chalk.red(`[${this.name}]`), ...args);
+            console.error(this.getPrefix(), ...args);
         }
     }
 
@@ -80,10 +82,13 @@ export class ConsoleLogger implements BaseLogger {
  */
 export class LoggerFactory {
     private static loggers: Map<string, BaseLogger> = new Map();
+    private static injectedLoggers: Map<string, BaseLogger> = new Map();
     private static defaultLevel: LogLevel = LogLevel.Info;
     private static enableTimestamp: boolean = false;
 
     static getLogger(name: string, level?: LogLevel): BaseLogger {
+        const injected = this.injectedLoggers.get(name);
+        if (injected) return injected;
         const logLevel = level ?? this.defaultLevel;
         const key = `${name}-${logLevel}`;
 
@@ -94,7 +99,7 @@ export class LoggerFactory {
     }
 
     static setLogger(name: string, logger: BaseLogger): void {
-        this.loggers.set(name, logger);
+        this.injectedLoggers.set(name, logger);
     }
 
     static setDefaultLevel(level: LogLevel): void {
@@ -107,5 +112,6 @@ export class LoggerFactory {
 
     static clear(): void {
         this.loggers.clear();
+        this.injectedLoggers.clear();
     }
 }

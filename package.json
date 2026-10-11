@@ -7,61 +7,32 @@
     "license": "MIT",
     "scripts": {
         "preinstall": "node scripts/ensure-pnpm.cjs",
-        "nx": "nx run-many --target=build --all",
-        "test": "nx run-many --target=test --all",
+        "test": "pnpm run build && pnpm -r --if-present run test",
         "deps": "pnpm -r i",
-        "prepare": "husky",
-        "lint": "eslint",
-        "format": "prettier --write packages/**/*.ts apps/**/*.ts",
+        "lint": "eslint . --max-warnings=0",
+        "format": "pnpm -r --if-present run format",
         "clean": "pnpm -r clean",
         "release": "changeset publish",
-        "release:dry": "changeset status"
+        "release:dry": "changeset status",
+        "format:check": "pnpm -r --if-present run format:check",
+        "build": "pnpm -r run build",
+        "verify": "pnpm run lint && pnpm run format:check && pnpm run test:release && pnpm run build && pnpm -r --if-present run verify:checks",
+        "release:version": "changeset version && pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile",
+        "test:release": "node --test scripts/tests/release.test.cjs"
     },
     "devDependencies": {
-        "@changesets/cli": "^2.28.1",
-        "@eslint/js": "^9.9.1",
-        "@nx/eslint": "20.0.6",
-        "@nx/jest": "20.0.6",
-        "@types/jest": "^29.5.12",
-        "eslint": "^9.7.0",
-        "eslint-config-prettier": "^9.1.0",
-        "husky": "^9.1.6",
-        "jest": "^29.7.0",
-        "nx": "20.0.6",
-        "prettier": "^3.3.3",
-        "ts-jest": "^29.2.2",
-        "typescript": "^5.5.3",
-        "typescript-eslint": "^8.3.0"
-    },
-    "jest": {
-        "collectCoverageFrom": [
-            "**/*.(t|j)s"
-        ],
-        "coverageDirectory": "../coverage",
-        "moduleFileExtensions": [
-            "js",
-            "json",
-            "ts"
-        ],
-        "moduleNameMapper": {
-            "^~/(.*)$": "<rootDir>/$1"
-        },
-        "rootDir": "src",
-        "testEnvironment": "node",
-        "testRegex": ".*\\.spec\\.ts$",
-        "transform": {
-            "^.+\\.(t|j)s$": "ts-jest"
-        }
+        "@changesets/cli": "^3.0.3",
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.11.0",
+        "eslint-config-prettier": "^10.1.8",
+        "prettier": "catalog:",
+        "typescript": "catalog:",
+        "typescript-eslint": "^8.70.1",
+        "globals": "^17.12.0"
     },
     "engines": {
-        "node": ">=18",
-        "pnpm": ">=8"
+        "node": "^22.18.0 || ^24.11.0 || >=26",
+        "pnpm": ">=12.5.1 <13"
     },
-    "pnpm": {
-        "peerDependencyRules": {
-            "allowedVersions": {
-                "eslint": "^9.2.0"
-            }
-        }
-    }
+    "packageManager": "pnpm@12.5.1"
 }

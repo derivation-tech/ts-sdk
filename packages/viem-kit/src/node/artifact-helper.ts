@@ -1,0 +1,291 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { keccak256 } from 'viem';
+import type { Abi } from 'viem';
+
+export interface Artifact {
+    abi: Abi;
+    bytecode: string;
+    contractName?: string;
+}
+
+export interface RawArtifact {
+    abi: Abi;
+    bytecode: {
+        object: string;
+        linkReferences: Record<string, Record<string, { start: number; length: number }[]>>;
+    };
+    // Foundry artifact may include contractName
+    contractName?: string;
+}
+
+type JsonInput = string | Record<string, unknown> | readonly unknown[];
+
+type LinkReferences = Record<string, Record<string, { start: number; length: number }[]>>;
+
+type ArtifactRecord = Record<string, unknown> & {
+    abi?: Abi;
+    bytecode?: string | { object?: string; linkReferences?: LinkReferences };
+    deployedBytecode?: { object?: string; linkReferences?: LinkReferences };
+    linkReferences?: LinkReferences;
+    deployedLinkReferences?: LinkReferences;
+    contractName?: string;
+    compilationTarget?: Record<string, unknown>;
+    metadata?: { settings?: { compilationTarget?: Record<string, unknown> } };
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function asArtifactRecord(value: unknown): ArtifactRecord {
+    if (!isRecord(value)) {
+        throw new Error('Artifact JSON must be an object');
+    }
+    return value as ArtifactRecord;
+}
+
+function parseJsonInput(input: JsonInput): unknown {
+    // if input is an object, return directly
+    if (typeof input === 'object' && input !== null) return input;
+
+    // if input is a string, decide whether it's JSON text or a file path
+    if (typeof input === 'string') {
+        const s = input.trim();
+        // quick test for JSON text
+        if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
+            return JSON.parse(s) as unknown;
+        }
+        // otherwise treat as file path
+        return JSON.parse(fs.readFileSync(input, 'utf-8')) as unknown;
+    }
+
+    throw new Error('Unsupported JSON input');
+}
+
+export function loadABI(jsonInput: JsonInput): Abi {
+    const data = parseJsonInput(jsonInput);
+
+    // If the input is an ABI array itself
+    if (Array.isArray(data)) return data as Abi;
+
+    // If the input is an artifact object with an `abi` field
+    if (isRecord(data) && Array.isArray(data.abi)) return data.abi as Abi;
+
+    throw new Error(`Unsupported ABI JSON format: expected ABI array or artifact object with 'abi' field`);
+}
+
+// Load a Foundry-generated artifact JSON file, resolve library link references using the provided map,
+// and return an object with abi, bytecode (with links resolved), and optional contractName.
+// linkReferenceMap maps library names to their deployed addresses (as hex strings).
+
+export function loadArtifact(jsonInput: JsonInput, linkReferenceMap: Record<string, string> = {}): Artifact {
+    const artifact = asArtifactRecord(parseJsonInput(jsonInput));
+
+    // 1) Extract bytecode and structured linkReferences when present.
+    let raw: string | undefined = undefined;
+    let structuredRefs: Record<string, Record<string, { start: number; length: number }[]>> | undefined = undefined;
+    const jsonSourceLabel = typeof jsonInput === 'string' ? jsonInput : '<json-object>';
+
+    // Foundry style
+    if (isRecord(artifact.bytecode) && typeof artifact.bytecode.object === 'string') {
+        raw = artifact.bytecode.object;
+        structuredRefs = artifact.bytecode.linkReferences || {};
+    }
+
+    // Hardhat style (top-level string). Some artifacts may also include top-level linkReferences.
+    if (!raw && typeof artifact.bytecode === 'string' && artifact.bytecode.length > 0) {
+        raw = artifact.bytecode;
+        structuredRefs = artifact.linkReferences || artifact.deployedLinkReferences || undefined;
+    }
+
+    // Deployed bytecode as an alternative
+    if (!raw && isRecord(artifact.deployedBytecode) && typeof artifact.deployedBytecode.object === 'string') {
+        raw = artifact.deployedBytecode.object;
+        structuredRefs = artifact.deployedBytecode.linkReferences || artifact.deployedLinkReferences || undefined;
+    }
+
+    if (!raw) throw new Error(`Artifact at ${jsonSourceLabel} has no bytecode`);
+
+    // normalize
+    const rawNo0x = raw.startsWith('0x') ? raw.slice(2) : raw;
+    let bytecode = rawNo0x;
+
+    // 2) If structured refs exist, apply them using linkReferenceMap.
+    //    linkReferenceMap keys can be 'LibName' or 'path/To/File.sol:LibName'.
+    if (structuredRefs && Object.keys(structuredRefs).length > 0) {
+        for (const fileKey of Object.keys(structuredRefs)) {
+            const libs = structuredRefs[fileKey];
+            for (const libName of Object.keys(libs)) {
+                // Structured references identify the source file; never match a different file by suffix.
+                const qualifiedName = `${fileKey}:${libName}`;
+                const provided = Object.hasOwn(linkReferenceMap, qualifiedName)
+                    ? linkReferenceMap[qualifiedName]
+                    : Object.hasOwn(linkReferenceMap, libName)
+                      ? linkReferenceMap[libName]
+                      : undefined;
+
+                if (!provided) {
+                    throw new Error(`Missing link reference for ${libName}`);
+                }
+
+                const addr = normalizeLibraryAddress(provided);
+
+                // apply all refs for this lib
+                for (const ref of libs[libName]) {
+                    const start = ref.start * 2;
+                    const len = ref.length * 2;
+                    if (
+                        !Number.isSafeInteger(ref.start) ||
+                        !Number.isSafeInteger(ref.length) ||
+                        start < 0 ||
+                        len <= 0 ||
+                        start + len > bytecode.length
+                    ) {
+                        throw new Error(`Link reference out of bounds for ${libName} in ${jsonSourceLabel}`);
+                    }
+                    if (len !== 40)
+                        throw new Error(`Unexpected link reference length for ${libName}: expected 20 bytes`);
+                    bytecode = bytecode.slice(0, start) + addr + bytecode.slice(start + len);
+                }
+            }
+        }
+    } else {
+        // 3) No structured refs: if bytecode contains placeholders, fail.
+        //    Detect common Hardhat placeholders: __$hex$__ or __LibName__
+        // require name-style placeholders to start with a letter to avoid matching numeric/hex fragments
+        const placeholderRegex = /__\$([0-9a-fA-F]+)\$__|__([A-Za-z][A-Za-z0-9_./:-]*?)__/g;
+        const m = placeholderRegex.exec(bytecode);
+        if (m) {
+            throw new Error(`Artifact ${jsonSourceLabel} contains placeholders but no structured linkReferences`);
+        }
+    }
+    // Try several strategies to infer a contract name:
+    // 1) explicit contractName field
+    // 2) foundry's compilationTarget map -> if it contains a single unique value, use that
+    // 3) file basename when jsonInput is a file path
+    let inferredName = artifact.contractName;
+    if (!inferredName) {
+        const compTarget = artifact.metadata?.settings?.compilationTarget || artifact.compilationTarget;
+        if (compTarget && typeof compTarget === 'object') {
+            const vals = Array.from(new Set(Object.values(compTarget)));
+            if (vals.length === 1 && typeof vals[0] === 'string') inferredName = vals[0];
+        }
+    }
+    if (!inferredName) {
+        inferredName =
+            typeof jsonInput === 'string' && fs.existsSync(jsonInput) ? path.basename(jsonInput, '.json') : '<unknown>';
+    }
+    assertHexBytecode(bytecode);
+    return {
+        abi: artifact.abi ?? [],
+        bytecode: `0x${bytecode}`,
+        contractName: inferredName,
+    };
+}
+
+// Link a raw bytecode string using a linkReferenceMap.
+// - bytecodeStr: hex string (with or without 0x) that may contain placeholders
+// - linkReferenceMap: mapping of 'LibName' or 'FilePath.sol:LibName' -> address
+// Behavior:
+//  - If placeholders are LibName style (__LibName__), resolve via LibName or File:Lib keys.
+//  - If placeholders are Hash style (__$hex$__), linkReferenceMap MUST provide File:LibName keys;
+//    this function will compute the hash for each provided File:LibName and use it to match placeholders.
+//  - After linking, ensure no placeholders remain; otherwise throw.
+export function linkBytecode(bytecodeStr: string, linkReferenceMap: Record<string, string> = {}): string {
+    if (!bytecodeStr) throw new Error('bytecode string required');
+    const input = bytecodeStr.trim();
+    const raw = input.startsWith('0x') ? input.slice(2) : input;
+    // Compiler mapping comments are metadata, not deployment bytes.
+    let out = raw.replace(/\/\/[^\r\n]*/g, '').replace(/\s+/g, '');
+
+    // regexes
+    const hashPlaceholderRe = /__\$([0-9a-fA-F]+)\$__/g;
+    // require library-name placeholders to start with a letter (avoid matching long hex segments)
+    const namePlaceholderRe = /__([A-Za-z][A-Za-z0-9_./:-]*?)__/g;
+
+    const hasHash = hashPlaceholderRe.test(out);
+    const hasName = namePlaceholderRe.test(out);
+
+    if (hasName) {
+        // replace __LibName__ occurrences
+        out = out.replace(namePlaceholderRe, (m, name: string) => {
+            // try direct lib name, then file:lib keys
+            let provided = Object.hasOwn(linkReferenceMap, name) ? linkReferenceMap[name] : undefined;
+            if (!provided) {
+                const matches = Object.keys(linkReferenceMap).filter((k) => k.endsWith(`:${name}`));
+                if (matches.length > 1)
+                    throw new Error(`Ambiguous library mapping for '${name}'; use an explicit short-name mapping`);
+                if (matches.length === 1) provided = linkReferenceMap[matches[0]];
+            }
+            if (!provided) throw new Error(`Missing link mapping for library '${name}'`);
+            return normalizeLibraryAddress(provided);
+        });
+    }
+    if (hasHash) {
+        // hash-style: require keys to be File:LibName
+        const fileKeys = Object.keys(linkReferenceMap).filter((k) => k.includes(':'));
+        if (fileKeys.length === 0)
+            throw new Error('Hash-style placeholders detected: linkReferenceMap must use FilePath:LibName keys');
+
+        // compute keccak256(prefix) for each fully-qualified name (fileKey) and map its 34-char prefix
+        const hashMap: Record<string, string> = {}; // 34-char hex prefix -> normalized address
+
+        // Additionally parse inline comment mappings in the bytecode like:
+        //   // __$5a082c16...$__ -> contracts/.../File.sol:Lib
+        // to directly associate placeholder ids with fully-qualified names.
+        const inlineMap: Record<string, string> = {};
+        const commentRe = /\/\/\s*(__\$([0-9a-fA-F]+)\$__)\s*->\s*([^\s]+)/g;
+        let cm: RegExpExecArray | null;
+        while ((cm = commentRe.exec(raw))) {
+            inlineMap[cm[2].toLowerCase()] = cm[3];
+        }
+
+        for (const fk of fileKeys) {
+            const normalized = normalizeLibraryAddress(linkReferenceMap[fk]);
+
+            // Solidity library identifiers use keccak256, not SHA3-256.
+            const prefix = keccak256(new TextEncoder().encode(fk)).slice(2, 36).toLowerCase();
+            hashMap[prefix] = normalized;
+
+            // if inline comment maps exist pointing to this fully-qualified name, add them too
+            // (some artifacts encode the mapping via comments)
+            for (const [ph, fq] of Object.entries(inlineMap)) {
+                if (fq === fk) {
+                    hashMap[ph] = normalized;
+                }
+            }
+        }
+
+        // Replace occurrences
+        out = out.replace(hashPlaceholderRe, (m, hexId: string) => {
+            const key = hexId.toLowerCase();
+            // Solidity placeholders carry exactly the 34-hex-character library identifier.
+            const found = hashMap[key];
+            if (!found) throw new Error(`Unmapped hash placeholder: ${hexId}`);
+            return found;
+        });
+    }
+
+    // final integrity check: ensure no placeholders remain
+    if (/__\$[0-9a-fA-F]+\$__|__[A-Za-z][A-Za-z0-9_./:-]*?__/.test(out)) {
+        throw new Error('Bytecode still contains placeholders after linking');
+    }
+
+    assertHexBytecode(out);
+    return `0x${out}`;
+}
+
+function assertHexBytecode(bytecode: string): void {
+    if (!/^(?:[0-9a-fA-F]{2})+$/.test(bytecode)) {
+        throw new Error('Bytecode must contain a non-empty sequence of hexadecimal bytes');
+    }
+}
+
+function normalizeLibraryAddress(address: string): string {
+    const hex = address.startsWith('0x') ? address.slice(2) : address;
+    if (!/^[0-9a-fA-F]{40}$/.test(hex)) {
+        throw new Error(`Library address must contain exactly 20 hexadecimal bytes: ${address}`);
+    }
+    return hex.toLowerCase();
+}

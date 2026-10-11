@@ -1,38 +1,72 @@
 // Main exports
-export { ChainKit } from './chain-kit';
+export { ChainKit, type ChainKitOptions } from './chain-kit';
 export { ChainKitRegistry } from './chain-kit-registry';
 export { AddressBook } from './utils/address-book';
 export { WRAPPED_NATIVE_TOKENS, getWrappedNativeToken } from './tokens/wrapped';
 export { COMMON_ERC20_TOKENS, getCommonErc20Tokens } from './tokens/erc20';
 export { createDefaultParser } from './parsers/default';
+export { createContractParser } from './parsers/types';
+export { ParserRegistry } from './parsers/registry';
 export { LoggerFactory, ConsoleLogger, LogLevel, type BaseLogger } from './utils/logger';
 export { createERC20Parser } from './parsers/erc20';
 export { createWETHParser } from './parsers/weth';
 export {
-    sendTxWithLog,
-    sendTxSilent,
-    batchSendTxWithLog,
-    batchSendTxSilent,
-    type TxRequest,
-    handleError,
+    BatchTransactionError,
+    TransactionSubmissionError,
+    TransactionReceiptError,
+    TransactionReplacementError,
+    TransactionRevertedError,
+    assertTransactionSuccess,
+    waitForTransactionOutcome,
+    batchSendLocalTransactions,
+    defineWriteRequest,
+    sendContractTransaction,
+    type BatchTransactionPhase,
+    type BatchTransactionOptions,
+    type BatchTransactionProgress,
+    type BatchTransactionResult,
+    type BatchWriteCall,
+    type DefinedWriteRequest,
+    type TypedWriteRequest,
+    type WriteFunctionName,
+    type WriteArgs,
+    type TransactionIdentity,
+    type TransactionSubmissionPhase,
 } from './utils/tx';
-export { getAccount, expandSignerIdPattern } from './utils/account';
-export { extractContractError } from './utils/contract-error';
-export {
-    resolveAddress,
-    resolveAddressSimple,
-    formatResolvedAddress,
-    type ResolvedAddress,
-    type ResolveAddressOptions,
-} from './utils/address-resolver';
-export { abctest } from './chains/abctest';
+export { decodeContractError, formatContractError } from './utils/contract-error';
 export * as ERC20 from './contracts/erc20';
 export * as WETH from './contracts/weth';
 export * as Multicall from './contracts/multicall';
 export { WETH_ABI, MULTICALL3_ABI } from './abis';
 
 // Type exports
-export type { Erc20TokenInfo, ContractParser, ParsedContractError } from './types';
+export type {
+    ContractParser,
+    DecodedContractError,
+    Erc20TokenInfo,
+    ParserResolver,
+    ParseEventInput,
+    ParseTransactionInput,
+    SendTransactionOptions,
+    SentTransaction,
+    TxDiagnosticsResult,
+    TxDiagnosticStatus,
+    TxContext,
+    TxLifecycleHooks,
+    TxObserverErrorEvent,
+    TxObserverPhase,
+    ReceiptWaitOptions,
+    TxReplacementEvent,
+} from './types';
+export type {
+    ContractWriteFunctionName,
+    ErrorParser,
+    ErrorParserMap,
+    EventParser,
+    EventParserMap,
+    TransactionParser,
+    TransactionParserMap,
+} from './types';
 
 // Re-export commonly used viem types
 export type { Address, Hash, Hex, Account, PublicClient, WalletClient, TransactionReceipt } from 'viem';

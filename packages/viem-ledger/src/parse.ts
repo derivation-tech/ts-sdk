@@ -19,16 +19,11 @@ const normalizeFullPath = (path: string): string => {
 const parseFullPath = (path: string): ParsedLedgerPath => {
     const normalized = normalizeFullPath(path);
     const parts = normalized.split('/');
-    // BIP44 path format: m / 44' / 60' / {account_index}' / 0 / 0
-    // Extract the account index (4th part, index 3)
-    let index = 0;
-    if (parts.length >= 4) {
-        const accountPart = parts[3] || "0'";
-        const accountIndex = Number(accountPart.replace(/'/g, ''));
-        if (Number.isFinite(accountIndex) && accountIndex >= 0) {
-            index = accountIndex;
-        }
+    if (parts.length < 2) throw new Error(`Invalid Ledger path: ${path}`);
+    for (const part of parts.slice(1)) {
+        parseIndex(part.endsWith("'") ? part.slice(0, -1) : part);
     }
+    const index = parts[3] ? parseIndex(parts[3].replace(/'$/, '')) : 0;
     return {
         path: normalized,
         basePath: parts.slice(0, 3).join('/'),
@@ -38,8 +33,9 @@ const parseFullPath = (path: string): ParsedLedgerPath => {
 };
 
 export function parseLedgerPath(input: string, env: NodeJS.ProcessEnv = process.env): ParsedLedgerPath {
+    input = input.trim();
     const lowered = input.toLowerCase();
-    if (!lowered.startsWith(LEDGER_PREFIX)) {
+    if (lowered !== LEDGER_PREFIX && !lowered.startsWith(`${LEDGER_PREFIX}:`)) {
         throw new Error(`Invalid ledger signerId: ${input}`);
     }
     const raw = input.slice(LEDGER_PREFIX.length);
@@ -47,13 +43,12 @@ export function parseLedgerPath(input: string, env: NodeJS.ProcessEnv = process.
 
     const envBase = env[LEDGER_PATH_ENV];
     const envIndexRaw = env[LEDGER_INDEX_ENV];
-    const envIndex = envIndexRaw !== undefined && envIndexRaw !== '' ? Number(envIndexRaw) : 0;
-    const resolvedEnvIndex = Number.isFinite(envIndex) && envIndex >= 0 ? envIndex : 0;
 
     // No suffix provided: use env variables or default
     if (!suffix) {
         // LEDGER_INDEX takes precedence over LEDGER_PATH
         if (envIndexRaw !== undefined && envIndexRaw !== '') {
+            const resolvedEnvIndex = parseIndex(envIndexRaw);
             const path = `${DEFAULT_BASE_PATH}/${resolvedEnvIndex}'/0/0`;
             return { path, basePath: DEFAULT_BASE_PATH, index: resolvedEnvIndex, raw: path };
         }
@@ -70,10 +65,15 @@ export function parseLedgerPath(input: string, env: NodeJS.ProcessEnv = process.
     }
 
     // Numeric index (account_index)
-    const parsed = Number(suffix);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-        throw new Error(`Invalid ledger index in signerId '${input}'`);
-    }
+    const parsed = parseIndex(suffix);
     const path = `${DEFAULT_BASE_PATH}/${parsed}'/0/0`;
     return { path, basePath: DEFAULT_BASE_PATH, index: parsed, raw: path };
+}
+
+function parseIndex(input: string): number {
+    const index = Number(input);
+    if (!/^\d+$/.test(input) || !Number.isSafeInteger(index) || index > 0x7fffffff) {
+        throw new Error(`Invalid Ledger index: ${input}`);
+    }
+    return index;
 }

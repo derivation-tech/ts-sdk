@@ -1,10 +1,11 @@
 {
     "extends": "../../tsconfig.json",
     "compilerOptions": {
-        "baseUrl": "./",
         "rootDir": "./src",
         "outDir": "./dist",
-        "declarationDir": "./dist"
+        "declarationDir": "./dist",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext"
     },
     "include": ["./src/**/*.ts"],
     "exclude": ["node_modules", "dist"]

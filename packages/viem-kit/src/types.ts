@@ -1,13 +1,4 @@
-import type {
-    Address,
-    Abi,
-    ContractFunctionName,
-    ContractFunctionArgs,
-    ContractEventName,
-    ContractEventArgs,
-    ContractErrorName,
-    ContractErrorArgs,
-} from 'viem';
+import type { Address, Abi, Hex } from 'viem';
 
 // ==========================================
 // CORE TYPES
@@ -20,30 +11,73 @@ export interface Erc20TokenInfo {
     decimals: number;
 }
 
-// ==========================================
-// CONTRACT PARSER TYPES
-// ==========================================
+export type MaybePromise<T> = T | Promise<T>;
+export type ContractErrorAbiItem = Extract<Abi[number], { type: 'error' }>;
 
-export interface ContractParser<TAbi extends Abi = Abi> {
-    abi: TAbi; // ABI for event/error decoding
+export type DecodedContractError =
+    | {
+          kind: 'custom';
+          name: string;
+          args: readonly unknown[];
+          abiItem?: ContractErrorAbiItem;
+          data?: Hex;
+          message: string;
+      }
+    | {
+          kind: 'revertString';
+          reason: string;
+          data?: Hex;
+          message: string;
+      }
+    | {
+          kind: 'panic';
+          code?: bigint;
+          data?: Hex;
+          message: string;
+      }
+    | {
+          kind: 'raw';
+          data: Hex;
+          message: string;
+      }
+    | {
+          kind: 'unknown';
+          message: string;
+      };
 
-    // Optional custom formatters with proper viem types
-    parseTransaction?: <TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>>(tx: {
-        functionName: TFunctionName;
-        args: ContractFunctionArgs<TAbi, 'nonpayable' | 'payable', TFunctionName>;
-    }) => Promise<string>;
-
-    parseEvent?: <TEventName extends ContractEventName<TAbi> = ContractEventName<TAbi>>(event: {
-        eventName: TEventName;
-        args: ContractEventArgs<TAbi, TEventName>;
-    }) => Promise<string>;
-
-    parseError?: <TErrorName extends ContractErrorName<TAbi> = ContractErrorName<TAbi>>(error: ParsedContractError | string) => Promise<string>;
-}
-
-// Structured parsed error returned by formatters or parsers
-export type ParsedContractError = {
-    name?: ContractErrorName<Abi>;
-    signature?: string;
-    args?: ContractErrorArgs<Abi, ContractErrorName<Abi>>;
-};
+export type {
+    ContractParser,
+    ContractWriteFunctionName,
+    ErrorParser,
+    ErrorParserMap,
+    EventParser,
+    EventParserMap,
+    ParseEventInput,
+    ParseTransactionInput,
+    TransactionParser,
+    TransactionParserMap,
+} from './parsers/types';
+export type { ParserResolver } from './parsers/registry';
+export type {
+    BatchTransactionError,
+    BatchTransactionPhase,
+    BatchTransactionOptions,
+    BatchTransactionProgress,
+    BatchTransactionResult,
+    BatchWriteCall,
+    DefinedWriteRequest,
+    SendTransactionOptions,
+    SentTransaction,
+    TxDiagnosticsResult,
+    TxDiagnosticStatus,
+    TxContext,
+    TxLifecycleHooks,
+    TxObserverErrorEvent,
+    TxObserverPhase,
+    ReceiptWaitOptions,
+    TxReplacementEvent,
+    TransactionSubmissionPhase,
+    TypedWriteRequest,
+    WriteArgs,
+    WriteFunctionName,
+} from './utils/tx/types';

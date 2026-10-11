@@ -1,119 +1,137 @@
 # @derivation-tech/viem-ledger
 
-Minimal Ledger helpers for viem, following ethers-ledger conventions:
+Ledger-backed viem local accounts for Node.js applications. The account supports
+transaction, personal-message and EIP-712 signing through Ledger's Device Management
+Kit, Ethereum Signer Kit and Node HID transport.
 
-- `ledgerToAccount({ signerId | path | index })` → `Account<'ledger'>`
-- Built-in path parsing using standard BIP44 format: `m/44'/60'/{account_index}'/0/0`
-- Env overrides: `LEDGER_PATH` (full path) or `LEDGER_INDEX` (account index, default `0`)
-- Address validation modes: `never | initializationOnly | firstTransactionPerAddress (default) | everyTransaction`
+## Installation and account creation
 
-Features:
-- Transport/Eth singleton with retry on `TransportLocked`
-- Transaction resolution (`externalPlugins` + `erc20`) for proper on-device prompts
-- EIP-712 signing support
-- Basic app checks (warn if not on Ethereum app, or arbitrary data disabled)
+```sh
+pnpm add @derivation-tech/viem-ledger viem
+```
 
-Usage:
+Use Node.js 22 or newer with USB/HID access. Unlock the device and open the Ethereum
+app. Calling `ledgerToAccount` opens the device connection and reads the account;
+creating a wallet client alone does not broadcast a transaction.
 
 ```ts
-import { ledgerToAccount } from '@derivation-tech/viem-ledger';
+import { ledgerToAccount, disconnectLedger } from '@derivation-tech/viem-ledger';
 import { createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
 
-const account = await ledgerToAccount({ signerId: 'ledger:0' });
-const walletClient = createWalletClient({ account, chain: base, transport: http() });
+export async function readLedgerAddress(rpcUrl: string) {
+    try {
+        const account = await ledgerToAccount({ signerId: 'ledger:0' });
+        const wallet = createWalletClient({ account, chain: base, transport: http(rpcUrl) });
+        return await wallet.getAddresses();
+    } finally {
+        await disconnectLedger();
+    }
+}
 ```
 
-Notes:
-- Node 18+ and `@ledgerhq/hw-transport-node-hid` require USB/HID access.
-- Keep your Ledger on and open the Ethereum app. Contract data should be enabled for DeFi/ERC20.
+## Derivation paths
 
-## Path Format (BIP44)
+The default path is `m/44'/60'/{index}'/0/0`. An index selects the hardened account
+component: index 0 is `m/44'/60'/0'/0/0`; index 5 is `m/44'/60'/5'/0/0`.
 
-The derivation path follows the BIP44 standard for Ethereum, using **account-based indexing**:
+| Input to `ledgerToAccount`                   | Selection                                                 |
+| -------------------------------------------- | --------------------------------------------------------- |
+| `{ index: 5 }` or `{ signerId: 'ledger:5' }` | Default base path with account index 5                    |
+| `{ path: "m/44'/60'/3'/0/0" }`               | Explicit full path                                        |
+| `{ signerId: "ledger:m/44'/60'/3'/0/0" }`    | Full path carried in the signer ID                        |
+| `{ signerId: 'ledger' }`                     | Environment selection described below                     |
+| `{}`                                         | Default account 0; does not consult environment variables |
 
+For non-default derivations, pass a full `path` or full-path `signerId`.
+`basePath` accepts only the default Ethereum base (`m/44'/60'`). Supply one
+selection form per call: `ledgerToAccount` prioritizes an explicit `path`, whereas
+the standalone `deriveLedgerPath` utility prioritizes `signerId` if both are given.
+`parseLedgerPath` parses a signer ID without opening a device.
+
+### Environment selection
+
+`LEDGER_INDEX` and `LEDGER_PATH` apply to a bare `ledger` or `ledger:` signer ID.
+Explicit indices and full paths take precedence over the environment.
+
+1. A non-empty `LEDGER_INDEX` selects the default base path and that account index.
+   Invalid values throw instead of selecting another account. Indices and full-path
+   components must be decimal integers between 0 and 2147483647.
+2. Otherwise, a non-empty `LEDGER_PATH` supplies the full path.
+3. Otherwise, the account index is 0.
+
+```sh
+export LEDGER_INDEX=3
+# Or, with LEDGER_INDEX unset:
+export LEDGER_PATH="m/44'/60'/5'/0/0"
 ```
-m / 44' / 60' / {account_index}' / 0 / 0
-│   │     │     │                  │   └─ Address index (always 0)
-│   │     │     │                  └───── Change (always 0 for Ethereum)
-│   │     │     └────────────────────── Account index (incremented for multiple accounts)
-│   │     └──────────────────────────── Coin type (60 = Ethereum)
-│   └────────────────────────────────── Purpose (44 = BIP44)
-└────────────────────────────────────── Master key
-```
 
-**This matches the behavior of MetaMask, Ledger Live, and web3-context's LedgerSignerModule**, where creating multiple accounts increments the `account_index`, not the `address_index`.
+## Address confirmation and signing
 
-### Why account-based indexing?
+Pass an `AddressValidation` enum value as `addressValidation`:
 
-Most wallets (MetaMask, Ledger Live) use the account level for creating multiple wallets:
-- Account 0: `m/44'/60'/0'/0/0` (default)
-- Account 1: `m/44'/60'/1'/0/0` (second account)
-- Account 2: `m/44'/60'/2'/0/0` (third account)
+| Policy                                 | Address confirmation                                       |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `never`                                | No additional address-display confirmation                 |
+| `initializationOnly`                   | Confirm the address when creating the account              |
+| `firstTransactionPerAddress` (default) | Confirm before the first signing operation on this account |
+| `everyTransaction`                     | Confirm before every signing operation                     |
 
-This ensures backward compatibility with existing configurations.
+The signing-operation policies also apply to personal-message and typed-data
+signing. They control address display; they do not remove the device's signing
+confirmation. Reuse the returned account to retain its validation state; account
+objects are no longer cached globally. The default HID session is shared. Signing
+operations on the same session are serialized, including address confirmation.
+A changed address fails before signing.
 
-## Usage Examples
+Each SDK action has a 120-second deadline, configurable with `timeoutMs`. Pending
+status updates do not extend it. A timeout, stop, rejection or incomplete stream
+rejects the call and cancels the action; the adapter never retries a signature or
+retries with reduced signing metadata. Transaction context resolution and device
+prompts are managed by Ledger's SDK. Review the actual device prompt before approving.
 
-### Using account index (recommended)
+EIP-712 signing now sends the full domain, types and message to the device SDK;
+hash-only signing is removed. Message bigint values are preserved. The SDK's domain
+API requires a numeric chain ID, so chain IDs beyond JavaScript's safe integer range
+are rejected instead of rounded. An optional caller-owned `originToken` is forwarded
+to Ledger's default context module. Clear-signing features depend on Ledger services,
+the token, device firmware and Ethereum app support.
+
+## Connection ownership and migration
+
+This release replaces the legacy `@ledgerhq/hw-app-eth` and `hw-transport-*` packages.
+The old `transport` option is removed. Existing `signerId`, `path`, `index` and address
+validation options remain supported. The returned object remains a viem local account.
+
+Without `session`, discovery selects the first available USB Ledger and has a
+10-second discovery deadline (unavailable devices may fail sooner). Call and await `disconnectLedger()` when finished, before
+opening another default connection. It waits for queued work and closes only the
+helper-owned connection. After unplugging or switching devices, disconnect and create
+a new account; old accounts do not silently switch devices.
+
+Applications that already manage device selection can supply a connected DMK session:
+
 ```ts
-// m/44'/60'/0'/0/0 (Account 0)
-await ledgerToAccount({ signerId: 'ledger:0' });
-await ledgerToAccount({ index: 0 });
-
-// m/44'/60'/5'/0/0 (Account 5)
-await ledgerToAccount({ signerId: 'ledger:5' });
-await ledgerToAccount({ index: 5 });
+const account = await ledgerToAccount({
+    session: { dmk, sessionId },
+    signerId: 'ledger:0',
+    originToken,
+});
 ```
 
-### Using explicit full path
-```ts
-// Custom full path (account 3)
-await ledgerToAccount({ signerId: 'ledger:m/44\'/60\'/3\'/0/0' });
-await ledgerToAccount({ path: 'm/44\'/60\'/3\'/0/0' });
+Here `dmk`, `sessionId` and `originToken` belong to the application. The application
+must disconnect its session and close its DMK instance; `disconnectLedger()` does
+not close injected sessions. Compile consumers with a modern module resolution mode
+such as `NodeNext` or `bundler` to resolve the SDK's package exports.
 
-// Custom full path with different address_index
-await ledgerToAccount({ path: 'm/44\'/60\'/0\'/0/5' });
-```
+Automated tests mock SDK/device actions and independently verify signatures with
+viem. Real-device acceptance remains necessary for address confirmation, message and
+EIP-712 prompts, transaction signing, rejection and unplug/reconnect behavior. Tests
+do not broadcast transactions or prove hardware compatibility.
 
-### Custom derivations
-- Base path is fixed to `m/44'/60'` (ethers-ledger style). If you need a non-standard path (different coin/account/change), pass the full path via `path` or `signerId: 'ledger:m/.../0/0'`.
+## Multiple accounts
 
-## Environment Variables
-
-### LEDGER_INDEX (account index)
-
-Sets the default account index:
-
-```bash
-# Use account 3 by default
-LEDGER_INDEX=3  # → m/44'/60'/3'/0/0
-```
-
-### LEDGER_PATH (full path)
-
-Sets the complete derivation path:
-
-```bash
-# Use specific full path
-LEDGER_PATH="m/44'/60'/5'/0/0"  # → m/44'/60'/5'/0/0
-```
-
-### Precedence
-
-- `LEDGER_INDEX` takes precedence over `LEDGER_PATH`
-- Only `LEDGER_INDEX=5` set → uses `m/44'/60'/5'/0/0`
-- Only `LEDGER_PATH=m/44'/60'/10'/0/0` set → uses that path as-is
-- Both set → `LEDGER_INDEX` wins
-
-## Batch Usage
-
-`ledgerToAccount` accepts a single `signerId`/`path`/`index` per call. If you need range expansion (e.g. `ledger:0-2`), expand it in your app (or use `expandSignerIdPattern` from `@derivation-tech/viem-kit`) and call `ledgerToAccount` for each entry.
-
-## Migration Notes
-
-If migrating from ethers-ledger or web3-context:
-- ✅ `ledger:0` still maps to the same address (`m/44'/60'/0'/0/0`)
-- ✅ `ledger:1` still maps to the same address (`m/44'/60'/1'/0/0`)
-- ✅ `LEDGER_INDEX=N` behavior is preserved
-- ✅ No breaking changes for existing configurations
+`ledgerToAccount` resolves one account per call. Expand ranges in the application,
+or import `expandSignerIdPattern` from `@derivation-tech/viem-kit/node` when using
+viem-kit. Range expansion does not coordinate nonces or device access across
+independent applications.

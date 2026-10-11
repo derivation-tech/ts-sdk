@@ -18,38 +18,28 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v6
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6.1.0
         with:
-          version: 10
           run_install: false
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
-      - name: Creating .npmrc
-        run: |
-          REGISTRY_URL="${{ secrets.NPM_REGISTRY_URL }}"
-          # Extract hostname from registry URL for auth token key
-          # npm/pnpm auth token key format is //hostname/:_authToken
-          # This works for both simple domains and URLs with paths (e.g., Nexus)
-          # Examples:
-          #   https://registry.example.com -> registry.example.com
-          #   https://nexus.example.com/repository/npm/ -> nexus.example.com
-          REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -E 's|^https?://||' | sed -E 's|/.*||')
-          cat << EOF > "$HOME/.npmrc"
-          @derivation-tech:registry=$REGISTRY_URL
-          //$REGISTRY_HOST/:_authToken=${{ secrets.NPM_TOKEN }}
-          EOF
+          # Writes $RUNNER_TEMP/.npmrc mapping the scope to the registry with ${NODE_AUTH_TOKEN}.
+          registry-url: ${{ secrets.NPM_REGISTRY_URL }}
+          scope: '@derivation-tech'
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build
-        run: pnpm run nx
+      - name: Verify workspace
+        run: pnpm run verify
       - name: Create Release Pull Request or Publish to npm
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          version: pnpm changeset version
-          publish: pnpm changeset publish
+          version-script: pnpm run release:version
+          publish-script: pnpm run release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PNPM_CONFIG_NPMRC_AUTH_FILE: ${{ runner.temp }}/.npmrc
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
